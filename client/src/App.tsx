@@ -9,6 +9,7 @@ import CourseBuilder from "@/pages/course-builder";
 import Discussions from "@/pages/discussions";
 import Assignments from "@/pages/assignments";
 import Analytics from "@/pages/analytics";
+import Settings from "@/pages/settings";
 
 // Create the QueryClient
 const queryClient = new QueryClient({
@@ -40,6 +41,7 @@ function Router() {
           <Route path="/discussions" component={Discussions} />
           <Route path="/assignments" component={Assignments} />
           <Route path="/analytics" component={Analytics} />
+          <Route path="/settings" component={Settings} />
         </>
       )}
       <Route component={NotFound} />

@@ -47,6 +47,11 @@ export default function Landing() {
             <Button 
               size="lg" 
               variant="outline" 
+              onClick={() => {
+                document.getElementById('features-section')?.scrollIntoView({ 
+                  behavior: 'smooth' 
+                });
+              }}
               className="px-8 py-3 text-lg border-slate-300 hover:bg-slate-50"
             >
               Learn More
@@ -56,7 +61,7 @@ export default function Landing() {
       </section>
 
       {/* Features Section */}
-      <section className="py-16 bg-white">
+      <section id="features-section" className="py-16 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-3xl font-bold text-slate-800 mb-4">
@@ -69,7 +74,8 @@ export default function Landing() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            <Card className="hover:shadow-lg transition-shadow border-slate-200">
+            <Card className="hover:shadow-lg transition-shadow border-slate-200 cursor-pointer" 
+                  onClick={() => window.location.href = "/api/login"}>
               <CardHeader>
                 <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-4">
                   <BookOpen className="h-6 w-6 text-blue-600" />
@@ -81,7 +87,8 @@ export default function Landing() {
               </CardHeader>
             </Card>
 
-            <Card className="hover:shadow-lg transition-shadow border-slate-200">
+            <Card className="hover:shadow-lg transition-shadow border-slate-200 cursor-pointer"
+                  onClick={() => window.location.href = "/api/login"}>
               <CardHeader>
                 <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mb-4">
                   <Users className="h-6 w-6 text-green-600" />
@@ -93,7 +100,8 @@ export default function Landing() {
               </CardHeader>
             </Card>
 
-            <Card className="hover:shadow-lg transition-shadow border-slate-200">
+            <Card className="hover:shadow-lg transition-shadow border-slate-200 cursor-pointer"
+                  onClick={() => window.location.href = "/api/login"}>
               <CardHeader>
                 <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mb-4">
                   <BarChart3 className="h-6 w-6 text-purple-600" />
@@ -105,7 +113,8 @@ export default function Landing() {
               </CardHeader>
             </Card>
 
-            <Card className="hover:shadow-lg transition-shadow border-slate-200">
+            <Card className="hover:shadow-lg transition-shadow border-slate-200 cursor-pointer"
+                  onClick={() => window.location.href = "/api/login"}>
               <CardHeader>
                 <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center mb-4">
                   <MessageSquare className="h-6 w-6 text-yellow-600" />
@@ -117,7 +126,8 @@ export default function Landing() {
               </CardHeader>
             </Card>
 
-            <Card className="hover:shadow-lg transition-shadow border-slate-200">
+            <Card className="hover:shadow-lg transition-shadow border-slate-200 cursor-pointer"
+                  onClick={() => window.location.href = "/api/login"}>
               <CardHeader>
                 <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center mb-4">
                   <FileText className="h-6 w-6 text-red-600" />
@@ -129,7 +139,8 @@ export default function Landing() {
               </CardHeader>
             </Card>
 
-            <Card className="hover:shadow-lg transition-shadow border-slate-200">
+            <Card className="hover:shadow-lg transition-shadow border-slate-200 cursor-pointer"
+                  onClick={() => window.location.href = "/api/login"}>
               <CardHeader>
                 <div className="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center mb-4">
                   <Award className="h-6 w-6 text-indigo-600" />
