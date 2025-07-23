@@ -29,9 +29,39 @@ export default function Courses() {
     difficulty: "beginner",
   });
 
-  const { data: courses, isLoading } = useQuery({
+  const { data: courses, isLoading, error } = useQuery({
     queryKey: ["/api/courses"],
+    queryFn: async () => {
+      console.log("Fetching courses...");
+      const response = await fetch("/api/courses");
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("Failed to fetch courses:", errorText);
+        throw new Error(`Failed to fetch courses: ${response.statusText}`);
+      }
+      const data = await response.json();
+      console.log("Courses data:", data);
+      return data;
+    },
   });
+
+  // Show error state
+  if (error) {
+    console.error("Error loading courses:", error);
+    return (
+      <div className="min-h-screen bg-slate-50">
+        <Header />
+        <div className="flex">
+          <Sidebar />
+          <main className="flex-1 p-8">
+            <div className="text-center py-12">
+              <p className="text-red-500">Error loading courses: {error.message}</p>
+            </div>
+          </main>
+        </div>
+      </div>
+    );
+  }
 
   const createCourseMutation = useMutation({
     mutationFn: async (courseData: any) => {
@@ -69,11 +99,14 @@ export default function Courses() {
   };
 
   const filteredCourses = courses?.filter((course: any) => {
-    const matchesSearch = course.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         course.description?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = filterCategory === "all" || course.category === filterCategory;
+    console.log("Filtering course:", course);
+    const matchesSearch = course?.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         course?.description?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesCategory = filterCategory === "all" || course?.category === filterCategory;
     return matchesSearch && matchesCategory;
   }) || [];
+
+  console.log("Filtered courses:", filteredCourses);
 
   const isInstructor = user?.role === "instructor";
 

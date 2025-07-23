@@ -3,13 +3,26 @@ import { Strategy, type VerifyFunction } from "openid-client/passport";
 
 import passport from "passport";
 import session from "express-session";
-import type { Express, RequestHandler } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import memoize from "memoizee";
 import connectPg from "connect-pg-simple";
 import { storage } from "./storage";
 
+// Extend the Express Request type
+declare module 'express' {
+  interface Request {
+    isAuthenticated(): boolean;
+    user?: any;
+  }
+}
+
+interface AuthenticatedRequest extends Request {
+  isAuthenticated(): boolean;
+  user?: any;
+}
+
 if (!process.env.REPLIT_DOMAINS) {
-  throw new Error("Environment variable REPLIT_DOMAINS not provided");
+  console.warn("REPLIT_DOMAINS not provided. Running in development mode with simplified auth.");
 }
 
 const getOidcConfig = memoize(
@@ -24,6 +37,21 @@ const getOidcConfig = memoize(
 
 export function getSession() {
   const sessionTtl = 7 * 24 * 60 * 60 * 1000; // 1 week
+  
+  // Use MemoryStore for development when no DATABASE_URL is set
+  if (!process.env.DATABASE_URL) {
+    return session({
+      secret: process.env.SESSION_SECRET || 'dev-secret',
+      resave: false,
+      saveUninitialized: false,
+      cookie: {
+        httpOnly: true,
+        secure: false, // Allow non-HTTPS in development
+        maxAge: sessionTtl,
+      },
+    });
+  }
+  
   const pgStore = connectPg(session);
   const sessionStore = new pgStore({
     conString: process.env.DATABASE_URL,
@@ -73,6 +101,42 @@ export async function setupAuth(app: Express) {
   app.use(passport.initialize());
   app.use(passport.session());
 
+  // Development mode - return mock user
+  if (!process.env.REPLIT_DOMAINS) {
+    console.log('Running in development mode - auth endpoints will return mock responses');
+    
+    // Mock auth endpoints for development
+    app.get("/api/login", (req, res) => {
+      res.json({ message: "Development mode - login disabled" });
+    });
+    
+    app.get("/api/callback", (req, res) => {
+      res.redirect("/");
+    });
+    
+    app.get("/api/logout", (req, res) => {
+      res.redirect("/");
+    });
+
+    // Create mock user in database
+    const mockUser = {
+      id: 'dev-user-123',
+      email: 'dev@example.com',
+      firstName: 'Development',
+      lastName: 'User',
+      role: 'instructor',
+      profileImageUrl: null,
+    };
+
+    // Ensure mock user exists in database
+    await storage.upsertUser(mockUser);
+    
+    // Skip production auth setup completely
+    return;
+  }
+  
+  // Production mode - setup full auth
+
   const config = await getOidcConfig();
 
   const verify: VerifyFunction = async (
@@ -87,9 +151,11 @@ export async function setupAuth(app: Express) {
 
   for (const domain of process.env
     .REPLIT_DOMAINS!.split(",")) {
+    // Normalize domain by removing port if present (for strategy name)
+    const normalizedDomain = domain.split(':')[0];
     const strategy = new Strategy(
       {
-        name: `replitauth:${domain}`,
+        name: `replitauth:${normalizedDomain}`,
         config,
         scope: "openid email profile offline_access",
         callbackURL: `https://${domain}/api/callback`,
@@ -128,7 +194,43 @@ export async function setupAuth(app: Express) {
   });
 }
 
-export const isAuthenticated: RequestHandler = async (req, res, next) => {
+export const isAuthenticated = async (req: Request, res: Response, next: NextFunction) => {
+  // Development mode - bypass authentication
+  if (!process.env.REPLIT_DOMAINS) {
+    console.log("Development mode - bypassing authentication");
+    
+    const mockUser = {
+      id: 'dev-user-123',
+      email: 'dev@example.com',
+      firstName: 'Development',
+      lastName: 'User',
+      role: 'instructor',
+      profileImageUrl: null,
+    };
+
+    // Ensure mock user exists in database
+    await storage.upsertUser(mockUser);
+    
+    // Mock user object for development
+    req.user = {
+      claims: {
+        sub: mockUser.id,
+        email: mockUser.email,
+        first_name: mockUser.firstName,
+        last_name: mockUser.lastName,
+        role: mockUser.role
+      }
+    };
+    
+    // Mock the isAuthenticated function
+    Object.defineProperty(req, 'isAuthenticated', {
+      value: () => true,
+      writable: true
+    });
+    
+    return next();
+  }
+
   const user = req.user as any;
 
   if (!req.isAuthenticated() || !user.expires_at) {

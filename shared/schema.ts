@@ -14,6 +14,10 @@ import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
+// Custom Zod transformers
+const dateStringToDate = z.string().datetime().transform((str) => new Date(str));
+const nullableDateStringToDate = z.string().datetime().nullable().transform((str) => str ? new Date(str) : null);
+
 // Session storage table (required for Replit Auth)
 export const sessions = pgTable(
   "sessions",
@@ -306,8 +310,11 @@ export const insertLessonSchema = createInsertSchema(lessons).pick({
 
 export const insertDiscussionSchema = createInsertSchema(discussions).pick({
   courseId: true,
+  userId: true,
   title: true,
   content: true,
+  pinned: true,
+  locked: true,
 });
 
 export const insertDiscussionReplySchema = createInsertSchema(discussionReplies).pick({
@@ -316,19 +323,52 @@ export const insertDiscussionReplySchema = createInsertSchema(discussionReplies)
   parentId: true,
 });
 
-export const insertAssignmentSchema = createInsertSchema(assignments).pick({
-  courseId: true,
-  title: true,
-  description: true,
-  instructions: true,
-  dueDate: true,
-  maxPoints: true,
-});
+export const insertAssignmentSchema = createInsertSchema(assignments)
+  .pick({
+    courseId: true,
+    title: true,
+    description: true,
+    instructions: true,
+    dueDate: true,
+    maxPoints: true,
+  })
+  .extend({
+    dueDate: nullableDateStringToDate,
+  });
 
 export const insertSubmissionSchema = createInsertSchema(submissions).pick({
   assignmentId: true,
   content: true,
   fileUrl: true,
+});
+
+export const insertQuizSchema = createInsertSchema(quizzes).pick({
+  courseId: true,
+  title: true,
+  description: true,
+  timeLimit: true,
+  attempts: true,
+  passingScore: true,
+});
+
+export const insertQuizQuestionSchema = createInsertSchema(quizQuestions).pick({
+  quizId: true,
+  question: true,
+  type: true,
+  options: true,
+  correctAnswer: true,
+  points: true,
+  orderIndex: true,
+});
+
+export const insertQuizAttemptSchema = createInsertSchema(quizAttempts).pick({
+  quizId: true,
+  userId: true,
+  answers: true,
+  score: true,
+  completed: true,
+  startedAt: true,
+  completedAt: true,
 });
 
 // Types

@@ -17,30 +17,69 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { MessageSquare, Plus, Pin, Lock, Reply, Search } from "lucide-react";
 
+interface Course {
+  id: number;
+  title: string;
+  description: string;
+  category: string;
+  difficulty: string;
+  status: string;
+}
+
+interface Discussion {
+  id: number;
+  title: string;
+  content: string;
+  pinned: boolean;
+  locked: boolean;
+  createdAt: string;
+  replyCount: number;
+  user: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    profileImageUrl: string | undefined;
+  };
+}
+
+interface DiscussionReply {
+  id: number;
+  content: string;
+  createdAt: string;
+  user: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    profileImageUrl: string | undefined;
+  };
+}
+
 export default function Discussions() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [selectedCourse, setSelectedCourse] = useState<string>("");
-  const [selectedDiscussion, setSelectedDiscussion] = useState<any>(null);
+  const [selectedDiscussion, setSelectedDiscussion] = useState<Discussion | null>(null);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [newDiscussion, setNewDiscussion] = useState({
     title: "",
     content: "",
     courseId: 0,
+    pinned: false,
+    locked: false,
   });
   const [newReply, setNewReply] = useState("");
 
-  const { data: courses } = useQuery({
+  const { data: courses } = useQuery<Course[]>({
     queryKey: ["/api/courses"],
   });
 
-  const { data: discussions } = useQuery({
+  const { data: discussions } = useQuery<Discussion[]>({
     queryKey: ["/api/courses", selectedCourse, "discussions"],
     enabled: !!selectedCourse,
   });
 
-  const { data: replies } = useQuery({
+  const { data: replies } = useQuery<DiscussionReply[]>({
     queryKey: ["/api/discussions", selectedDiscussion?.id, "replies"],
     enabled: !!selectedDiscussion,
   });
@@ -53,7 +92,7 @@ export default function Discussions() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/courses", selectedCourse, "discussions"] });
       setIsCreateDialogOpen(false);
-      setNewDiscussion({ title: "", content: "", courseId: 0 });
+      setNewDiscussion({ title: "", content: "", courseId: 0, pinned: false, locked: false });
       toast({
         title: "Discussion Created",
         description: "Your discussion has been created successfully.",
@@ -63,11 +102,11 @@ export default function Discussions() {
 
   const createReplyMutation = useMutation({
     mutationFn: async (replyData: any) => {
-      const response = await apiRequest("POST", `/api/discussions/${selectedDiscussion.id}/replies`, replyData);
+      const response = await apiRequest("POST", `/api/discussions/${selectedDiscussion?.id}/replies`, replyData);
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/discussions", selectedDiscussion.id, "replies"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/discussions", selectedDiscussion?.id, "replies"] });
       setNewReply("");
       toast({
         title: "Reply Posted",
@@ -88,6 +127,8 @@ export default function Discussions() {
     createDiscussionMutation.mutate({
       ...newDiscussion,
       courseId: parseInt(selectedCourse),
+      pinned: false,
+      locked: false,
     });
   };
 
@@ -103,7 +144,7 @@ export default function Discussions() {
     createReplyMutation.mutate({ content: newReply });
   };
 
-  const filteredDiscussions = discussions?.filter((discussion: any) =>
+  const filteredDiscussions = discussions?.filter((discussion) =>
     discussion.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
     discussion.content.toLowerCase().includes(searchTerm.toLowerCase())
   ) || [];
@@ -225,7 +266,7 @@ export default function Discussions() {
               <div className="space-y-4">
                 {selectedCourse ? (
                   filteredDiscussions.length > 0 ? (
-                    filteredDiscussions.map((discussion: any) => (
+                    filteredDiscussions.map((discussion) => (
                       <Card 
                         key={discussion.id} 
                         className={`cursor-pointer transition-colors hover:border-slate-300 ${
@@ -341,7 +382,7 @@ export default function Discussions() {
 
                     {/* Replies */}
                     <div className="space-y-3 max-h-96 overflow-y-auto">
-                      {replies?.map((reply: any) => (
+                      {replies?.map((reply) => (
                         <div key={reply.id} className="p-3 border border-slate-200 rounded-lg">
                           <div className="flex items-center space-x-2 mb-2">
                             <Avatar className="h-6 w-6">

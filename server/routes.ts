@@ -9,8 +9,20 @@ import {
   insertDiscussionSchema,
   insertDiscussionReplySchema,
   insertAssignmentSchema,
-  insertSubmissionSchema 
+  insertSubmissionSchema,
+  insertQuizSchema,
+  insertQuizQuestionSchema,
+  insertQuizAttemptSchema,
+  type Quiz
 } from "@shared/schema";
+
+// Helper function to get user ID (works in both development and production)
+function getUserId(req: any): string {
+  if (!process.env.REPLIT_DOMAINS) {
+    return 'dev-user-123'; // Development mode
+  }
+  return req.user.claims.sub; // Production mode
+}
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
@@ -19,7 +31,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Auth routes
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+// Development mode - return mock user
+      console.log('REPLIT_DOMAINS:', process.env.REPLIT_DOMAINS);
+      if (!process.env.REPLIT_DOMAINS) {
+        console.log('Returning mock user.');
+        return res.json({
+          id: 'dev-user-123',
+          email: 'dev@example.com',
+          firstName: 'Development',
+          lastName: 'User',
+          role: 'instructor',
+          profileImageUrl: null,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        });
+      }
+      
+      const userId = getUserId(req);
       const user = await storage.getUser(userId);
       res.json(user);
     } catch (error) {
@@ -31,16 +59,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Course routes
   app.get('/api/courses', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
+      const userId = getUserId(req);
+      console.log('Fetching courses for user:', userId);
       
+      const user = await storage.getUser(userId);
+      console.log('User role:', user?.role);
+      
+      let courses;
       if (user?.role === 'instructor') {
-        const courses = await storage.getCourses(userId);
-        res.json(courses);
+        console.log('Fetching instructor courses');
+        courses = await storage.getCourses(userId);
       } else {
+        console.log('Fetching student courses');
         const enrollments = await storage.getUserEnrollments(userId);
-        res.json(enrollments.map(e => e.course));
+        courses = enrollments.map(e => e.course);
       }
+      
+      console.log('Returning courses:', courses);
+      res.json(courses);
     } catch (error) {
       console.error("Error fetching courses:", error);
       res.status(500).json({ message: "Failed to fetch courses" });
@@ -65,7 +101,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/courses', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = getUserId(req);
       const user = await storage.getUser(userId);
       
       if (user?.role !== 'instructor') {
@@ -88,7 +124,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put('/api/courses/:id', isAuthenticated, async (req: any, res) => {
     try {
       const courseId = parseInt(req.params.id);
-      const userId = req.user.claims.sub;
+      const userId = getUserId(req);
       
       const course = await storage.getCourse(courseId);
       if (!course || course.instructorId !== userId) {
@@ -119,7 +155,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/courses/:id/modules', isAuthenticated, async (req: any, res) => {
     try {
       const courseId = parseInt(req.params.id);
-      const userId = req.user.claims.sub;
+      const userId = getUserId(req);
       
       const course = await storage.getCourse(courseId);
       if (!course || course.instructorId !== userId) {
@@ -154,7 +190,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/modules/:id/lessons', isAuthenticated, async (req: any, res) => {
     try {
       const moduleId = parseInt(req.params.id);
-      const userId = req.user.claims.sub;
+      const userId = getUserId(req);
       
       // TODO: Add authorization check for module ownership
       
@@ -188,7 +224,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/courses/:id/enroll', isAuthenticated, async (req: any, res) => {
     try {
       const courseId = parseInt(req.params.id);
-      const userId = req.user.claims.sub;
+      const userId = getUserId(req);
       
       const enrollment = await storage.enrollInCourse(userId, courseId);
       res.json(enrollment);
@@ -201,7 +237,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/courses/:id/enrollments', isAuthenticated, async (req: any, res) => {
     try {
       const courseId = parseInt(req.params.id);
-      const userId = req.user.claims.sub;
+      const userId = getUserId(req);
       
       const course = await storage.getCourse(courseId);
       if (!course || course.instructorId !== userId) {
@@ -231,7 +267,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/courses/:id/discussions', isAuthenticated, async (req: any, res) => {
     try {
       const courseId = parseInt(req.params.id);
-      const userId = req.user.claims.sub;
+      const userId = getUserId(req);
       
       const discussionData = insertDiscussionSchema.parse({
         ...req.body,
@@ -261,7 +297,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/discussions/:id/replies', isAuthenticated, async (req: any, res) => {
     try {
       const discussionId = parseInt(req.params.id);
-      const userId = req.user.claims.sub;
+      const userId = getUserId(req);
       
       const replyData = insertDiscussionReplySchema.parse({
         ...req.body,
@@ -292,23 +328,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/courses/:id/assignments', isAuthenticated, async (req: any, res) => {
     try {
       const courseId = parseInt(req.params.id);
-      const userId = req.user.claims.sub;
+      const userId = getUserId(req);
+      
+      console.log('Creating assignment with data:', {
+        body: req.body,
+        courseId,
+        userId,
+        headers: req.headers,
+        params: req.params,
+      });
       
       const course = await storage.getCourse(courseId);
+      console.log('Found course:', course);
+      
       if (!course || course.instructorId !== userId) {
+        console.log('Authorization failed:', {
+          courseInstructorId: course?.instructorId,
+          requestUserId: userId,
+        });
         return res.status(403).json({ message: "Unauthorized" });
       }
 
+      // Remove courseId from body since it's in the URL params
+      const { courseId: _, ...assignmentDataWithoutCourseId } = req.body;
+
+      console.log('Preparing assignment data:', {
+        original: req.body,
+        withoutCourseId: assignmentDataWithoutCourseId,
+        finalData: {
+          ...assignmentDataWithoutCourseId,
+          courseId,
+        }
+      });
+
       const assignmentData = insertAssignmentSchema.parse({
-        ...req.body,
+        ...assignmentDataWithoutCourseId,
         courseId,
       });
       
+      console.log('Parsed assignment data:', assignmentData);
+      
       const assignment = await storage.createAssignment(assignmentData);
+      console.log('Created assignment:', assignment);
+      
       res.json(assignment);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error creating assignment:", error);
-      res.status(400).json({ message: "Failed to create assignment" });
+      if (error?.errors) {
+        console.error("Validation errors:", JSON.stringify(error.errors, null, 2));
+        console.error("Request body:", JSON.stringify(req.body, null, 2));
+        console.error("Schema:", JSON.stringify(insertAssignmentSchema.shape, null, 2));
+      }
+      res.status(400).json({ 
+        message: "Failed to create assignment", 
+        errors: error?.errors || error?.message || String(error)
+      });
     }
   });
 
@@ -326,7 +400,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/assignments/:id/submissions', isAuthenticated, async (req: any, res) => {
     try {
       const assignmentId = parseInt(req.params.id);
-      const userId = req.user.claims.sub;
+      const userId = getUserId(req);
       
       const submissionData = insertSubmissionSchema.parse({
         ...req.body,
@@ -346,7 +420,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/lessons/:id/progress', isAuthenticated, async (req: any, res) => {
     try {
       const lessonId = parseInt(req.params.id);
-      const userId = req.user.claims.sub;
+      const userId = getUserId(req);
       const { completed } = req.body;
       
       await storage.updateLessonProgress(userId, lessonId, completed);
@@ -360,7 +434,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/courses/:id/progress', isAuthenticated, async (req: any, res) => {
     try {
       const courseId = parseInt(req.params.id);
-      const userId = req.user.claims.sub;
+      const userId = getUserId(req);
       
       const progress = await storage.getUserProgress(userId, courseId);
       res.json(progress);
@@ -373,7 +447,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Notifications
   app.get('/api/notifications', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = getUserId(req);
       const notifications = await storage.getUserNotifications(userId);
       res.json(notifications);
     } catch (error) {
@@ -393,39 +467,312 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Analytics
-  app.get('/api/analytics/instructor', isAuthenticated, async (req: any, res) => {
+  // Quiz routes
+  app.get('/api/courses/:id/quizzes', isAuthenticated, async (req, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      
-      if (user?.role !== 'instructor') {
-        return res.status(403).json({ message: "Only instructors can access analytics" });
-      }
-      
-      const stats = await storage.getInstructorStats(userId);
-      res.json(stats);
+      const courseId = parseInt(req.params.id);
+      const quizzes = await storage.getCourseQuizzes(courseId);
+      res.json(quizzes);
     } catch (error) {
-      console.error("Error fetching instructor stats:", error);
-      res.status(500).json({ message: "Failed to fetch instructor stats" });
+      console.error("Error fetching quizzes:", error);
+      res.status(500).json({ message: "Failed to fetch quizzes" });
     }
   });
 
-  app.get('/api/analytics/course/:id', isAuthenticated, async (req: any, res) => {
+  app.post('/api/courses/:id/quizzes', isAuthenticated, async (req: any, res) => {
     try {
       const courseId = parseInt(req.params.id);
-      const userId = req.user.claims.sub;
+      const userId = getUserId(req);
       
       const course = await storage.getCourse(courseId);
       if (!course || course.instructorId !== userId) {
         return res.status(403).json({ message: "Unauthorized" });
       }
+
+      const quizData = insertQuizSchema.parse({
+        ...req.body,
+        courseId,
+      });
       
-      const analytics = await storage.getCourseAnalytics(courseId);
-      res.json(analytics);
+      const quiz = await storage.createQuiz(quizData);
+      res.json(quiz);
     } catch (error) {
-      console.error("Error fetching course analytics:", error);
-      res.status(500).json({ message: "Failed to fetch course analytics" });
+      console.error("Error creating quiz:", error);
+      res.status(400).json({ message: "Failed to create quiz" });
+    }
+  });
+
+  // Get quiz by ID
+  app.get('/api/quizzes/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const quizId = parseInt(req.params.id);
+      const quiz = await storage.getQuiz(quizId);
+      res.json(quiz);
+    } catch (error) {
+      console.error("Error fetching quiz:", error);
+      res.status(404).json({ message: "Quiz not found" });
+    }
+  });
+
+  // Get quiz questions
+  app.get('/api/quizzes/:id/questions', isAuthenticated, async (req: any, res) => {
+    try {
+      const quizId = parseInt(req.params.id);
+      const questions = await storage.getQuizQuestions(quizId);
+      res.json(questions);
+    } catch (error) {
+      console.error("Error fetching quiz questions:", error);
+      res.status(400).json({ message: "Failed to fetch quiz questions" });
+    }
+  });
+
+  app.post('/api/quizzes/:id/questions', isAuthenticated, async (req: any, res) => {
+    try {
+      const quizId = parseInt(req.params.id);
+      const userId = getUserId(req);
+      
+      // Verify quiz ownership through course
+      const quiz = await storage.getQuiz(quizId);
+      const course = await storage.getCourse(quiz.courseId);
+      if (!course || course.instructorId !== userId) {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+
+      const questionData = insertQuizQuestionSchema.parse({
+        ...req.body,
+        quizId,
+      });
+      
+      const question = await storage.createQuizQuestion(questionData);
+      res.json(question);
+    } catch (error) {
+      console.error("Error creating quiz question:", error);
+      res.status(400).json({ message: "Failed to create quiz question" });
+    }
+  });
+
+  app.put('/api/quizzes/:quizId/questions/:questionId', isAuthenticated, async (req: any, res) => {
+    try {
+      const quizId = parseInt(req.params.quizId);
+      const questionId = parseInt(req.params.questionId);
+      const userId = getUserId(req);
+      
+      // Verify quiz ownership through course
+      let quiz: Quiz;
+      try {
+        quiz = await storage.getQuiz(quizId);
+      } catch (error) {
+        return res.status(404).json({ message: "Quiz not found" });
+      }
+
+      const course = await storage.getCourse(quiz.courseId);
+      if (!course || course.instructorId !== userId) {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+
+      const questionData = insertQuizQuestionSchema.partial().parse({
+        ...req.body,
+        quizId,
+      });
+      
+      const question = await storage.updateQuizQuestion(questionId, questionData);
+      res.json(question);
+    } catch (error: any) {
+      console.error("Error updating quiz question:", error);
+      if (error?.errors) {
+        console.error("Validation errors:", error.errors);
+      }
+      res.status(400).json({ 
+        message: "Failed to update quiz question", 
+        errors: error?.errors || error?.message || String(error)
+      });
+    }
+  });
+
+  app.post('/api/quizzes/:id/attempts', isAuthenticated, async (req: any, res) => {
+    try {
+      const quizId = parseInt(req.params.id);
+      const userId = getUserId(req);
+      
+      const attemptData = insertQuizAttemptSchema.parse({
+        ...req.body,
+        quizId,
+        userId,
+        startedAt: new Date(),
+      });
+      
+      const attempt = await storage.createQuizAttempt(attemptData);
+      res.json(attempt);
+    } catch (error) {
+      console.error("Error creating quiz attempt:", error);
+      res.status(400).json({ message: "Failed to create quiz attempt" });
+    }
+  });
+
+  app.put('/api/quiz-attempts/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const attemptId = parseInt(req.params.id);
+      const userId = getUserId(req);
+      
+      // Verify attempt ownership
+      const attempt = await storage.getQuizAttempt(attemptId);
+      if (!attempt || attempt.userId !== userId) {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+
+      const updates = insertQuizAttemptSchema.partial().parse({
+        ...req.body,
+        completedAt: new Date(),
+      });
+      
+      const updatedAttempt = await storage.updateQuizAttempt(attemptId, updates);
+      res.json(updatedAttempt);
+    } catch (error) {
+      console.error("Error updating quiz attempt:", error);
+      res.status(400).json({ message: "Failed to update quiz attempt" });
+    }
+  });
+
+  app.get('/api/quizzes/:id/attempts', isAuthenticated, async (req: any, res) => {
+    try {
+      const quizId = parseInt(req.params.id);
+      const userId = getUserId(req);
+      
+      const attempts = await storage.getQuizAttempts(quizId, userId);
+      res.json(attempts);
+    } catch (error) {
+      console.error("Error fetching quiz attempts:", error);
+      res.status(500).json({ message: "Failed to fetch quiz attempts" });
+    }
+  });
+
+  // Publish course to external LMS
+  app.post('/api/courses/:id/publish', isAuthenticated, async (req: any, res) => {
+    try {
+      const courseId = parseInt(req.params.id);
+      const userId = getUserId(req);
+      
+      // Verify course ownership
+      const course = await storage.getCourse(courseId);
+      if (!course || course.instructorId !== userId) {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+
+      // Get instructor details
+      const instructor = await storage.getUser(course.instructorId);
+      if (!instructor) {
+        return res.status(404).json({ message: "Instructor not found" });
+      }
+
+      const { platform, apiKey, courseId: externalCourseId } = req.body;
+
+      // Fetch all course content
+      const [discussions, assignments, quizzes] = await Promise.all([
+        storage.getCourseDiscussions(courseId),
+        storage.getCourseAssignments(courseId),
+        storage.getCourseQuizzes(courseId),
+      ]);
+
+      // Fetch quiz questions
+      const quizzesWithQuestions = await Promise.all(
+        quizzes.map(async (quiz) => ({
+          ...quiz,
+          questions: await storage.getQuizQuestions(quiz.id),
+        }))
+      );
+
+      // Format course data for external LMS
+      const courseData = {
+        title: course.title,
+        description: course.description,
+        category: course.category,
+        difficulty: course.difficulty,
+        instructor: {
+          id: instructor.id,
+          name: `${instructor.firstName} ${instructor.lastName}`,
+          email: instructor.email,
+        },
+        discussions: discussions.map(d => ({
+          title: d.title,
+          content: d.content,
+          pinned: d.pinned,
+          locked: d.locked,
+          author: {
+            name: `${d.user?.firstName} ${d.user?.lastName}`,
+            email: d.user?.email,
+          },
+          createdAt: d.createdAt,
+        })),
+        assignments: assignments.map(a => ({
+          title: a.title,
+          description: a.description,
+          instructions: a.instructions,
+          dueDate: a.dueDate,
+          maxPoints: a.maxPoints,
+          status: a.status,
+        })),
+        quizzes: quizzesWithQuestions.map(q => ({
+          title: q.title,
+          description: q.description,
+          timeLimit: q.timeLimit,
+          attempts: q.attempts,
+          passingScore: q.passingScore,
+          questions: q.questions.map(question => ({
+            question: question.question,
+            type: question.type,
+            options: question.options,
+            correctAnswer: question.correctAnswer,
+            points: question.points,
+          })),
+        })),
+      };
+
+      // TODO: Implement actual LMS integration
+      // This is a mock implementation
+      console.log(`Publishing course to ${platform}:`, {
+        courseData,
+        apiKey: '***',
+        externalCourseId,
+      });
+
+      // Mock successful publish
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
+      res.json({ 
+        message: "Course published successfully",
+        platform,
+        externalCourseId: externalCourseId || "new-course-123",
+      });
+    } catch (error: any) {
+      console.error("Error publishing course:", error);
+      res.status(500).json({ 
+        message: "Failed to publish course", 
+        error: error.message 
+      });
+    }
+  });
+
+  // Get course modules
+  app.get('/api/courses/:id/modules', isAuthenticated, async (req: any, res) => {
+    try {
+      const courseId = parseInt(req.params.id);
+      const modules = await storage.getCourseModules(courseId);
+      res.json(modules);
+    } catch (error) {
+      console.error("Error fetching course modules:", error);
+      res.status(400).json({ message: "Failed to fetch course modules" });
+    }
+  });
+
+  // Get course lessons
+  app.get('/api/courses/:id/lessons', isAuthenticated, async (req: any, res) => {
+    try {
+      const courseId = parseInt(req.params.id);
+      const lessons = await storage.getCourseLessons(courseId);
+      res.json(lessons);
+    } catch (error) {
+      console.error("Error fetching course lessons:", error);
+      res.status(400).json({ message: "Failed to fetch course lessons" });
     }
   });
 

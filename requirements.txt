@@ -1,0 +1,5 @@
+# Python dependencies for pipeline runner
+PyYAML>=6.0
+
+# This is primarily a Node.js/TypeScript project
+# Additional Python requirements can be added here if needed

@@ -15,12 +15,14 @@ import {
   Award
 } from "lucide-react";
 
+type Role = 'student' | 'instructor' | 'admin';
+
 export default function Sidebar() {
   const [location] = useLocation();
   const { user } = useAuth();
-  const [userRole, setUserRole] = useState(user?.role || "student");
+  const [userRole, setUserRole] = useState<Role>(user?.role || "student");
 
-  const isInstructor = user?.role === "instructor";
+  const isInstructor = userRole === "instructor";
 
   const navigationItems = [
     {
@@ -36,7 +38,7 @@ export default function Sidebar() {
       active: location === "/courses",
     },
     ...(isInstructor ? [{
-      href: "/course-builder",
+      href: "/course-builder/",
       icon: Plus,
       label: "Create Content",
       active: location.startsWith("/course-builder"),
@@ -54,10 +56,10 @@ export default function Sidebar() {
       active: location === "/assignments",
     },
     {
-      href: "/analytics",
-      icon: BarChart3,
-      label: "Analytics",
-      active: location === "/analytics",
+      href: "/quizzes",
+      icon: Award,
+      label: "Quizzes",
+      active: location === "/quizzes",
     },
     {
       href: "/settings",
@@ -70,19 +72,19 @@ export default function Sidebar() {
   const quickActions = [
     ...(isInstructor ? [
       {
-        href: "/course-builder",
+        href: "/course-builder/",
         icon: Plus,
         label: "New Course",
       },
       {
         href: "/assignments",
         icon: FileText,
-        label: "New Assignment",
+        label: "Assignments",
       },
       {
-        href: "/course-builder",
+        href: "/quizzes",
         icon: Award,
-        label: "New Quiz",
+        label: "Quizzes",
       },
     ] : [
       {
@@ -108,7 +110,7 @@ export default function Sidebar() {
       <div className="p-6">
         {/* Role Switcher */}
         <div className="mb-6">
-          <Select value={userRole} onValueChange={setUserRole}>
+          <Select value={userRole} onValueChange={(value: Role) => setUserRole(value)}>
             <SelectTrigger className="w-full bg-slate-50 border-slate-200">
               <SelectValue />
             </SelectTrigger>
@@ -124,8 +126,8 @@ export default function Sidebar() {
         <nav className="space-y-2">
           {navigationItems.map((item) => (
             <Link key={item.href} href={item.href}>
-              <a
-                className={`flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium transition-smooth ${
+              <button
+                className={`w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium transition-smooth ${
                   item.active
                     ? "sidebar-active text-primary"
                     : "text-slate-600 hover:text-slate-800 hover:bg-slate-50"
@@ -133,7 +135,7 @@ export default function Sidebar() {
               >
                 <item.icon className="w-5 h-5" />
                 <span>{item.label}</span>
-              </a>
+              </button>
             </Link>
           ))}
         </nav>
@@ -145,11 +147,11 @@ export default function Sidebar() {
           </h3>
           <div className="space-y-2">
             {quickActions.map((action) => (
-              <Link key={action.href} href={action.href}>
-                <a className="w-full flex items-center space-x-2 px-3 py-2 text-sm text-slate-600 hover:text-slate-800 hover:bg-slate-50 rounded-lg transition-smooth">
+              <Link key={`${action.href}-${action.label}`} href={action.href}>
+                <button className="w-full flex items-center space-x-2 px-3 py-2 text-sm text-slate-600 hover:text-slate-800 hover:bg-slate-50 rounded-lg transition-smooth">
                   <action.icon className="w-4 h-4" />
                   <span>{action.label}</span>
-                </a>
+                </button>
               </Link>
             ))}
           </div>

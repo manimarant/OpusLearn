@@ -18,11 +18,47 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FileText, Plus, Calendar, Clock, Users, CheckCircle, XCircle, Upload, Download, Eye } from "lucide-react";
 
+interface Course {
+  id: number;
+  title: string;
+  description: string;
+  category: string;
+  difficulty: string;
+  status: string;
+}
+
+interface Assignment {
+  id: number;
+  title: string;
+  description: string;
+  instructions: string;
+  dueDate: string;
+  maxPoints: number;
+  status: string;
+  courseId: number;
+}
+
+interface Submission {
+  id: number;
+  content: string;
+  fileUrl: string;
+  score: number | null;
+  feedback: string | null;
+  submittedAt: string;
+  gradedAt: string | null;
+  user: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    profileImageUrl: string | null;
+  };
+}
+
 export default function Assignments() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [selectedCourse, setSelectedCourse] = useState<string>("");
-  const [selectedAssignment, setSelectedAssignment] = useState<any>(null);
+  const [selectedAssignment, setSelectedAssignment] = useState<Assignment | null>(null);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isSubmissionDialogOpen, setIsSubmissionDialogOpen] = useState(false);
   const [newAssignment, setNewAssignment] = useState({
@@ -31,33 +67,53 @@ export default function Assignments() {
     instructions: "",
     dueDate: "",
     maxPoints: 100,
+    courseId: "",
   });
   const [newSubmission, setNewSubmission] = useState({
     content: "",
     fileUrl: "",
   });
 
-  const { data: courses } = useQuery({
+  const assignmentsQueryKey = (courseId: string) => ["/api/courses", courseId, "assignments"];
+
+  const { data: courses } = useQuery<Course[]>({
     queryKey: ["/api/courses"],
   });
 
-  const { data: assignments } = useQuery({
-    queryKey: ["/api/courses", selectedCourse, "assignments"],
+  const { data: assignments } = useQuery<Assignment[]>({
+    queryKey: assignmentsQueryKey(selectedCourse),
     enabled: !!selectedCourse,
   });
 
-  const { data: submissions } = useQuery({
+  const { data: submissions } = useQuery<Submission[]>({
     queryKey: ["/api/assignments", selectedAssignment?.id, "submissions"],
     enabled: !!selectedAssignment && user?.role === "instructor",
   });
 
   const createAssignmentMutation = useMutation({
     mutationFn: async (assignmentData: any) => {
-      const response = await apiRequest("POST", `/api/courses/${selectedCourse}/assignments`, assignmentData);
-      return response.json();
+      console.log('Mutation data:', assignmentData);
+      const { courseId, ...data } = assignmentData;
+      console.log('Sending to server:', {
+        url: `/api/courses/${courseId}/assignments`,
+        data
+      });
+      const response = await apiRequest("POST", `/api/courses/${courseId}/assignments`, data);
+      const result = await response.json();
+      console.log('Server response:', result);
+      return { ...result, courseId };
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/courses", selectedCourse, "assignments"] });
+    onError: (error: any) => {
+      console.error('Assignment creation error:', error);
+      toast({
+        title: "Error",
+        description: error?.message || "Failed to create assignment",
+        variant: "destructive",
+      });
+    },
+    onSuccess: (data) => {
+      console.log('Assignment created successfully:', data);
+      queryClient.invalidateQueries({ queryKey: assignmentsQueryKey(data.courseId.toString()) });
       setIsCreateDialogOpen(false);
       setNewAssignment({
         title: "",
@@ -65,6 +121,7 @@ export default function Assignments() {
         instructions: "",
         dueDate: "",
         maxPoints: 100,
+        courseId: "",
       });
       toast({
         title: "Assignment Created",
@@ -75,10 +132,12 @@ export default function Assignments() {
 
   const createSubmissionMutation = useMutation({
     mutationFn: async (submissionData: any) => {
+      if (!selectedAssignment) return;
       const response = await apiRequest("POST", `/api/assignments/${selectedAssignment.id}/submissions`, submissionData);
       return response.json();
     },
     onSuccess: () => {
+      if (!selectedAssignment) return;
       queryClient.invalidateQueries({ queryKey: ["/api/assignments", selectedAssignment.id, "submissions"] });
       setIsSubmissionDialogOpen(false);
       setNewSubmission({ content: "", fileUrl: "" });
@@ -90,7 +149,7 @@ export default function Assignments() {
   });
 
   const handleCreateAssignment = () => {
-    if (!newAssignment.title || !newAssignment.description || !selectedCourse) {
+    if (!newAssignment.title || !newAssignment.description || !newAssignment.courseId) {
       toast({
         title: "Validation Error",
         description: "Please fill in all required fields and select a course.",
@@ -98,7 +157,32 @@ export default function Assignments() {
       });
       return;
     }
-    createAssignmentMutation.mutate(newAssignment);
+
+    // Convert the date string to an ISO string for the server
+    const dueDate = newAssignment.dueDate 
+      ? new Date(newAssignment.dueDate).toISOString() // Convert to ISO string for Zod datetime validation
+      : null;
+
+    // Prepare assignment data according to the schema
+    const assignmentData = {
+      title: newAssignment.title,
+      description: newAssignment.description || null,
+      instructions: newAssignment.instructions || null,
+      dueDate,
+      maxPoints: parseInt(String(newAssignment.maxPoints)) || 100,
+      courseId: parseInt(newAssignment.courseId),
+    };
+
+    console.log('Creating assignment with data:', {
+      assignmentData,
+      newAssignment,
+      dueDate,
+      courseId: newAssignment.courseId,
+      rawDate: newAssignment.dueDate,
+      isoDate: dueDate
+    });
+    
+    createAssignmentMutation.mutate(assignmentData);
   };
 
   const handleCreateSubmission = () => {
@@ -113,7 +197,7 @@ export default function Assignments() {
     createSubmissionMutation.mutate(newSubmission);
   };
 
-  const getStatusBadge = (assignment: any) => {
+  const getStatusBadge = (assignment: Assignment) => {
     const now = new Date();
     const dueDate = new Date(assignment.dueDate);
     
@@ -166,12 +250,15 @@ export default function Assignments() {
                     <div className="grid gap-4 py-4">
                       <div className="grid gap-2">
                         <Label htmlFor="course">Course</Label>
-                        <Select value={selectedCourse} onValueChange={setSelectedCourse}>
+                        <Select 
+                          value={newAssignment.courseId} 
+                          onValueChange={(value) => setNewAssignment({ ...newAssignment, courseId: value })}
+                        >
                           <SelectTrigger>
                             <SelectValue placeholder="Select a course" />
                           </SelectTrigger>
                           <SelectContent>
-                            {courses?.map((course: any) => (
+                            {courses?.map((course: Course) => (
                               <SelectItem key={course.id} value={course.id.toString()}>
                                 {course.title}
                               </SelectItem>
@@ -251,7 +338,7 @@ export default function Assignments() {
                 <SelectValue placeholder="Select Course" />
               </SelectTrigger>
               <SelectContent>
-                {courses?.map((course: any) => (
+                {courses?.map((course: Course) => (
                   <SelectItem key={course.id} value={course.id.toString()}>
                     {course.title}
                   </SelectItem>
@@ -265,8 +352,8 @@ export default function Assignments() {
               {/* Assignments List */}
               <div className="lg:col-span-2">
                 <div className="space-y-4">
-                  {assignments?.length > 0 ? (
-                    assignments.map((assignment: any) => (
+                  {assignments && assignments.length > 0 ? (
+                    assignments.map((assignment: Assignment) => (
                       <Card 
                         key={assignment.id} 
                         className={`cursor-pointer transition-colors hover:border-slate-300 ${
@@ -379,12 +466,12 @@ export default function Assignments() {
                           </TabsList>
                           <TabsContent value="submissions" className="space-y-3">
                             <div className="max-h-96 overflow-y-auto custom-scrollbar">
-                              {submissions?.length > 0 ? (
-                                submissions.map((submission: any) => (
+                              {submissions && submissions.length > 0 ? (
+                                submissions.map((submission: Submission) => (
                                   <div key={submission.id} className="p-3 border border-slate-200 rounded-lg">
                                     <div className="flex items-center space-x-2 mb-2">
                                       <Avatar className="h-6 w-6">
-                                        <AvatarImage src={submission.user?.profileImageUrl} />
+                                        <AvatarImage src={submission.user?.profileImageUrl || undefined} />
                                         <AvatarFallback className="text-xs">
                                           {submission.user?.firstName?.[0]}{submission.user?.lastName?.[0]}
                                         </AvatarFallback>

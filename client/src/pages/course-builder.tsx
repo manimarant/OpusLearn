@@ -17,32 +17,70 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Save, Eye, Upload, ChevronRight, Edit, Trash2 } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useLocation } from "wouter";
+
+interface Course {
+  id: number;
+  title: string;
+  description: string;
+  category: string;
+  difficulty: string;
+  status: string;
+  instructorId: string;
+}
+
+interface Module {
+  id: number;
+  title: string;
+  description: string;
+  orderIndex: number;
+}
+
+interface Lesson {
+  id: number;
+  title: string;
+  content: string;
+  contentType: string;
+  duration: number;
+  orderIndex: number;
+}
 
 export default function CourseBuilder() {
   const params = useParams();
   const courseId = params.id ? parseInt(params.id) : null;
   const { user } = useAuth();
   const { toast } = useToast();
-  const [selectedModule, setSelectedModule] = useState<any>(null);
-  const [selectedLesson, setSelectedLesson] = useState<any>(null);
+  const [selectedModule, setSelectedModule] = useState<Module | null>(null);
+  const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
   const [isModuleDialogOpen, setIsModuleDialogOpen] = useState(false);
   const [isLessonDialogOpen, setIsLessonDialogOpen] = useState(false);
   const [newModule, setNewModule] = useState({ title: "", description: "" });
   const [newLesson, setNewLesson] = useState({ title: "", content: "", contentType: "text", duration: 0 });
+  const [newCourse, setNewCourse] = useState({
+    title: "",
+    description: "",
+    category: "Programming",
+    difficulty: "beginner",
+  });
 
-  const { data: course } = useQuery({
+  const { data: course } = useQuery<Course>({
     queryKey: ["/api/courses", courseId],
     enabled: !!courseId,
   });
 
-  const { data: modules } = useQuery({
+  const { data: modules } = useQuery<Module[]>({
     queryKey: ["/api/courses", courseId, "modules"],
     enabled: !!courseId,
   });
 
-  const { data: lessons } = useQuery({
+  const { data: lessons } = useQuery<Lesson[]>({
     queryKey: ["/api/modules", selectedModule?.id, "lessons"],
     enabled: !!selectedModule,
+  });
+
+  const { data: courses } = useQuery<Course[]>({
+    queryKey: ["/api/courses"],
   });
 
   const createModuleMutation = useMutation({
@@ -63,11 +101,11 @@ export default function CourseBuilder() {
 
   const createLessonMutation = useMutation({
     mutationFn: async (lessonData: any) => {
-      const response = await apiRequest("POST", `/api/modules/${selectedModule.id}/lessons`, lessonData);
+      const response = await apiRequest("POST", `/api/modules/${selectedModule?.id}/lessons`, lessonData);
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/modules", selectedModule.id, "lessons"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/modules", selectedModule?.id, "lessons"] });
       setIsLessonDialogOpen(false);
       setNewLesson({ title: "", content: "", contentType: "text", duration: 0 });
       toast({
@@ -87,6 +125,21 @@ export default function CourseBuilder() {
       toast({
         title: "Lesson Updated",
         description: "Your lesson has been saved successfully.",
+      });
+    },
+  });
+
+  const createCourseMutation = useMutation({
+    mutationFn: async (courseData: any) => {
+      const response = await apiRequest("POST", "/api/courses", courseData);
+      return response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/courses"] });
+      window.location.href = `/course-builder/${data.id}`;
+      toast({
+        title: "Course Created",
+        description: "Your new course has been created successfully.",
       });
     },
   });
@@ -130,14 +183,142 @@ export default function CourseBuilder() {
     }
   };
 
+  const handleCreateCourse = () => {
+    if (!newCourse.title) {
+      toast({
+        title: "Validation Error",
+        description: "Please enter a course title.",
+        variant: "destructive",
+      });
+      return;
+    }
+    createCourseMutation.mutate(newCourse);
+  };
+
+  const [, setLocation] = useLocation();
+
   if (!courseId) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <Card>
-          <CardContent className="p-8 text-center">
-            <p className="text-slate-600">Please select a course to edit.</p>
-          </CardContent>
-        </Card>
+      <div className="min-h-screen bg-slate-50">
+        <Header />
+        <div className="flex">
+          <Sidebar />
+          <main className="flex-1 p-8">
+            <div className="mb-8">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-2xl font-bold text-slate-800">Course Builder</h2>
+                  <p className="text-slate-600 mt-1">Select a course to edit or create a new one</p>
+                </div>
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button className="bg-blue-600 hover:bg-blue-700">
+                      <Plus className="h-4 w-4 mr-2" />
+                      Create New Course
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Create New Course</DialogTitle>
+                      <DialogDescription>
+                        Set up your course structure and initial content.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                      <div className="grid gap-2">
+                        <Label htmlFor="title">Course Title</Label>
+                        <Input
+                          id="title"
+                          value={newCourse.title}
+                          onChange={(e) => setNewCourse({ ...newCourse, title: e.target.value })}
+                          placeholder="Enter course title"
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="description">Description</Label>
+                        <Textarea
+                          id="description"
+                          value={newCourse.description}
+                          onChange={(e) => setNewCourse({ ...newCourse, description: e.target.value })}
+                          placeholder="Describe your course..."
+                          rows={3}
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="grid gap-2">
+                          <Label htmlFor="category">Category</Label>
+                          <Select
+                            value={newCourse.category}
+                            onValueChange={(value) => setNewCourse({ ...newCourse, category: value })}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select category" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Programming">Programming</SelectItem>
+                              <SelectItem value="Web Development">Web Development</SelectItem>
+                              <SelectItem value="Data Science">Data Science</SelectItem>
+                              <SelectItem value="Mobile Development">Mobile Development</SelectItem>
+                              <SelectItem value="Databases">Databases</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="difficulty">Difficulty</Label>
+                          <Select
+                            value={newCourse.difficulty}
+                            onValueChange={(value) => setNewCourse({ ...newCourse, difficulty: value })}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select difficulty" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="beginner">Beginner</SelectItem>
+                              <SelectItem value="intermediate">Intermediate</SelectItem>
+                              <SelectItem value="advanced">Advanced</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <Button 
+                        onClick={handleCreateCourse}
+                        disabled={createCourseMutation.isPending}
+                      >
+                        {createCourseMutation.isPending ? "Creating..." : "Create Course"}
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {courses?.map((course: Course) => (
+                <Card 
+                  key={course.id} 
+                  className="cursor-pointer hover:shadow-lg transition-shadow"
+                  onClick={() => setLocation(`/course-builder/${course.id}`)}
+                >
+                  <CardContent className="p-6">
+                    <div className="flex items-start justify-between mb-4">
+                      <div>
+                        <h3 className="font-semibold text-lg text-slate-800 mb-1">{course.title}</h3>
+                        <p className="text-sm text-slate-600 line-clamp-2">{course.description}</p>
+                      </div>
+                      <Badge variant="outline">{course.status}</Badge>
+                    </div>
+                    <div className="flex items-center justify-between text-sm text-slate-500">
+                      <span>{course.category}</span>
+                      <span>{course.difficulty}</span>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </main>
+        </div>
       </div>
     );
   }
@@ -225,7 +406,7 @@ export default function CourseBuilder() {
                 </CardHeader>
                 <CardContent className="p-0">
                   <div className="space-y-2 p-6">
-                    {modules?.map((module: any, index: number) => (
+                    {modules?.map((module: Module, index: number) => (
                       <div
                         key={module.id}
                         className={`p-3 border rounded-lg cursor-pointer transition-colors ${
@@ -243,7 +424,7 @@ export default function CourseBuilder() {
                         </div>
                         {lessons && selectedModule?.id === module.id && (
                           <div className="mt-2 ml-4 space-y-1">
-                            {lessons.map((lesson: any) => (
+                            {lessons.map((lesson: Lesson) => (
                               <div
                                 key={lesson.id}
                                 className={`p-2 text-xs rounded cursor-pointer transition-colors ${

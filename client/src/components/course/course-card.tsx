@@ -4,6 +4,7 @@ import { queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/useAuth";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useLocation } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -20,6 +21,7 @@ export default function CourseCard({ course }: CourseCardProps) {
   const { user } = useAuth();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const [, setLocation] = useLocation();
 
   const enrollMutation = useMutation({
     mutationFn: async (courseId: number) => {
@@ -42,12 +44,18 @@ export default function CourseCard({ course }: CourseCardProps) {
     },
   });
 
-  const handleEnroll = () => {
+  const handleEnroll = (e: React.MouseEvent) => {
+    e.stopPropagation();
     enrollMutation.mutate(course.id);
   };
 
-  const handleEdit = () => {
-    window.location.href = `/course-builder/${course.id}`;
+  const handleEdit = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setLocation(`/course-builder/${course.id}`);
+  };
+
+  const handleCardClick = () => {
+    setLocation(`/courses/${course.id}`);
   };
 
   const isInstructor = user?.role === "instructor";
@@ -85,7 +93,7 @@ export default function CourseCard({ course }: CourseCardProps) {
   const mockDuration = Math.floor(Math.random() * 20) + 5;
 
   return (
-    <Card className="interactive-card group overflow-hidden">
+    <Card className="interactive-card group overflow-hidden cursor-pointer hover:shadow-lg transition-all" onClick={handleCardClick}>
       <CardContent className="p-0">
         {/* Course Thumbnail */}
         <div className="relative h-48 bg-gradient-to-br from-blue-500 to-purple-600">
@@ -200,7 +208,10 @@ export default function CourseCard({ course }: CourseCardProps) {
                   {enrollMutation.isPending ? "Enrolling..." : "Enroll"}
                 </Button>
               ) : (
-                <Button size="sm" variant="outline">
+                <Button size="sm" variant="outline" onClick={(e) => {
+                  e.stopPropagation();
+                  setLocation(`/courses/${course.id}`);
+                }}>
                   View Details
                 </Button>
               )}

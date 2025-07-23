@@ -10,6 +10,7 @@ import {
   submissions,
   quizzes,
   quizQuestions,
+  quizAttempts,
   notifications,
   certificates,
   lessonProgress,
@@ -24,6 +25,7 @@ import {
   type Assignment,
   type Submission,
   type Quiz,
+  type QuizQuestion,
   type Notification,
 } from "@shared/schema";
 import { db } from "./db";
@@ -75,10 +77,6 @@ export interface IStorage {
   getUserNotifications(userId: string): Promise<Notification[]>;
   createNotification(notification: any): Promise<Notification>;
   markNotificationRead(id: number): Promise<void>;
-  
-  // Analytics
-  getInstructorStats(instructorId: string): Promise<any>;
-  getCourseAnalytics(courseId: number): Promise<any>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -105,10 +103,50 @@ export class DatabaseStorage implements IStorage {
 
   // Course operations
   async getCourses(instructorId?: string): Promise<Course[]> {
+    console.log('Getting courses with instructorId:', instructorId);
+    let query;
     if (instructorId) {
-      return db.select().from(courses).where(eq(courses.instructorId, instructorId));
+      query = db
+        .select({
+          id: courses.id,
+          title: courses.title,
+          description: courses.description,
+          category: courses.category,
+          difficulty: courses.difficulty,
+          status: courses.status,
+          thumbnail: courses.thumbnail,
+          createdAt: courses.createdAt,
+          updatedAt: courses.updatedAt,
+          instructorId: courses.instructorId,
+          instructor: users,
+        })
+        .from(courses)
+        .leftJoin(users, eq(courses.instructorId, users.id))
+        .where(eq(courses.instructorId, instructorId));
+    } else {
+      query = db
+        .select({
+          id: courses.id,
+          title: courses.title,
+          description: courses.description,
+          category: courses.category,
+          difficulty: courses.difficulty,
+          status: courses.status,
+          thumbnail: courses.thumbnail,
+          createdAt: courses.createdAt,
+          updatedAt: courses.updatedAt,
+          instructorId: courses.instructorId,
+          instructor: users,
+        })
+        .from(courses)
+        .leftJoin(users, eq(courses.instructorId, users.id))
+        .where(eq(courses.status, "published"));
     }
-    return db.select().from(courses).where(eq(courses.status, "published"));
+    
+    console.log('SQL Query:', query.toSQL());
+    const result = await query;
+    console.log('Query result:', result);
+    return result;
   }
 
   async getCourse(id: number): Promise<Course | undefined> {
@@ -133,7 +171,14 @@ export class DatabaseStorage implements IStorage {
   // Module operations
   async getCourseModules(courseId: number): Promise<CourseModule[]> {
     return db
-      .select()
+      .select({
+        id: courseModules.id,
+        title: courseModules.title,
+        description: courseModules.description,
+        orderIndex: courseModules.orderIndex,
+        courseId: courseModules.courseId,
+        createdAt: courseModules.createdAt,
+      })
       .from(courseModules)
       .where(eq(courseModules.courseId, courseId))
       .orderBy(courseModules.orderIndex);
@@ -257,15 +302,23 @@ export class DatabaseStorage implements IStorage {
 
   // Assignment operations
   async getCourseAssignments(courseId: number): Promise<Assignment[]> {
-    return db
+    console.log('Fetching assignments for course:', courseId);
+    const query = db
       .select()
       .from(assignments)
       .where(eq(assignments.courseId, courseId))
       .orderBy(desc(assignments.createdAt));
+    
+    console.log('SQL Query:', query.toSQL());
+    const result = await query;
+    console.log('Query result:', result);
+    return result;
   }
 
   async createAssignment(assignmentData: any): Promise<Assignment> {
+    console.log('Creating assignment with data:', assignmentData);
     const [assignment] = await db.insert(assignments).values(assignmentData).returning();
+    console.log('Created assignment:', assignment);
     return assignment;
   }
 
@@ -349,34 +402,128 @@ export class DatabaseStorage implements IStorage {
       .where(eq(notifications.id, id));
   }
 
-  // Analytics
-  async getInstructorStats(instructorId: string): Promise<any> {
-    const [courseCount] = await db
-      .select({ count: count() })
-      .from(courses)
-      .where(eq(courses.instructorId, instructorId));
-
-    const [enrollmentCount] = await db
-      .select({ count: count() })
-      .from(enrollments)
-      .leftJoin(courses, eq(enrollments.courseId, courses.id))
-      .where(eq(courses.instructorId, instructorId));
-
-    return {
-      activeCourses: courseCount.count,
-      totalStudents: enrollmentCount.count,
-    };
+  // Quiz operations
+  async getCourseQuizzes(courseId: number): Promise<Quiz[]> {
+    console.log('Fetching quizzes for course:', courseId);
+    const query = db
+      .select()
+      .from(quizzes)
+      .where(eq(quizzes.courseId, courseId))
+      .orderBy(desc(quizzes.createdAt));
+    
+    console.log('SQL Query:', query.toSQL());
+    const result = await query;
+    console.log('Query result:', result);
+    return result;
   }
 
-  async getCourseAnalytics(courseId: number): Promise<any> {
-    const [enrollmentCount] = await db
-      .select({ count: count() })
-      .from(enrollments)
-      .where(eq(enrollments.courseId, courseId));
+  async createQuiz(quizData: any): Promise<Quiz> {
+    console.log('Creating quiz with data:', quizData);
+    const [quiz] = await db.insert(quizzes).values(quizData).returning();
+    console.log('Created quiz:', quiz);
+    return quiz;
+  }
 
-    return {
-      totalEnrollments: enrollmentCount.count,
-    };
+  async getQuizQuestions(quizId: number): Promise<QuizQuestion[]> {
+    const questions = await db
+      .select({
+        id: quizQuestions.id,
+        quizId: quizQuestions.quizId,
+        question: quizQuestions.question,
+        type: quizQuestions.type,
+        options: quizQuestions.options,
+        correctAnswer: quizQuestions.correctAnswer,
+        points: quizQuestions.points,
+        orderIndex: quizQuestions.orderIndex,
+      })
+      .from(quizQuestions)
+      .where(eq(quizQuestions.quizId, quizId))
+      .orderBy(quizQuestions.orderIndex);
+
+    return questions;
+  }
+
+  async createQuizQuestion(questionData: any): Promise<QuizQuestion> {
+    const [question] = await db.insert(quizQuestions).values(questionData).returning();
+    return question;
+  }
+
+  async updateQuizQuestion(id: number, updates: any): Promise<QuizQuestion> {
+    const [question] = await db
+      .update(quizQuestions)
+      .set(updates)
+      .where(eq(quizQuestions.id, id))
+      .returning();
+    return question;
+  }
+
+  async getQuizAttempts(quizId: number, userId: string): Promise<any[]> {
+    return db
+      .select()
+      .from(quizAttempts)
+      .where(and(
+        eq(quizAttempts.quizId, quizId),
+        eq(quizAttempts.userId, userId)
+      ))
+      .orderBy(desc(quizAttempts.startedAt));
+  }
+
+  async createQuizAttempt(attemptData: any): Promise<any> {
+    const [attempt] = await db.insert(quizAttempts).values(attemptData).returning();
+    return attempt;
+  }
+
+  async updateQuizAttempt(id: number, updates: any): Promise<any> {
+    const [attempt] = await db
+      .update(quizAttempts)
+      .set(updates)
+      .where(eq(quizAttempts.id, id))
+      .returning();
+    return attempt;
+  }
+
+  async getQuiz(id: number): Promise<Quiz> {
+    const [quiz] = await db
+      .select({
+        id: quizzes.id,
+        title: quizzes.title,
+        description: quizzes.description,
+        timeLimit: quizzes.timeLimit,
+        attempts: quizzes.attempts,
+        passingScore: quizzes.passingScore,
+        courseId: quizzes.courseId,
+        createdAt: quizzes.createdAt,
+      })
+      .from(quizzes)
+      .where(eq(quizzes.id, id));
+
+    if (!quiz) {
+      throw new Error("Quiz not found");
+    }
+    return quiz;
+  }
+
+  async getQuizAttempt(id: number): Promise<any | undefined> {
+    const [attempt] = await db.select().from(quizAttempts).where(eq(quizAttempts.id, id));
+    return attempt;
+  }
+
+  async getCourseLessons(courseId: number): Promise<Lesson[]> {
+    return db
+      .select({
+        id: lessons.id,
+        title: lessons.title,
+        content: lessons.content,
+        contentType: lessons.contentType,
+        duration: lessons.duration,
+        moduleId: lessons.moduleId,
+        orderIndex: lessons.orderIndex,
+        createdAt: lessons.createdAt,
+      })
+      .from(lessons)
+      .innerJoin(courseModules, eq(lessons.moduleId, courseModules.id))
+      .where(eq(courseModules.courseId, courseId))
+      .orderBy(lessons.orderIndex);
   }
 }
 

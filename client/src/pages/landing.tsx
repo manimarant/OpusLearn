@@ -1,8 +1,51 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { BookOpen, Users, Award, BarChart3, MessageSquare, FileText } from "lucide-react";
+import { useEffect } from "react";
+import { useLocation } from "wouter";
 
 export default function Landing() {
+  const [, setLocation] = useLocation();
+  
+  // Check if we're in development mode by testing the login endpoint
+  useEffect(() => {
+    const checkDevMode = async () => {
+      try {
+        const response = await fetch('/api/login');
+        const data = await response.json();
+        
+        // If login is disabled in development mode, redirect to dashboard
+        if (data.message === "Development mode - login disabled") {
+          console.log('Development mode detected, redirecting to dashboard');
+          setLocation('/');
+        }
+      } catch (error) {
+        console.error('Error checking development mode:', error);
+      }
+    };
+    
+    checkDevMode();
+  }, [setLocation]);
+  
+  const handleLogin = async () => {
+    try {
+      // In development mode, check if login is disabled
+      const response = await fetch('/api/login');
+      const data = await response.json();
+      
+      if (data.message === "Development mode - login disabled") {
+        // Redirect to dashboard in development mode
+        setLocation('/');
+      } else {
+        // Normal login flow
+        window.location.href = "/api/login";
+      }
+    } catch (error) {
+      console.error('Error during login:', error);
+      // Fallback to direct login
+      window.location.href = "/api/login";
+    }
+  };
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
       {/* Header */}
@@ -16,7 +59,7 @@ export default function Landing() {
               <h1 className="text-xl font-semibold text-slate-800">Frost Learning</h1>
             </div>
             <Button 
-              onClick={() => window.location.href = "/api/login"}
+              onClick={handleLogin}
               className="bg-blue-600 hover:bg-blue-700 transition-colors"
             >
               Sign In
@@ -39,7 +82,7 @@ export default function Landing() {
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button 
               size="lg" 
-              onClick={() => window.location.href = "/api/login"}
+              onClick={handleLogin}
               className="bg-blue-600 hover:bg-blue-700 px-8 py-3 text-lg"
             >
               Get Started
@@ -75,7 +118,7 @@ export default function Landing() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             <Card className="hover:shadow-lg transition-shadow border-slate-200 cursor-pointer" 
-                  onClick={() => window.location.href = "/api/login"}>
+                  onClick={handleLogin}>
               <CardHeader>
                 <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-4">
                   <BookOpen className="h-6 w-6 text-blue-600" />
@@ -88,7 +131,7 @@ export default function Landing() {
             </Card>
 
             <Card className="hover:shadow-lg transition-shadow border-slate-200 cursor-pointer"
-                  onClick={() => window.location.href = "/api/login"}>
+                  onClick={handleLogin}>
               <CardHeader>
                 <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mb-4">
                   <Users className="h-6 w-6 text-green-600" />
@@ -101,7 +144,7 @@ export default function Landing() {
             </Card>
 
             <Card className="hover:shadow-lg transition-shadow border-slate-200 cursor-pointer"
-                  onClick={() => window.location.href = "/api/login"}>
+                  onClick={handleLogin}>
               <CardHeader>
                 <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mb-4">
                   <BarChart3 className="h-6 w-6 text-purple-600" />
@@ -114,7 +157,7 @@ export default function Landing() {
             </Card>
 
             <Card className="hover:shadow-lg transition-shadow border-slate-200 cursor-pointer"
-                  onClick={() => window.location.href = "/api/login"}>
+                  onClick={handleLogin}>
               <CardHeader>
                 <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center mb-4">
                   <MessageSquare className="h-6 w-6 text-yellow-600" />
@@ -127,7 +170,7 @@ export default function Landing() {
             </Card>
 
             <Card className="hover:shadow-lg transition-shadow border-slate-200 cursor-pointer"
-                  onClick={() => window.location.href = "/api/login"}>
+                  onClick={handleLogin}>
               <CardHeader>
                 <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center mb-4">
                   <FileText className="h-6 w-6 text-red-600" />
@@ -140,7 +183,7 @@ export default function Landing() {
             </Card>
 
             <Card className="hover:shadow-lg transition-shadow border-slate-200 cursor-pointer"
-                  onClick={() => window.location.href = "/api/login"}>
+                  onClick={handleLogin}>
               <CardHeader>
                 <div className="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center mb-4">
                   <Award className="h-6 w-6 text-indigo-600" />
@@ -167,7 +210,7 @@ export default function Landing() {
           </p>
           <Button 
             size="lg" 
-            onClick={() => window.location.href = "/api/login"}
+            onClick={handleLogin}
             className="bg-blue-600 hover:bg-blue-700 px-8 py-3 text-lg"
           >
             Start Teaching Today

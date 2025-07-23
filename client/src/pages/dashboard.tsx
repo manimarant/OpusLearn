@@ -31,17 +31,17 @@ export default function Dashboard() {
   }, [isAuthenticated, isLoading, toast]);
 
   const { data: courses } = useQuery({
-    queryKey: ["/api/courses"],
+    queryKey: ["api", "courses"],
     enabled: !!user,
   });
 
   const { data: analytics } = useQuery({
-    queryKey: ["/api/analytics/instructor"],
+    queryKey: ["api", "analytics", "instructor"],
     enabled: !!user && user.role === "instructor",
   });
 
   const { data: notifications } = useQuery({
-    queryKey: ["/api/notifications"],
+    queryKey: ["api", "notifications"],
     enabled: !!user,
   });
 
