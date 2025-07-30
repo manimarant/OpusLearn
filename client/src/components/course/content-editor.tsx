@@ -27,9 +27,10 @@ interface ContentEditorProps {
   lesson: any;
   onSave: (lessonData: any) => void;
   isLoading?: boolean;
+  forceUpdate?: boolean;
 }
 
-export default function ContentEditor({ lesson, onSave, isLoading }: ContentEditorProps) {
+export default function ContentEditor({ lesson, onSave, isLoading, forceUpdate }: ContentEditorProps) {
   const [lessonData, setLessonData] = useState({
     title: lesson?.title || "",
     content: lesson?.content || "",
@@ -41,14 +42,23 @@ export default function ContentEditor({ lesson, onSave, isLoading }: ContentEdit
 
   useEffect(() => {
     if (lesson) {
-      setLessonData({
+      console.log("=== CONTENT EDITOR UPDATE ===");
+      console.log("ContentEditor updating with lesson:", lesson);
+      console.log("Force update value:", forceUpdate);
+      console.log("Current lessonData:", lessonData);
+      
+      const newLessonData = {
         title: lesson.title || "",
         content: lesson.content || "",
         contentType: lesson.contentType || "text",
         duration: lesson.duration || 0,
-      });
+      };
+      
+      console.log("New lessonData to set:", newLessonData);
+      setLessonData(newLessonData);
+      console.log("=== CONTENT EDITOR UPDATE END ===");
     }
-  }, [lesson]);
+  }, [lesson, forceUpdate]);
 
   const handleSave = () => {
     onSave(lessonData);

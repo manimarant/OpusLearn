@@ -1,74 +1,74 @@
-import { useParams } from "wouter";
+import { useParams, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import Header from "@/components/layout/header";
 import Sidebar from "@/components/layout/sidebar";
 import { Button } from "@/components/ui/button";
-import { Printer } from "lucide-react";
+import { Printer, ArrowLeft } from "lucide-react";
 import { useEffect } from "react";
 import "./course-preview.css";
 
 export default function CoursePreview() {
   const { id } = useParams();
-  const { user } = useAuth();
+  const { user, isAuthenticated } = useAuth();
+  const [location, setLocation] = useLocation();
+  
 
+  
+
+  
   const { data: course, isLoading: isCourseLoading, error: courseError } = useQuery({
-    queryKey: ["/api/courses", id],
+    queryKey: ["course", id, "public"],
     queryFn: async () => {
-      const response = await fetch(`/api/courses/${id}`);
+      const response = await fetch(`/api/courses/${id}/public`);
       if (!response.ok) throw new Error('Failed to fetch course');
       return response.json();
     },
   });
 
   const { data: modules, isLoading: isModulesLoading, error: modulesError } = useQuery({
-    queryKey: ["/api/courses", id, "modules"],
+    queryKey: ["modules", id, "public"],
     queryFn: async () => {
-      const response = await fetch(`/api/courses/${id}/modules`);
+      const response = await fetch(`/api/courses/${id}/modules/public`);
       if (!response.ok) throw new Error('Failed to fetch modules');
       return response.json();
     },
-    enabled: !!course,
   });
 
   const { data: lessons, isLoading: isLessonsLoading, error: lessonsError } = useQuery({
-    queryKey: ["/api/courses", id, "lessons"],
+    queryKey: ["lessons", id, "public"],
     queryFn: async () => {
-      const response = await fetch(`/api/courses/${id}/lessons`);
+      const response = await fetch(`/api/courses/${id}/lessons/public`);
       if (!response.ok) throw new Error('Failed to fetch lessons');
       return response.json();
     },
-    enabled: !!course,
   });
 
   const { data: discussions } = useQuery({
-    queryKey: ["/api/courses", id, "discussions"],
+    queryKey: ["discussions", id, "public"],
     queryFn: async () => {
-      const response = await fetch(`/api/courses/${id}/discussions`);
+      const response = await fetch(`/api/courses/${id}/discussions/public`);
       if (!response.ok) throw new Error('Failed to fetch discussions');
       return response.json();
     },
-    enabled: !!course,
   });
 
   const { data: assignments } = useQuery({
-    queryKey: ["/api/courses", id, "assignments"],
+    queryKey: ["assignments", id, "public"],
     queryFn: async () => {
-      const response = await fetch(`/api/courses/${id}/assignments`);
+      const response = await fetch(`/api/courses/${id}/assignments/public`);
       if (!response.ok) throw new Error('Failed to fetch assignments');
       return response.json();
     },
-    enabled: !!course,
   });
 
   const { data: quizzes } = useQuery({
-    queryKey: ["/api/courses", id, "quizzes"],
+    queryKey: ["quizzes", id, "public"],
     queryFn: async () => {
-      const response = await fetch(`/api/courses/${id}/quizzes`);
+      const response = await fetch(`/api/courses/${id}/quizzes/public`);
       if (!response.ok) throw new Error('Failed to fetch quizzes');
       return response.json();
     },
-    enabled: !!course,
   });
 
   useEffect(() => {
@@ -118,52 +118,37 @@ export default function CoursePreview() {
     };
   }, []);
 
-  useEffect(() => {
-    console.log('Course:', course);
-    console.log('Modules:', modules);
-    console.log('Lessons:', lessons);
-    console.log('Discussions:', discussions);
-    console.log('Assignments:', assignments);
-    console.log('Quizzes:', quizzes);
-  }, [course, modules, lessons, discussions, assignments, quizzes]);
+
 
   if (courseError || modulesError || lessonsError) {
     return (
       <div className="min-h-screen bg-slate-50">
-        <Header />
-        <div className="flex">
-          <Sidebar />
-          <main className="flex-1 p-8">
-            <div className="text-center py-12">
-              <h2 className="text-2xl font-bold text-slate-800 mb-2">Error Loading Course</h2>
-              <p className="text-slate-600">
-                {courseError?.message || modulesError?.message || lessonsError?.message}
-              </p>
-            </div>
-          </main>
-        </div>
+        <main className="w-full p-8">
+          <div className="text-center py-12">
+            <h2 className="text-2xl font-bold text-slate-800 mb-2">Error Loading Course</h2>
+            <p className="text-slate-600">
+              {courseError?.message || modulesError?.message || lessonsError?.message}
+            </p>
+          </div>
+        </main>
       </div>
     );
   }
 
-  if (isCourseLoading || isModulesLoading || isLessonsLoading) {
+  if (isCourseLoading) {
     return (
       <div className="min-h-screen bg-slate-50">
-        <Header />
-        <div className="flex">
-          <Sidebar />
-          <main className="flex-1 p-8">
-            <div className="animate-pulse">
-              <div className="h-8 bg-slate-200 rounded w-1/4 mb-4"></div>
-              <div className="h-4 bg-slate-200 rounded w-2/4 mb-8"></div>
-              <div className="space-y-4">
-                <div className="h-48 bg-slate-200 rounded"></div>
-                <div className="h-24 bg-slate-200 rounded"></div>
-                <div className="h-24 bg-slate-200 rounded"></div>
-              </div>
+        <main className="w-full p-8">
+          <div className="animate-pulse">
+            <div className="h-8 bg-slate-200 rounded w-1/4 mb-4"></div>
+            <div className="h-4 bg-slate-200 rounded w-2/4 mb-8"></div>
+            <div className="space-y-4">
+              <div className="h-48 bg-slate-200 rounded"></div>
+              <div className="h-24 bg-slate-200 rounded"></div>
+              <div className="h-24 bg-slate-200 rounded"></div>
             </div>
-          </main>
-        </div>
+          </div>
+        </main>
       </div>
     );
   }
@@ -171,16 +156,12 @@ export default function CoursePreview() {
   if (!course) {
     return (
       <div className="min-h-screen bg-slate-50">
-        <Header />
-        <div className="flex">
-          <Sidebar />
-          <main className="flex-1 p-8">
-            <div className="text-center py-12">
-              <h2 className="text-2xl font-bold text-slate-800 mb-2">Course Not Found</h2>
-              <p className="text-slate-600">The course you're looking for doesn't exist or has been removed.</p>
-            </div>
-          </main>
-        </div>
+        <main className="w-full p-8">
+          <div className="text-center py-12">
+            <h2 className="text-2xl font-bold text-slate-800 mb-2">Course Not Found</h2>
+            <p className="text-slate-600">The course you're looking for doesn't exist or has been removed.</p>
+          </div>
+        </main>
       </div>
     );
   }
@@ -191,10 +172,23 @@ export default function CoursePreview() {
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Header with Print Button */}
+      {/* Header with Back and Print Buttons */}
       <div className="no-print bg-slate-50 border-b">
         <div className="max-w-4xl mx-auto py-4 px-6 flex justify-between items-center">
-          <h1 className="text-xl font-semibold text-slate-800">Course Preview</h1>
+          <div className="flex items-center space-x-4">
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                // Always navigate to courses page for consistent behavior
+                setLocation('/courses');
+              }}
+              className="flex items-center"
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Courses
+            </Button>
+            <h1 className="text-xl font-semibold text-slate-800">Course Preview</h1>
+          </div>
           <Button onClick={handlePrint}>
             <Printer className="h-4 w-4 mr-2" />
             Print Course Content

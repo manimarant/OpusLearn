@@ -12,7 +12,7 @@ if (!process.env.DATABASE_URL) {
   // Create a mock database that returns empty results
   const mockDb = {
     select: () => ({ from: () => ({ where: () => [], limit: () => [], orderBy: () => [] }) }),
-    insert: () => ({ into: () => ({ values: () => ({ returning: () => [] }) }) }),
+    insert: () => ({ values: () => ({ onConflictDoUpdate: () => ({ returning: () => [] }), returning: () => [] }) }),
     update: () => ({ set: () => ({ where: () => ({ returning: () => [] }) }) }),
     delete: () => ({ from: () => ({ where: () => ({ returning: () => [] }) }) }),
     query: {

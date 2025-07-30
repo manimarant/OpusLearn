@@ -12,7 +12,9 @@ import {
   BarChart3, 
   Settings,
   FileText,
-  Award
+  Award,
+  Sparkles,
+  Zap
 } from "lucide-react";
 
 type Role = 'student' | 'instructor' | 'admin';
@@ -75,6 +77,7 @@ export default function Sidebar() {
         href: "/course-builder/",
         icon: Plus,
         label: "New Course",
+        badge: "AI-Powered",
       },
       {
         href: "/assignments",
@@ -106,31 +109,52 @@ export default function Sidebar() {
   ];
 
   return (
-    <aside className="w-64 bg-white border-r border-slate-200 min-h-screen">
+    <aside className="w-64 saas-sidebar min-h-screen">
       <div className="p-6">
         {/* Role Switcher */}
-        <div className="mb-6">
+        <div className="mb-8">
+          <div className="flex items-center space-x-2 mb-3">
+            <div className="w-2 h-2 bg-primary rounded-full"></div>
+            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              Current Role
+            </span>
+          </div>
           <Select value={userRole} onValueChange={(value: Role) => setUserRole(value)}>
-            <SelectTrigger className="w-full bg-slate-50 border-slate-200">
+            <SelectTrigger className="w-full saas-input bg-muted/50 border-border/50">
               <SelectValue />
             </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="instructor">Instructor Dashboard</SelectItem>
-              <SelectItem value="student">Student View</SelectItem>
-              <SelectItem value="admin">Administrator</SelectItem>
+            <SelectContent className="saas-card">
+              <SelectItem value="instructor" className="saas-button-ghost">
+                <div className="flex items-center space-x-2">
+                  <Sparkles className="h-4 w-4 text-primary" />
+                  <span>Instructor Dashboard</span>
+                </div>
+              </SelectItem>
+              <SelectItem value="student" className="saas-button-ghost">
+                <div className="flex items-center space-x-2">
+                  <BookOpen className="h-4 w-4 text-primary" />
+                  <span>Student View</span>
+                </div>
+              </SelectItem>
+              <SelectItem value="admin" className="saas-button-ghost">
+                <div className="flex items-center space-x-2">
+                  <Settings className="h-4 w-4 text-primary" />
+                  <span>Administrator</span>
+                </div>
+              </SelectItem>
             </SelectContent>
           </Select>
         </div>
         
         {/* Navigation Menu */}
-        <nav className="space-y-2">
+        <nav className="space-y-1">
           {navigationItems.map((item) => (
             <Link key={item.href} href={item.href}>
               <button
-                className={`w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium transition-smooth ${
+                className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 ${
                   item.active
-                    ? "sidebar-active text-primary"
-                    : "text-slate-600 hover:text-slate-800 hover:bg-slate-50"
+                    ? "saas-sidebar-active bg-primary/5 text-primary shadow-sm"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
                 }`}
               >
                 <item.icon className="w-5 h-5" />
@@ -141,20 +165,45 @@ export default function Sidebar() {
         </nav>
         
         {/* Quick Actions */}
-        <div className="mt-8 pt-6 border-t border-slate-200">
-          <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">
-            Quick Actions
-          </h3>
-          <div className="space-y-2">
+        <div className="mt-8 pt-6 border-t border-border/50">
+          <div className="flex items-center space-x-2 mb-4">
+            <Zap className="h-4 w-4 text-primary" />
+            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              Quick Actions
+            </h3>
+          </div>
+          <div className="space-y-1">
             {quickActions.map((action) => (
               <Link key={`${action.href}-${action.label}`} href={action.href}>
-                <button className="w-full flex items-center space-x-2 px-3 py-2 text-sm text-slate-600 hover:text-slate-800 hover:bg-slate-50 rounded-lg transition-smooth">
-                  <action.icon className="w-4 h-4" />
-                  <span>{action.label}</span>
+                <button className="w-full flex items-center justify-between px-4 py-2.5 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/30 rounded-lg transition-all duration-200 group">
+                  <div className="flex items-center space-x-3">
+                    <action.icon className="w-4 h-4" />
+                    <span>{action.label}</span>
+                  </div>
+                  {action.badge && (
+                    <div className="flex items-center space-x-1 px-2 py-0.5 bg-primary/10 rounded-full">
+                      <Sparkles className="h-3 w-3 text-primary" />
+                      <span className="text-xs font-medium text-primary">{action.badge}</span>
+                    </div>
+                  )}
                 </button>
               </Link>
             ))}
           </div>
+        </div>
+        
+        {/* Pro Features Banner */}
+        <div className="mt-8 p-4 bg-gradient-to-br from-primary/5 to-primary/10 rounded-xl border border-primary/20">
+          <div className="flex items-center space-x-2 mb-2">
+            <Sparkles className="h-4 w-4 text-primary" />
+            <span className="text-xs font-semibold text-primary">Pro Features</span>
+          </div>
+          <p className="text-xs text-muted-foreground mb-3">
+            Unlock advanced AI-powered course creation tools and analytics.
+          </p>
+          <Button size="sm" className="w-full saas-button-primary text-xs">
+            Upgrade to Pro
+          </Button>
         </div>
       </div>
     </aside>

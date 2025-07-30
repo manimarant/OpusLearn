@@ -15,11 +15,32 @@ import Quizzes from "@/pages/quizzes";
 import QuizDetail from "@/pages/quiz-detail";
 import Settings from "@/pages/settings";
 
+export default function App() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <div className="min-h-screen bg-background">
+        <Router />
+      </div>
+    </QueryClientProvider>
+  );
+}
+
 function Router() {
   const { isAuthenticated, isLoading, error } = useAuth();
 
-  // Show loading state while authentication is being checked
-  if (isLoading) {
+  // Show loading state only on initial load, not on navigation
+  const isPreviewRoute = window.location.pathname.includes('/preview');
+  const isInitialLoad = !sessionStorage.getItem('app-initialized');
+  
+  // Force authentication check for course detail pages
+  const isCourseDetailPage = window.location.pathname.match(/^\/courses\/\d+$/);
+  const shouldForceAuth = isCourseDetailPage && !isAuthenticated && !isLoading;
+  
+
+  
+  if (isLoading && !isPreviewRoute && isInitialLoad) {
+    // Mark as initialized after first load
+    sessionStorage.setItem('app-initialized', 'true');
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
@@ -32,33 +53,26 @@ function Router() {
 
   return (
     <Switch>
-      {!isAuthenticated ? (
-        <Route path="/" component={Landing} />
-      ) : (
-        <>
-          <Route path="/" component={Dashboard} />
-          <Route path="/courses" component={Courses} />
-          <Route path="/courses/:id" component={CourseDetail} />
-          <Route path="/courses/:id/preview" component={CoursePreview} />
-          <Route path="/course-builder/:id?" component={CourseBuilder} />
-          <Route path="/discussions" component={Discussions} />
-          <Route path="/assignments" component={Assignments} />
-          <Route path="/quizzes" component={Quizzes} />
-          <Route path="/quizzes/:id" component={QuizDetail} />
-          <Route path="/settings" component={Settings} />
-        </>
-      )}
+      {/* Preview route is always available */}
+      <Route path="/courses/:id/preview" component={CoursePreview} />
+      
+      {/* Landing page is always the default */}
+      <Route path="/" component={Landing} />
+      
+      {/* Common routes available to both authenticated and unauthenticated users */}
+      <Route path="/courses" component={Courses} />
+      
+      {/* Authenticated routes */}
+      <Route path="/dashboard" component={Dashboard} />
+      <Route path="/courses/:id" component={CourseDetail} />
+      <Route path="/course-builder/:id?" component={CourseBuilder} />
+      <Route path="/discussions" component={Discussions} />
+      <Route path="/assignments" component={Assignments} />
+      <Route path="/quizzes" component={Quizzes} />
+      <Route path="/quizzes/:id" component={QuizDetail} />
+      <Route path="/settings" component={Settings} />
+      
       <Route component={NotFound} />
     </Switch>
-  );
-}
-
-export default function App() {
-  return (
-    <QueryClientProvider client={queryClient}>
-      <div className="min-h-screen bg-background">
-        <Router />
-      </div>
-    </QueryClientProvider>
   );
 }

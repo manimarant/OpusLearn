@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { BookOpen, Users, Clock, Edit, MessageSquare, FileText, Eye, Share2 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,9 +19,19 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 export default function CourseDetail() {
   const { id } = useParams();
-  const { user } = useAuth();
+  const { user, isAuthenticated, isLoading } = useAuth();
   const { toast } = useToast();
   const [, setLocation] = useLocation();
+  
+  // Force authentication check
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      // If not authenticated, redirect to landing page
+      setLocation('/');
+    }
+  }, [isAuthenticated, isLoading, setLocation]);
+  
+
   const [isPublishDialogOpen, setIsPublishDialogOpen] = useState(false);
   const [publishDetails, setPublishDetails] = useState({
     platform: "",
@@ -29,7 +39,7 @@ export default function CourseDetail() {
     courseId: "",
   });
 
-  const { data: course, isLoading } = useQuery({
+  const { data: course, isLoading: isCourseLoading, error: courseError } = useQuery({
     queryKey: ["/api/courses", id],
     queryFn: async () => {
       const response = await fetch(`/api/courses/${id}`);
@@ -114,7 +124,7 @@ export default function CourseDetail() {
     publishMutation.mutate(publishDetails);
   };
 
-  if (isLoading) {
+  if (isCourseLoading) {
     return (
       <div className="min-h-screen bg-slate-50">
         <Header />
@@ -175,16 +185,16 @@ export default function CourseDetail() {
                 </div>
               </div>
               <div className="flex items-center space-x-3">
-                <Button 
-                  variant="outline"
-                  onClick={() => setLocation(`/courses/${course.id}/preview`)}
-                >
-                  <Eye className="h-4 w-4 mr-2" />
-                  Preview
-                </Button>
+                            <Button 
+              variant="outline"
+              onClick={() => window.location.href = `/courses/${course.id}/preview`}
+            >
+              <Eye className="h-4 w-4 mr-2" />
+              Preview
+            </Button>
                 {isOwner && (
                   <>
-                    <Button onClick={() => setLocation(`/course-builder/${course.id}`)}>
+                    <Button onClick={() => window.location.href = `/course-builder/${course.id}`}>
                       <Edit className="h-4 w-4 mr-2" />
                       Edit Course
                     </Button>

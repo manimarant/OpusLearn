@@ -99,6 +99,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Public course endpoint for preview
+  app.get('/api/courses/:id/public', async (req, res) => {
+    try {
+      const courseId = parseInt(req.params.id);
+      const course = await storage.getCourse(courseId);
+      
+      if (!course) {
+        return res.status(404).json({ message: "Course not found" });
+      }
+      
+      res.json(course);
+    } catch (error) {
+      console.error("Error fetching course:", error);
+      res.status(500).json({ message: "Failed to fetch course" });
+    }
+  });
+
   app.post('/api/courses', isAuthenticated, async (req: any, res) => {
     try {
       const userId = getUserId(req);
@@ -152,6 +169,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Public modules endpoint for preview
+  app.get('/api/courses/:id/modules/public', async (req, res) => {
+    try {
+      const courseId = parseInt(req.params.id);
+      const modules = await storage.getCourseModules(courseId);
+      res.json(modules);
+    } catch (error) {
+      console.error("Error fetching modules:", error);
+      res.status(500).json({ message: "Failed to fetch modules" });
+    }
+  });
+
   app.post('/api/courses/:id/modules', isAuthenticated, async (req: any, res) => {
     try {
       const courseId = parseInt(req.params.id);
@@ -180,6 +209,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const moduleId = parseInt(req.params.id);
       const lessons = await storage.getModuleLessons(moduleId);
+      res.json(lessons);
+    } catch (error) {
+      console.error("Error fetching lessons:", error);
+      res.status(500).json({ message: "Failed to fetch lessons" });
+    }
+  });
+
+  // Public lessons endpoint for preview
+  app.get('/api/courses/:id/lessons/public', async (req, res) => {
+    try {
+      const courseId = parseInt(req.params.id);
+      const lessons = await storage.getCourseLessons(courseId);
       res.json(lessons);
     } catch (error) {
       console.error("Error fetching lessons:", error);
@@ -264,6 +305,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Public discussions endpoint for preview
+  app.get('/api/courses/:id/discussions/public', async (req, res) => {
+    try {
+      const courseId = parseInt(req.params.id);
+      const discussions = await storage.getCourseDiscussions(courseId);
+      res.json(discussions);
+    } catch (error) {
+      console.error("Error fetching discussions:", error);
+      res.status(500).json({ message: "Failed to fetch discussions" });
+    }
+  });
+
   app.post('/api/courses/:id/discussions', isAuthenticated, async (req: any, res) => {
     try {
       const courseId = parseInt(req.params.id);
@@ -315,6 +368,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Assignment routes
   app.get('/api/courses/:id/assignments', isAuthenticated, async (req, res) => {
+    try {
+      const courseId = parseInt(req.params.id);
+      const assignments = await storage.getCourseAssignments(courseId);
+      res.json(assignments);
+    } catch (error) {
+      console.error("Error fetching assignments:", error);
+      res.status(500).json({ message: "Failed to fetch assignments" });
+    }
+  });
+
+  // Public assignments endpoint for preview
+  app.get('/api/courses/:id/assignments/public', async (req, res) => {
     try {
       const courseId = parseInt(req.params.id);
       const assignments = await storage.getCourseAssignments(courseId);
@@ -469,6 +534,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Quiz routes
   app.get('/api/courses/:id/quizzes', isAuthenticated, async (req, res) => {
+    try {
+      const courseId = parseInt(req.params.id);
+      const quizzes = await storage.getCourseQuizzes(courseId);
+      res.json(quizzes);
+    } catch (error) {
+      console.error("Error fetching quizzes:", error);
+      res.status(500).json({ message: "Failed to fetch quizzes" });
+    }
+  });
+
+  // Public quizzes endpoint for preview
+  app.get('/api/courses/:id/quizzes/public', async (req, res) => {
     try {
       const courseId = parseInt(req.params.id);
       const quizzes = await storage.getCourseQuizzes(courseId);

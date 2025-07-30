@@ -17,6 +17,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Save, Eye, Upload, ChevronRight, Edit, Trash2 } from "lucide-react";
+import AIAssistant from "@/components/course/ai-assistant";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useLocation } from "wouter";
 
@@ -55,6 +56,7 @@ export default function CourseBuilder() {
   const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
   const [isModuleDialogOpen, setIsModuleDialogOpen] = useState(false);
   const [isLessonDialogOpen, setIsLessonDialogOpen] = useState(false);
+  const [forceEditorUpdate, setForceEditorUpdate] = useState(0);
   const [newModule, setNewModule] = useState({ title: "", description: "" });
   const [newLesson, setNewLesson] = useState({ title: "", content: "", contentType: "text", duration: 0 });
   const [newCourse, setNewCourse] = useState({
@@ -117,15 +119,38 @@ export default function CourseBuilder() {
 
   const updateLessonMutation = useMutation({
     mutationFn: async ({ lessonId, updates }: { lessonId: number; updates: any }) => {
+      console.log("=== MUTATION FUNCTION START ===");
+      console.log("Mutation called with lessonId:", lessonId);
+      console.log("Mutation called with updates:", updates);
+      
       const response = await apiRequest("PUT", `/api/lessons/${lessonId}`, updates);
-      return response.json();
+      console.log("API response:", response);
+      
+      const data = await response.json();
+      console.log("Parsed response data:", data);
+      console.log("=== MUTATION FUNCTION END ===");
+      
+      return data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log("=== MUTATION SUCCESS ===");
+      console.log("Lesson update successful:", data);
       queryClient.invalidateQueries({ queryKey: ["/api/modules", selectedModule?.id, "lessons"] });
       toast({
         title: "Lesson Updated",
         description: "Your lesson has been saved successfully.",
       });
+      console.log("=== MUTATION SUCCESS END ===");
+    },
+    onError: (error) => {
+      console.log("=== MUTATION ERROR ===");
+      console.error("Error updating lesson:", error);
+      toast({
+        title: "Update Failed",
+        description: "Failed to save lesson. Please try again.",
+        variant: "destructive",
+      });
+      console.log("=== MUTATION ERROR END ===");
     },
   });
 
@@ -175,11 +200,20 @@ export default function CourseBuilder() {
   };
 
   const handleSaveLesson = (lessonData: any) => {
+    console.log("handleSaveLesson called with:", { lessonData, selectedLesson });
+    
     if (selectedLesson) {
+      console.log("Calling updateLessonMutation with:", {
+        lessonId: selectedLesson.id,
+        updates: lessonData,
+      });
+      
       updateLessonMutation.mutate({
         lessonId: selectedLesson.id,
         updates: lessonData,
       });
+    } else {
+      console.error("No selected lesson in handleSaveLesson");
     }
   };
 
@@ -193,6 +227,97 @@ export default function CourseBuilder() {
       return;
     }
     createCourseMutation.mutate(newCourse);
+  };
+
+  // AI Assistant handlers
+  const handleAIGenerateContent = (content: string, type: string) => {
+    console.log("=== AI CONTENT GENERATION START ===");
+    console.log("AI Generate Content called with:", { content, type, selectedLesson });
+    
+    if (selectedLesson) {
+      console.log("Selected lesson found:", selectedLesson);
+      
+      const updatedLessonData = {
+        title: selectedLesson.title,
+        content: content,
+        contentType: type,
+        duration: selectedLesson.duration
+      };
+      
+      console.log("Updated lesson data for save:", updatedLessonData);
+      
+      // Update the selected lesson state to reflect the new content immediately
+      const updatedLesson = {
+        ...selectedLesson,
+        content: content,
+        contentType: type
+      };
+      
+      console.log("Updated lesson object:", updatedLesson);
+      console.log("Setting selected lesson state...");
+      setSelectedLesson(updatedLesson);
+      
+      console.log("Triggering force editor update...");
+      setForceEditorUpdate(prev => {
+        console.log("Force update triggered, new value:", prev + 1);
+        return prev + 1;
+      });
+      
+      // Force a re-render by updating the lessons query
+      console.log("Updating React Query cache...");
+      queryClient.setQueryData(
+        ["/api/modules", selectedModule?.id, "lessons"],
+        (oldData: any) => {
+          console.log("Old lessons data:", oldData);
+          if (oldData) {
+            const newData = oldData.map((lesson: any) => 
+              lesson.id === selectedLesson.id ? updatedLesson : lesson
+            );
+            console.log("New lessons data:", newData);
+            return newData;
+          }
+          return oldData;
+        }
+      );
+      
+      // Save the lesson with the new content
+      console.log("Attempting to save lesson...");
+      try {
+        handleSaveLesson(updatedLessonData);
+        console.log("Save lesson called successfully");
+      } catch (error) {
+        console.error("Error saving lesson:", error);
+        toast({
+          title: "Save Warning",
+          description: "Content applied but save failed. Please manually save the lesson.",
+          variant: "destructive",
+        });
+      }
+      
+      toast({
+        title: "AI Content Applied",
+        description: "The AI-generated content has been applied to your lesson. Please save manually if needed.",
+      });
+      
+      console.log("=== AI CONTENT GENERATION END ===");
+    } else {
+      console.error("No selected lesson found");
+      toast({
+        title: "Error",
+        description: "No lesson selected. Please select a lesson first.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleAIGenerateModule = (module: { title: string; description: string }) => {
+    setNewModule(module);
+    setIsModuleDialogOpen(true);
+  };
+
+  const handleAIGenerateLesson = (lesson: { title: string; content: string; contentType: string; duration: number }) => {
+    setNewLesson(lesson);
+    setIsLessonDialogOpen(true);
   };
 
   const [, setLocation] = useLocation();
@@ -341,11 +466,45 @@ export default function CourseBuilder() {
                 </p>
               </div>
               <div className="flex items-center space-x-3">
-                <Button variant="outline">
+                              <AIAssistant
+                courseTitle={course?.title}
+                courseDescription={course?.description}
+                onGenerateContent={handleAIGenerateContent}
+                onGenerateModule={handleAIGenerateModule}
+                onGenerateLesson={handleAIGenerateLesson}
+                disabled={!selectedLesson}
+              />
+              <Button 
+                onClick={() => {
+                  console.log("=== TEST BUTTON CLICKED ===");
+                  console.log("Selected lesson:", selectedLesson);
+                  if (selectedLesson) {
+                    handleAIGenerateContent("This is a test content from the test button!", "text");
+                  } else {
+                    toast({
+                      title: "No Lesson Selected",
+                      description: "Please select a lesson first before testing AI content.",
+                      variant: "destructive",
+                    });
+                  }
+                }}
+                variant="outline"
+                size="sm"
+                disabled={!selectedLesson}
+              >
+                Test AI Content
+              </Button>
+                <Button 
+                  variant="outline"
+                  onClick={() => window.location.href = `/courses/${courseId}/preview`}
+                >
                   <Eye className="h-4 w-4 mr-2" />
                   Preview
                 </Button>
-                <Button className="bg-blue-600 hover:bg-blue-700">
+                <Button 
+                  className="bg-blue-600 hover:bg-blue-700"
+                  onClick={() => window.location.href = `/courses/${courseId}`}
+                >
                   <Upload className="h-4 w-4 mr-2" />
                   Publish
                 </Button>
@@ -527,6 +686,7 @@ export default function CourseBuilder() {
                       lesson={selectedLesson}
                       onSave={handleSaveLesson}
                       isLoading={updateLessonMutation.isPending}
+                      forceUpdate={forceEditorUpdate}
                     />
                   </CardContent>
                 </Card>
@@ -560,13 +720,23 @@ export default function CourseBuilder() {
                       <p className="text-slate-600 mb-6">
                         Start by creating modules to organize your course content, then add lessons within each module.
                       </p>
-                      <Button 
-                        onClick={() => setIsModuleDialogOpen(true)}
-                        className="bg-blue-600 hover:bg-blue-700"
-                      >
-                        <Plus className="h-4 w-4 mr-2" />
-                        Create First Module
-                      </Button>
+                      <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                        <Button 
+                          onClick={() => setIsModuleDialogOpen(true)}
+                          className="bg-blue-600 hover:bg-blue-700"
+                        >
+                          <Plus className="h-4 w-4 mr-2" />
+                          Create First Module
+                        </Button>
+                        <AIAssistant
+                          courseTitle={course?.title}
+                          courseDescription={course?.description}
+                          onGenerateContent={handleAIGenerateContent}
+                          onGenerateModule={handleAIGenerateModule}
+                          onGenerateLesson={handleAIGenerateLesson}
+                          disabled={!selectedLesson}
+                        />
+                      </div>
                     </div>
                   </CardContent>
                 </Card>

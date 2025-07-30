@@ -93,8 +93,8 @@ export default function CourseCard({ course }: CourseCardProps) {
   const mockDuration = Math.floor(Math.random() * 20) + 5;
 
   return (
-    <Card className="interactive-card group overflow-hidden cursor-pointer hover:shadow-lg transition-all" onClick={handleCardClick}>
-      <CardContent className="p-0">
+    <Card className="saas-card saas-card-hover group overflow-hidden cursor-pointer h-full flex flex-col" onClick={handleCardClick}>
+      <CardContent className="p-0 flex flex-col h-full">
         {/* Course Thumbnail */}
         <div className="relative h-48 bg-gradient-to-br from-blue-500 to-purple-600">
           <div className="absolute inset-0 bg-black/20"></div>
@@ -131,7 +131,7 @@ export default function CourseCard({ course }: CourseCardProps) {
         </div>
 
         {/* Course Content */}
-        <div className="p-6">
+        <div className="p-6 flex flex-col flex-1">
           <div className="flex items-start justify-between mb-3">
             <h3 className="font-semibold text-lg text-slate-800 line-clamp-2 group-hover:text-blue-600 transition-colors">
               {course.title}
@@ -188,13 +188,13 @@ export default function CourseCard({ course }: CourseCardProps) {
           )}
 
           {/* Action Buttons */}
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between mt-auto pt-4">
             <div className="text-sm text-slate-500">
               Updated {new Date(course.updatedAt).toLocaleDateString()}
             </div>
             <div className="flex space-x-2">
               {isOwner ? (
-                <Button size="sm" onClick={handleEdit} className="bg-blue-600 hover:bg-blue-700">
+                <Button size="sm" onClick={handleEdit} className="saas-button-primary">
                   <Edit className="h-4 w-4 mr-2" />
                   Edit
                 </Button>
@@ -203,7 +203,7 @@ export default function CourseCard({ course }: CourseCardProps) {
                   size="sm" 
                   onClick={handleEnroll}
                   disabled={enrollMutation.isPending}
-                  className="bg-blue-600 hover:bg-blue-700"
+                  className="saas-button-primary"
                 >
                   {enrollMutation.isPending ? "Enrolling..." : "Enroll"}
                 </Button>
@@ -211,7 +211,7 @@ export default function CourseCard({ course }: CourseCardProps) {
                 <Button size="sm" variant="outline" onClick={(e) => {
                   e.stopPropagation();
                   setLocation(`/courses/${course.id}`);
-                }}>
+                }} className="saas-button-secondary">
                   View Details
                 </Button>
               )}

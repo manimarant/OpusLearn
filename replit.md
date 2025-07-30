@@ -1,8 +1,8 @@
-# Frost Learning Platform
+# OpusLearn Platform
 
 ## Overview
 
-Frost Learning is a comprehensive e-learning platform built with modern web technologies. It provides a full-featured Learning Management System (LMS) with course creation, content management, student enrollment, discussions, assignments, and analytics capabilities.
+OpusLearn is a comprehensive e-learning platform built with modern web technologies. It provides a full-featured Learning Management System (LMS) with course creation, content management, student enrollment, discussions, assignments, and analytics capabilities.
 
 **Status**: Successfully deployed and functional as of January 16, 2025.
 
