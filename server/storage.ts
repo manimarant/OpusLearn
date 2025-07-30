@@ -14,6 +14,10 @@ import {
   notifications,
   certificates,
   lessonProgress,
+  rubrics,
+  rubricCriteria,
+  rubricLevels,
+  rubricEvaluations,
   type User,
   type UpsertUser,
   type Course,
@@ -27,6 +31,10 @@ import {
   type Quiz,
   type QuizQuestion,
   type Notification,
+  type Rubric,
+  type RubricCriteria,
+  type RubricLevel,
+  type RubricEvaluation,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, sql, count } from "drizzle-orm";
@@ -77,6 +85,17 @@ export interface IStorage {
   getUserNotifications(userId: string): Promise<Notification[]>;
   createNotification(notification: any): Promise<Notification>;
   markNotificationRead(id: number): Promise<void>;
+  
+  // Rubric operations
+  getRubrics(type?: string, assignmentId?: string, quizId?: string): Promise<Rubric[]>;
+  getRubricWithDetails(rubricId: number): Promise<any>;
+  createRubric(rubric: any): Promise<Rubric>;
+  updateRubric(id: number, updates: any): Promise<Rubric>;
+  deleteRubric(id: number): Promise<void>;
+  createRubricCriteria(criteria: any): Promise<RubricCriteria>;
+  createRubricLevel(level: any): Promise<RubricLevel>;
+  createRubricEvaluation(evaluation: any): Promise<RubricEvaluation>;
+  getRubricEvaluation(evaluationId: number): Promise<any>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -540,6 +559,106 @@ export class DatabaseStorage implements IStorage {
       .innerJoin(courseModules, eq(lessons.moduleId, courseModules.id))
       .where(eq(courseModules.courseId, courseId))
       .orderBy(lessons.orderIndex);
+  }
+
+  // Rubric operations
+  async getRubrics(type?: string, assignmentId?: string, quizId?: string): Promise<Rubric[]> {
+    let whereConditions = [];
+    
+    if (type) {
+      whereConditions.push(eq(rubrics.type, type));
+    }
+    
+    if (assignmentId) {
+      whereConditions.push(eq(rubrics.assignmentId, parseInt(assignmentId)));
+    }
+    
+    if (quizId) {
+      whereConditions.push(eq(rubrics.quizId, parseInt(quizId)));
+    }
+    
+    return db
+      .select()
+      .from(rubrics)
+      .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
+      .orderBy(desc(rubrics.createdAt));
+  }
+
+  async getRubricWithDetails(rubricId: number): Promise<any> {
+    const [rubric] = await db
+      .select()
+      .from(rubrics)
+      .where(eq(rubrics.id, rubricId));
+
+    if (!rubric) {
+      return null;
+    }
+
+    const criteria = await db
+      .select()
+      .from(rubricCriteria)
+      .where(eq(rubricCriteria.rubricId, rubricId))
+      .orderBy(rubricCriteria.orderIndex);
+
+    const levels = await db
+      .select()
+      .from(rubricLevels)
+      .where(eq(rubricLevels.rubricId, rubricId))
+      .orderBy(rubricLevels.orderIndex);
+
+    return {
+      ...rubric,
+      criteria,
+      levels,
+    };
+  }
+
+  async createRubric(rubricData: any): Promise<Rubric> {
+    const [rubric] = await db.insert(rubrics).values(rubricData).returning();
+    return rubric;
+  }
+
+  async updateRubric(id: number, updates: any): Promise<Rubric> {
+    const [rubric] = await db
+      .update(rubrics)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(rubrics.id, id))
+      .returning();
+    return rubric;
+  }
+
+  async deleteRubric(id: number): Promise<void> {
+    // Delete related records first
+    await db.delete(rubricCriteria).where(eq(rubricCriteria.rubricId, id));
+    await db.delete(rubricLevels).where(eq(rubricLevels.rubricId, id));
+    await db.delete(rubricEvaluations).where(eq(rubricEvaluations.rubricId, id));
+    
+    // Delete the rubric
+    await db.delete(rubrics).where(eq(rubrics.id, id));
+  }
+
+  async createRubricCriteria(criteriaData: any): Promise<RubricCriteria> {
+    const [criteria] = await db.insert(rubricCriteria).values(criteriaData).returning();
+    return criteria;
+  }
+
+  async createRubricLevel(levelData: any): Promise<RubricLevel> {
+    const [level] = await db.insert(rubricLevels).values(levelData).returning();
+    return level;
+  }
+
+  async createRubricEvaluation(evaluationData: any): Promise<RubricEvaluation> {
+    const [evaluation] = await db.insert(rubricEvaluations).values(evaluationData).returning();
+    return evaluation;
+  }
+
+  async getRubricEvaluation(evaluationId: number): Promise<any> {
+    const [evaluation] = await db
+      .select()
+      .from(rubricEvaluations)
+      .where(eq(rubricEvaluations.id, evaluationId));
+    
+    return evaluation;
   }
 }
 

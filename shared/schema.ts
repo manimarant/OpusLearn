@@ -160,6 +160,55 @@ export const quizAttempts = pgTable("quiz_attempts", {
   completedAt: timestamp("completed_at"),
 });
 
+// Rubrics
+export const rubrics = pgTable("rubrics", {
+  id: serial("id").primaryKey(),
+  title: text("title").notNull(),
+  description: text("description"),
+  type: varchar("type").notNull(), // assignment, quiz
+  assignmentId: integer("assignment_id"), // null for quiz rubrics
+  quizId: integer("quiz_id"), // null for assignment rubrics
+  maxPoints: integer("max_points").notNull().default(100),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Rubric criteria
+export const rubricCriteria = pgTable("rubric_criteria", {
+  id: serial("id").primaryKey(),
+  rubricId: integer("rubric_id").notNull(),
+  title: text("title").notNull(),
+  description: text("description"),
+  maxPoints: integer("max_points").notNull(),
+  orderIndex: integer("order_index").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Rubric levels
+export const rubricLevels = pgTable("rubric_levels", {
+  id: serial("id").primaryKey(),
+  rubricId: integer("rubric_id").notNull(),
+  title: text("title").notNull(), // e.g., "Excellent", "Good", "Fair", "Poor"
+  description: text("description"),
+  points: integer("points").notNull(),
+  color: varchar("color").default("#3B82F6"), // hex color for UI
+  orderIndex: integer("order_index").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Rubric evaluations
+export const rubricEvaluations = pgTable("rubric_evaluations", {
+  id: serial("id").primaryKey(),
+  rubricId: integer("rubric_id").notNull(),
+  submissionId: integer("submission_id"), // for assignments
+  quizAttemptId: integer("quiz_attempt_id"), // for quizzes
+  evaluatorId: varchar("evaluator_id").notNull(), // instructor who evaluated
+  criteriaScores: jsonb("criteria_scores"), // {criteriaId: {levelId: number, points: number, feedback: string}}
+  totalScore: decimal("total_score", { precision: 5, scale: 2 }),
+  feedback: text("feedback"),
+  evaluatedAt: timestamp("evaluated_at").defaultNow(),
+});
+
 // Discussion forums
 export const discussions = pgTable("discussions", {
   id: serial("id").primaryKey(),
@@ -371,6 +420,43 @@ export const insertQuizAttemptSchema = createInsertSchema(quizAttempts).pick({
   completedAt: true,
 });
 
+// Rubric schemas
+export const insertRubricSchema = createInsertSchema(rubrics).pick({
+  title: true,
+  description: true,
+  type: true,
+  assignmentId: true,
+  quizId: true,
+  maxPoints: true,
+});
+
+export const insertRubricCriteriaSchema = createInsertSchema(rubricCriteria).pick({
+  rubricId: true,
+  title: true,
+  description: true,
+  maxPoints: true,
+  orderIndex: true,
+});
+
+export const insertRubricLevelSchema = createInsertSchema(rubricLevels).pick({
+  rubricId: true,
+  title: true,
+  description: true,
+  points: true,
+  color: true,
+  orderIndex: true,
+});
+
+export const insertRubricEvaluationSchema = createInsertSchema(rubricEvaluations).pick({
+  rubricId: true,
+  submissionId: true,
+  quizAttemptId: true,
+  evaluatorId: true,
+  criteriaScores: true,
+  totalScore: true,
+  feedback: true,
+});
+
 // Types
 export type UpsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -384,5 +470,9 @@ export type Assignment = typeof assignments.$inferSelect;
 export type Submission = typeof submissions.$inferSelect;
 export type Quiz = typeof quizzes.$inferSelect;
 export type QuizQuestion = typeof quizQuestions.$inferSelect;
+export type Rubric = typeof rubrics.$inferSelect;
+export type RubricCriteria = typeof rubricCriteria.$inferSelect;
+export type RubricLevel = typeof rubricLevels.$inferSelect;
+export type RubricEvaluation = typeof rubricEvaluations.$inferSelect;
 export type Notification = typeof notifications.$inferSelect;
 export type Certificate = typeof certificates.$inferSelect;

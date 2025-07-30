@@ -16,7 +16,10 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FileText, Plus, Calendar, Clock, Users, CheckCircle, XCircle, Upload, Download, Eye } from "lucide-react";
+import { FileText, Plus, Calendar, Clock, Users, CheckCircle, XCircle, Upload, Download, Eye, Award } from "lucide-react";
+import RubricBuilder from "@/components/rubric/rubric-builder";
+import RubricEvaluator from "@/components/rubric/rubric-evaluator";
+import RubricDetail from "@/components/rubric/rubric-detail";
 
 interface Course {
   id: number;
@@ -54,6 +57,18 @@ interface Submission {
   };
 }
 
+interface Rubric {
+  id: number;
+  title: string;
+  description: string;
+  type: string;
+  assignmentId: number | null;
+  quizId: number | null;
+  maxPoints: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export default function Assignments() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -87,6 +102,18 @@ export default function Assignments() {
 
   const { data: submissions } = useQuery<Submission[]>({
     queryKey: ["/api/assignments", selectedAssignment?.id, "submissions"],
+    enabled: !!selectedAssignment && user?.role === "instructor",
+  });
+
+  const { data: rubrics } = useQuery<Rubric[]>({
+    queryKey: ["/api/rubrics", "assignment", selectedAssignment?.id],
+    queryFn: async () => {
+      const response = await fetch(`/api/rubrics?type=assignment&assignmentId=${selectedAssignment?.id}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch rubrics');
+      }
+      return response.json();
+    },
     enabled: !!selectedAssignment && user?.role === "instructor",
   });
 
@@ -501,6 +528,19 @@ export default function Assignments() {
                                         Download File
                                       </Button>
                                     )}
+                                    <div className="flex items-center space-x-2 mt-2">
+                                      <RubricEvaluator
+                                        type="assignment"
+                                        submissionId={submission.id}
+                                        rubricId={1} // This would be dynamic based on selected rubric
+                                        onEvaluationComplete={(evaluation) => {
+                                          toast({
+                                            title: "Evaluation Complete",
+                                            description: "Submission has been evaluated with rubric.",
+                                          });
+                                        }}
+                                      />
+                                    </div>
                                   </div>
                                 ))
                               ) : (
@@ -511,10 +551,68 @@ export default function Assignments() {
                             </div>
                           </TabsContent>
                           <TabsContent value="grading" className="space-y-3">
-                            <div className="text-center py-8">
-                              <p className="text-sm text-slate-500">
-                                Grading interface would be implemented here
-                              </p>
+                            <div className="space-y-4">
+                              <div className="flex items-center justify-between">
+                                <h4 className="font-medium text-slate-800">Rubric Management</h4>
+                                <RubricBuilder
+                                  type="assignment"
+                                  assignmentId={selectedAssignment.id}
+                                  onRubricCreated={(rubric) => {
+                                    toast({
+                                      title: "Rubric Created",
+                                      description: "Rubric has been created for this assignment.",
+                                    });
+                                  }}
+                                />
+                              </div>
+                              
+                              <div className="space-y-3">
+                                <h5 className="text-sm font-medium text-slate-700">Available Rubrics</h5>
+                                <div className="space-y-2">
+                                  {rubrics && rubrics.length > 0 ? (
+                                    rubrics.map((rubric) => (
+                                      <div key={rubric.id} className="p-4 border border-slate-200 rounded-lg bg-white hover:shadow-sm transition-shadow">
+                                        <div className="flex flex-col gap-4">
+                                          <div className="flex items-start justify-between">
+                                            <div className="flex-1 min-w-0">
+                                              <div className="flex items-center space-x-2 mb-3">
+                                                <Award className="h-4 w-4 text-blue-600 flex-shrink-0" />
+                                                <h4 className="font-semibold text-slate-800 truncate">{rubric.title}</h4>
+                                              </div>
+                                              {rubric.description && rubric.description !== rubric.title && (
+                                                <p className="text-sm text-slate-600 mb-3 leading-relaxed">{rubric.description}</p>
+                                              )}
+                                              <div className="flex flex-wrap items-center gap-4 text-xs text-slate-500">
+                                                <span className="flex items-center space-x-1 flex-shrink-0">
+                                                  <span className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0"></span>
+                                                  <span>Max Points: {rubric.maxPoints}</span>
+                                                </span>
+                                                <span className="flex items-center space-x-1 flex-shrink-0">
+                                                  <span className="w-2 h-2 bg-green-500 rounded-full flex-shrink-0"></span>
+                                                  <span>Type: {rubric.type}</span>
+                                                </span>
+                                              </div>
+                                            </div>
+                                          </div>
+                                          <div className="flex items-center justify-end space-x-2 pt-2 border-t border-slate-100">
+                                            <RubricDetail rubricId={rubric.id} />
+                                            <Button size="sm" variant="outline" className="border-blue-200 text-blue-700 hover:bg-blue-50 whitespace-nowrap">
+                                              <Award className="h-3 w-3 mr-1" />
+                                              Use for Grading
+                                            </Button>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    ))
+                                  ) : (
+                                    <div className="p-6 border border-slate-200 rounded-lg text-center bg-slate-50">
+                                      <Award className="h-8 w-8 text-slate-300 mx-auto mb-3" />
+                                      <p className="text-sm font-medium text-slate-600 mb-1">No rubrics created yet</p>
+                                      <p className="text-xs text-slate-500">Create a rubric to start grading submissions for this assignment.</p>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
                             </div>
                           </TabsContent>
                         </Tabs>

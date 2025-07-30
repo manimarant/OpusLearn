@@ -13,6 +13,10 @@ import {
   insertQuizSchema,
   insertQuizQuestionSchema,
   insertQuizAttemptSchema,
+  insertRubricSchema,
+  insertRubricCriteriaSchema,
+  insertRubricLevelSchema,
+  insertRubricEvaluationSchema,
   type Quiz
 } from "@shared/schema";
 
@@ -850,6 +854,138 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching course lessons:", error);
       res.status(400).json({ message: "Failed to fetch course lessons" });
+    }
+  });
+
+  // Rubric routes
+  // Get rubrics for assignment or quiz
+  app.get('/api/rubrics', isAuthenticated, async (req: any, res) => {
+    try {
+      const { type, assignmentId, quizId } = req.query;
+      const rubrics = await storage.getRubrics(type, assignmentId, quizId);
+      res.json(rubrics);
+    } catch (error) {
+      console.error("Error fetching rubrics:", error);
+      res.status(500).json({ message: "Failed to fetch rubrics" });
+    }
+  });
+
+  // Get rubric with criteria and levels
+  app.get('/api/rubrics/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const rubricId = parseInt(req.params.id);
+      const rubric = await storage.getRubricWithDetails(rubricId);
+      
+      if (!rubric) {
+        return res.status(404).json({ message: "Rubric not found" });
+      }
+      
+      res.json(rubric);
+    } catch (error) {
+      console.error("Error fetching rubric:", error);
+      res.status(500).json({ message: "Failed to fetch rubric" });
+    }
+  });
+
+  // Create rubric
+  app.post('/api/rubrics', isAuthenticated, async (req: any, res) => {
+    try {
+      const rubricData = insertRubricSchema.parse(req.body);
+      const rubric = await storage.createRubric(rubricData);
+      res.json(rubric);
+    } catch (error) {
+      console.error("Error creating rubric:", error);
+      res.status(400).json({ message: "Failed to create rubric" });
+    }
+  });
+
+  // Update rubric
+  app.put('/api/rubrics/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const rubricId = parseInt(req.params.id);
+      const updates = insertRubricSchema.partial().parse(req.body);
+      const rubric = await storage.updateRubric(rubricId, updates);
+      res.json(rubric);
+    } catch (error) {
+      console.error("Error updating rubric:", error);
+      res.status(400).json({ message: "Failed to update rubric" });
+    }
+  });
+
+  // Delete rubric
+  app.delete('/api/rubrics/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const rubricId = parseInt(req.params.id);
+      await storage.deleteRubric(rubricId);
+      res.json({ message: "Rubric deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting rubric:", error);
+      res.status(400).json({ message: "Failed to delete rubric" });
+    }
+  });
+
+  // Add criteria to rubric
+  app.post('/api/rubrics/:id/criteria', isAuthenticated, async (req: any, res) => {
+    try {
+      const rubricId = parseInt(req.params.id);
+      const criteriaData = insertRubricCriteriaSchema.parse({
+        ...req.body,
+        rubricId
+      });
+      const criteria = await storage.createRubricCriteria(criteriaData);
+      res.json(criteria);
+    } catch (error) {
+      console.error("Error creating rubric criteria:", error);
+      res.status(400).json({ message: "Failed to create rubric criteria" });
+    }
+  });
+
+  // Add level to rubric
+  app.post('/api/rubrics/:id/levels', isAuthenticated, async (req: any, res) => {
+    try {
+      const rubricId = parseInt(req.params.id);
+      const levelData = insertRubricLevelSchema.parse({
+        ...req.body,
+        rubricId
+      });
+      const level = await storage.createRubricLevel(levelData);
+      res.json(level);
+    } catch (error) {
+      console.error("Error creating rubric level:", error);
+      res.status(400).json({ message: "Failed to create rubric level" });
+    }
+  });
+
+  // Evaluate submission/quiz with rubric
+  app.post('/api/rubrics/:id/evaluate', isAuthenticated, async (req: any, res) => {
+    try {
+      const rubricId = parseInt(req.params.id);
+      const evaluationData = insertRubricEvaluationSchema.parse({
+        ...req.body,
+        rubricId
+      });
+      const evaluation = await storage.createRubricEvaluation(evaluationData);
+      res.json(evaluation);
+    } catch (error) {
+      console.error("Error creating rubric evaluation:", error);
+      res.status(400).json({ message: "Failed to create rubric evaluation" });
+    }
+  });
+
+  // Get rubric evaluation
+  app.get('/api/rubrics/:id/evaluations/:evaluationId', isAuthenticated, async (req: any, res) => {
+    try {
+      const evaluationId = parseInt(req.params.evaluationId);
+      const evaluation = await storage.getRubricEvaluation(evaluationId);
+      
+      if (!evaluation) {
+        return res.status(404).json({ message: "Evaluation not found" });
+      }
+      
+      res.json(evaluation);
+    } catch (error) {
+      console.error("Error fetching rubric evaluation:", error);
+      res.status(500).json({ message: "Failed to fetch rubric evaluation" });
     }
   });
 

@@ -16,6 +16,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Plus, Timer, Award, CheckCircle, XCircle } from "lucide-react";
+import RubricBuilder from "@/components/rubric/rubric-builder";
+import RubricEvaluator from "@/components/rubric/rubric-evaluator";
 
 interface Course {
   id: number;
