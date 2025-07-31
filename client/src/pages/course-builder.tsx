@@ -18,6 +18,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Save, Eye, Upload, ChevronRight, Edit, Trash2 } from "lucide-react";
 import AIAssistant from "@/components/course/ai-assistant";
+import AICourseGenerator from "@/components/course/ai-course-generator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useLocation } from "wouter";
 
@@ -320,6 +321,75 @@ export default function CourseBuilder() {
     setIsChapterDialogOpen(true);
   };
 
+  const handleAIGenerateCompleteCourse = async (courseData: {
+    title: string;
+    description: string;
+    category: string;
+    difficulty: string;
+    modules: Array<{
+      title: string;
+      description: string;
+      chapters: Array<{
+        title: string;
+        content: string;
+        contentType: string;
+        duration: number;
+      }>;
+    }>;
+  }) => {
+    try {
+      // First create the course
+      const courseResponse = await apiRequest("POST", "/api/courses", {
+        title: courseData.title,
+        description: courseData.description,
+        category: courseData.category,
+        difficulty: courseData.difficulty,
+        status: "draft"
+      });
+      
+      const createdCourse = await courseResponse.json();
+      const newCourseId = createdCourse.id;
+
+      // Create modules and chapters for the course
+      for (const moduleData of courseData.modules) {
+        // Create module
+        const moduleResponse = await apiRequest("POST", `/api/courses/${newCourseId}/modules`, {
+          title: moduleData.title,
+          description: moduleData.description
+        });
+        
+        const createdModule = await moduleResponse.json();
+        const moduleId = createdModule.id;
+
+        // Create chapters for this module
+        for (const chapterData of moduleData.chapters) {
+          await apiRequest("POST", `/api/modules/${moduleId}/chapters`, {
+            title: chapterData.title,
+            content: chapterData.content,
+            contentType: chapterData.contentType,
+            duration: chapterData.duration
+          });
+        }
+      }
+
+      toast({
+        title: "Course Created Successfully",
+        description: `AI-generated course "${courseData.title}" has been created with ${courseData.modules.length} modules and ${courseData.modules.reduce((acc, mod) => acc + mod.chapters.length, 0)} chapters.`,
+      });
+
+      // Navigate to the new course
+      setLocation(`/course-builder/${newCourseId}`);
+      
+    } catch (error) {
+      console.error("Error creating AI-generated course:", error);
+      toast({
+        title: "Creation Failed",
+        description: "Failed to create the AI-generated course. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const [, setLocation] = useLocation();
 
   if (!courseId) {
@@ -406,7 +476,12 @@ export default function CourseBuilder() {
                         </div>
                       </div>
                     </div>
-                    <DialogFooter>
+                    <DialogFooter className="flex flex-col sm:flex-row gap-3">
+                      <div className="flex-1">
+                        <AICourseGenerator
+                          onCourseGenerated={handleAIGenerateCompleteCourse}
+                        />
+                      </div>
                       <Button 
                         onClick={handleCreateCourse}
                         disabled={createCourseMutation.isPending}
@@ -728,6 +803,9 @@ export default function CourseBuilder() {
                           <Plus className="h-4 w-4 mr-2" />
                           Create First Module
                         </Button>
+                        <AICourseGenerator
+                          onCourseGenerated={handleAIGenerateCompleteCourse}
+                        />
                         <AIAssistant
                           courseTitle={course?.title}
                           courseDescription={course?.description}
