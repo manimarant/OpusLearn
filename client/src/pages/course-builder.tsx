@@ -424,18 +424,24 @@ export default function CourseBuilder() {
         // Create assignments for this module
         if (moduleData.assignments) {
           for (const assignmentData of moduleData.assignments) {
+            console.log(`Creating assignment: ${assignmentData.title}`);
+            // Convert date string to proper ISO datetime format
+            const dueDate = new Date(assignmentData.dueDate).toISOString();
+            console.log(`Due date converted: ${dueDate}`);
             await apiRequest("POST", `/api/courses/${newCourseId}/assignments`, {
               title: assignmentData.title,
               description: assignmentData.description,
-              dueDate: assignmentData.dueDate,
+              dueDate: dueDate,
               maxPoints: assignmentData.points
             });
+            console.log(`Assignment created successfully: ${assignmentData.title}`);
           }
         }
 
         // Create quizzes for this module
         if (moduleData.quizzes) {
           for (const quizData of moduleData.quizzes) {
+            console.log(`Creating quiz: ${quizData.title}`);
             const quizResponse = await apiRequest("POST", `/api/courses/${newCourseId}/quizzes`, {
               title: quizData.title,
               description: quizData.description,
@@ -444,8 +450,10 @@ export default function CourseBuilder() {
             
             const createdQuiz = await quizResponse.json();
             const quizId = createdQuiz.id;
+            console.log(`Quiz created successfully with ID: ${quizId}`);
 
             // Create questions for this quiz
+            console.log(`Creating ${quizData.questions.length} questions for quiz: ${quizData.title}`);
             for (const questionData of quizData.questions) {
               await apiRequest("POST", `/api/quizzes/${quizId}/questions`, {
                 question: questionData.question,
@@ -455,17 +463,21 @@ export default function CourseBuilder() {
                 points: questionData.points,
                 orderIndex: 1 // Default order index
               });
+              console.log(`Question created: ${questionData.question.substring(0, 50)}...`);
             }
+            console.log(`Quiz "${quizData.title}" created successfully with ${quizData.questions.length} questions`);
           }
         }
 
         // Create discussions for this module
         if (moduleData.discussions) {
           for (const discussionData of moduleData.discussions) {
+            console.log(`Creating discussion: ${discussionData.title}`);
             await apiRequest("POST", `/api/courses/${newCourseId}/discussions`, {
               title: discussionData.title,
               content: discussionData.prompt // Use prompt as content
             });
+            console.log(`Discussion created successfully: ${discussionData.title}`);
           }
         }
       }
