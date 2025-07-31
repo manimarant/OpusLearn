@@ -50,7 +50,7 @@ export default function Header() {
                 <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
                 <Input
                   type="text"
-                  placeholder="Search courses, lessons, assignments..."
+                  placeholder="Search courses, chapters, assignments..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-96 pl-11 pr-4 py-2.5 saas-input border-border/50 focus:border-primary"

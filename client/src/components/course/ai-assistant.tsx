@@ -31,7 +31,7 @@ interface AIAssistantProps {
   courseDescription?: string;
   onGenerateContent?: (content: string, type: string) => void;
   onGenerateModule?: (module: { title: string; description: string }) => void;
-  onGenerateLesson?: (lesson: { title: string; content: string; contentType: string; duration: number }) => void;
+  onGenerateChapter?: (chapter: { title: string; content: string; contentType: string; duration: number }) => void;
   disabled?: boolean;
 }
 
@@ -40,7 +40,7 @@ export default function AIAssistant({
   courseDescription,
   onGenerateContent,
   onGenerateModule,
-  onGenerateLesson,
+  onGenerateChapter,
   disabled = false
 }: AIAssistantProps) {
   const { toast } = useToast();
@@ -50,7 +50,7 @@ export default function AIAssistant({
   const [prompt, setPrompt] = useState("");
   const [generatedContent, setGeneratedContent] = useState("");
   const [contentType, setContentType] = useState("text");
-  const [lessonDuration, setLessonDuration] = useState(15);
+  const [chapterDuration, setChapterDuration] = useState(15);
 
   // AI Content Generation Functions
   const generateCourseContent = async () => {
@@ -90,7 +90,7 @@ This section provides a comprehensive overview of the topic, designed to engage 
 - **Concept 3**: Real-world applications and case studies
 
 ## Learning Objectives
-By the end of this lesson, students will be able to:
+By the end of this chapter, students will be able to:
 1. Understand the core principles
 2. Apply concepts in practical scenarios
 3. Demonstrate mastery through assessments
@@ -101,7 +101,7 @@ By the end of this lesson, students will be able to:
 - **Assessment**: Knowledge checks to validate understanding
 
 ## Summary
-A concise recap of the main points covered in this lesson.`;
+A concise recap of the main points covered in this chapter.`;
 
       setGeneratedContent(generatedText);
       
@@ -169,22 +169,22 @@ A concise recap of the main points covered in this lesson.`;
     }
   };
 
-  const generateLessonPlan = async () => {
+  const generateChapterPlan = async () => {
     setIsGenerating(true);
     
     try {
       await new Promise(resolve => setTimeout(resolve, 1800));
       
-      const lessonTypes = [
+      const chapterTypes = [
         { type: "text", duration: 15, title: "Understanding Core Concepts" },
         { type: "video", duration: 20, title: "Step-by-Step Tutorial" },
         { type: "interactive", duration: 25, title: "Hands-On Practice Session" },
         { type: "quiz", duration: 10, title: "Knowledge Check" }
       ];
 
-      const randomLesson = lessonTypes[Math.floor(Math.random() * lessonTypes.length)];
+      const randomChapter = chapterTypes[Math.floor(Math.random() * chapterTypes.length)];
       
-      const lessonContent = `# ${randomLesson.title}
+      const chapterContent = `# ${randomChapter.title}
 
 ## Learning Objectives
 - Master the fundamental concepts
@@ -192,7 +192,7 @@ A concise recap of the main points covered in this lesson.`;
 - Demonstrate understanding through assessment
 
 ## Content Overview
-This lesson provides comprehensive coverage of the topic with interactive elements and practical examples.
+This chapter provides comprehensive coverage of the topic with interactive elements and practical examples.
 
 ## Key Points
 1. **Foundation**: Essential background information
@@ -205,24 +205,24 @@ This lesson provides comprehensive coverage of the topic with interactive elemen
 - Practice exercises with immediate feedback
 - Progress tracking and achievement badges
 
-## Duration: ${randomLesson.duration} minutes`;
+## Duration: ${randomChapter.duration} minutes`;
 
-      if (onGenerateLesson) {
-        onGenerateLesson({
-          title: randomLesson.title,
-          content: lessonContent,
-          contentType: randomLesson.type,
-          duration: randomLesson.duration
+      if (onGenerateChapter) {
+        onGenerateChapter({
+          title: randomChapter.title,
+          content: chapterContent,
+          contentType: randomChapter.type,
+          duration: randomChapter.duration
         });
         toast({
-          title: "Lesson Generated",
-          description: "AI has created a lesson plan for your course.",
+          title: "Chapter Generated",
+          description: "AI has created a chapter plan for your course.",
         });
       }
     } catch (error) {
       toast({
         title: "Generation Failed",
-        description: "Failed to generate lesson. Please try again.",
+        description: "Failed to generate chapter. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -242,8 +242,8 @@ This lesson provides comprehensive coverage of the topic with interactive elemen
     if (onGenerateContent && generatedContent) {
       if (disabled) {
         toast({
-          title: "No Lesson Selected",
-          description: "Please select a lesson first before applying AI content.",
+          title: "No Chapter Selected",
+          description: "Please select a chapter first before applying AI content.",
           variant: "destructive",
         });
         return;
@@ -256,7 +256,7 @@ This lesson provides comprehensive coverage of the topic with interactive elemen
       setPrompt("");
       toast({
         title: "Content Applied Successfully",
-        description: "AI-generated content has been applied to your lesson. You can now edit and save it.",
+        description: "AI-generated content has been applied to your chapter. You can now edit and save it.",
       });
     }
   };
@@ -268,7 +268,7 @@ This lesson provides comprehensive coverage of the topic with interactive elemen
                     <Button 
                       className="saas-button-primary" 
                       disabled={disabled}
-                      title={disabled ? "Please select a lesson first" : "AI Assistant"}
+                      title={disabled ? "Please select a chapter first" : "AI Assistant"}
                     >
                       <Sparkles className="h-4 w-4 mr-2" />
                       AI Assistant
@@ -307,7 +307,7 @@ This lesson provides comprehensive coverage of the topic with interactive elemen
                   <Label htmlFor="prompt">What would you like to create?</Label>
                   <Textarea
                     id="prompt"
-                    placeholder="Describe the content you want to generate (e.g., 'Create a lesson about JavaScript fundamentals')"
+                    placeholder="Describe the content you want to generate (e.g., 'Create a chapter about JavaScript fundamentals')"
                     value={prompt}
                     onChange={(e) => setPrompt(e.target.value)}
                     rows={3}
@@ -323,7 +323,7 @@ This lesson provides comprehensive coverage of the topic with interactive elemen
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="text">Text Lesson</SelectItem>
+                        <SelectItem value="text">Text Chapter</SelectItem>
                         <SelectItem value="video">Video Script</SelectItem>
                         <SelectItem value="interactive">Interactive Content</SelectItem>
                         <SelectItem value="quiz">Quiz Questions</SelectItem>
@@ -335,8 +335,8 @@ This lesson provides comprehensive coverage of the topic with interactive elemen
                     <Input
                       id="duration"
                       type="number"
-                      value={lessonDuration}
-                      onChange={(e) => setLessonDuration(parseInt(e.target.value))}
+                      value={chapterDuration}
+                      onChange={(e) => setChapterDuration(parseInt(e.target.value))}
                       className="mt-2"
                     />
                   </div>
@@ -376,7 +376,7 @@ This lesson provides comprehensive coverage of the topic with interactive elemen
                            </Button>
                          </div>
                          <p className="text-xs text-muted-foreground mt-2">
-                           Content will be applied to your lesson and saved automatically.
+                           Content will be applied to your chapter and saved automatically.
                          </p>
                       </div>
                     </CardHeader>
@@ -403,7 +403,7 @@ This lesson provides comprehensive coverage of the topic with interactive elemen
                   </CardHeader>
                   <CardContent>
                     <p className="text-sm text-muted-foreground mb-4">
-                      Generate a complete module structure with suggested lessons and content flow.
+                      Generate a complete module structure with suggested chapters and content flow.
                     </p>
                     <Button 
                       onClick={generateModuleStructure}
@@ -429,15 +429,15 @@ This lesson provides comprehensive coverage of the topic with interactive elemen
                   <CardHeader>
                     <CardTitle className="flex items-center space-x-2">
                       <FileText className="h-5 w-5 text-primary" />
-                      <span>Lesson Plan</span>
+                      <span>Chapter Plan</span>
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
                     <p className="text-sm text-muted-foreground mb-4">
-                      Create a detailed lesson plan with learning objectives and activities.
+                      Create a detailed chapter plan with learning objectives and activities.
                     </p>
                     <Button 
-                      onClick={generateLessonPlan}
+                      onClick={generateChapterPlan}
                       disabled={isGenerating}
                       className="w-full saas-button-secondary"
                     >
@@ -449,7 +449,7 @@ This lesson provides comprehensive coverage of the topic with interactive elemen
                       ) : (
                         <>
                           <Sparkles className="h-4 w-4 mr-2" />
-                          Generate Lesson Plan
+                          Generate Chapter Plan
                         </>
                       )}
                     </Button>
@@ -511,7 +511,7 @@ This lesson provides comprehensive coverage of the topic with interactive elemen
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-2 text-sm">
-                      <p>• Keep lessons under 20 minutes for better retention</p>
+                      <p>• Keep chapters under 20 minutes for better retention</p>
                       <p>• Include interactive elements every 5-7 minutes</p>
                       <p>• Use real-world examples to illustrate concepts</p>
                       <p>• Provide immediate feedback on assessments</p>

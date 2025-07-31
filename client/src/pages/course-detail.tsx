@@ -315,7 +315,7 @@ export default function CourseDetail() {
                         <div className="flex items-center space-x-2">
                           <BookOpen className="h-5 w-5 text-slate-500" />
                           <div>
-                            <p className="text-sm font-medium">Lessons</p>
+                            <p className="text-sm font-medium">Chapters</p>
                             <p className="text-2xl font-bold">24</p>
                           </div>
                         </div>
@@ -473,7 +473,7 @@ export default function CourseDetail() {
                         <p className="text-sm font-medium mb-2">Statistics</p>
                         <div className="grid grid-cols-2 gap-4 text-sm">
                           <div>
-                            <p className="text-slate-500">Lessons Completed</p>
+                            <p className="text-slate-500">Chapters Completed</p>
                             <p className="font-medium">12/24</p>
                           </div>
                           <div>

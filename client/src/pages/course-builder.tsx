@@ -38,7 +38,7 @@ interface Module {
   orderIndex: number;
 }
 
-interface Lesson {
+interface Chapter {
   id: number;
   title: string;
   content: string;
@@ -53,12 +53,12 @@ export default function CourseBuilder() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [selectedModule, setSelectedModule] = useState<Module | null>(null);
-  const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
+  const [selectedChapter, setSelectedChapter] = useState<Chapter | null>(null);
   const [isModuleDialogOpen, setIsModuleDialogOpen] = useState(false);
-  const [isLessonDialogOpen, setIsLessonDialogOpen] = useState(false);
+  const [isChapterDialogOpen, setIsChapterDialogOpen] = useState(false);
   const [forceEditorUpdate, setForceEditorUpdate] = useState(0);
   const [newModule, setNewModule] = useState({ title: "", description: "" });
-  const [newLesson, setNewLesson] = useState({ title: "", content: "", contentType: "text", duration: 0 });
+  const [newChapter, setNewChapter] = useState({ title: "", content: "", contentType: "text", duration: 0 });
   const [newCourse, setNewCourse] = useState({
     title: "",
     description: "",
@@ -76,8 +76,8 @@ export default function CourseBuilder() {
     enabled: !!courseId,
   });
 
-  const { data: lessons } = useQuery<Lesson[]>({
-    queryKey: ["/api/modules", selectedModule?.id, "lessons"],
+  const { data: chapters } = useQuery<Chapter[]>({
+    queryKey: ["/api/modules", selectedModule?.id, "chapters"],
     enabled: !!selectedModule,
   });
 
@@ -101,29 +101,29 @@ export default function CourseBuilder() {
     },
   });
 
-  const createLessonMutation = useMutation({
-    mutationFn: async (lessonData: any) => {
-      const response = await apiRequest("POST", `/api/modules/${selectedModule?.id}/lessons`, lessonData);
+  const createChapterMutation = useMutation({
+    mutationFn: async (chapterData: any) => {
+      const response = await apiRequest("POST", `/api/modules/${selectedModule?.id}/chapters`, chapterData);
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/modules", selectedModule?.id, "lessons"] });
-      setIsLessonDialogOpen(false);
-      setNewLesson({ title: "", content: "", contentType: "text", duration: 0 });
+      queryClient.invalidateQueries({ queryKey: ["/api/modules", selectedModule?.id, "chapters"] });
+      setIsChapterDialogOpen(false);
+      setNewChapter({ title: "", content: "", contentType: "text", duration: 0 });
       toast({
-        title: "Lesson Created",
-        description: "Your new lesson has been created successfully.",
+        title: "Chapter Created",
+        description: "Your new chapter has been created successfully.",
       });
     },
   });
 
-  const updateLessonMutation = useMutation({
-    mutationFn: async ({ lessonId, updates }: { lessonId: number; updates: any }) => {
+  const updateChapterMutation = useMutation({
+    mutationFn: async ({ chapterId, updates }: { chapterId: number; updates: any }) => {
       console.log("=== MUTATION FUNCTION START ===");
-      console.log("Mutation called with lessonId:", lessonId);
+      console.log("Mutation called with chapterId:", chapterId);
       console.log("Mutation called with updates:", updates);
       
-      const response = await apiRequest("PUT", `/api/lessons/${lessonId}`, updates);
+      const response = await apiRequest("PUT", `/api/chapters/${chapterId}`, updates);
       console.log("API response:", response);
       
       const data = await response.json();
@@ -134,20 +134,20 @@ export default function CourseBuilder() {
     },
     onSuccess: (data) => {
       console.log("=== MUTATION SUCCESS ===");
-      console.log("Lesson update successful:", data);
-      queryClient.invalidateQueries({ queryKey: ["/api/modules", selectedModule?.id, "lessons"] });
+      console.log("Chapter update successful:", data);
+      queryClient.invalidateQueries({ queryKey: ["/api/modules", selectedModule?.id, "chapters"] });
       toast({
-        title: "Lesson Updated",
-        description: "Your lesson has been saved successfully.",
+        title: "Chapter Updated",
+        description: "Your chapter has been saved successfully.",
       });
       console.log("=== MUTATION SUCCESS END ===");
     },
     onError: (error) => {
       console.log("=== MUTATION ERROR ===");
-      console.error("Error updating lesson:", error);
+      console.error("Error updating chapter:", error);
       toast({
         title: "Update Failed",
-        description: "Failed to save lesson. Please try again.",
+        description: "Failed to save chapter. Please try again.",
         variant: "destructive",
       });
       console.log("=== MUTATION ERROR END ===");
@@ -184,36 +184,36 @@ export default function CourseBuilder() {
     });
   };
 
-  const handleCreateLesson = () => {
-    if (!newLesson.title) {
+  const handleCreateChapter = () => {
+    if (!newChapter.title) {
       toast({
         title: "Validation Error",
-        description: "Please enter a lesson title.",
+        description: "Please enter a chapter title.",
         variant: "destructive",
       });
       return;
     }
-    createLessonMutation.mutate({
-      ...newLesson,
-      orderIndex: (lessons?.length || 0) + 1,
+    createChapterMutation.mutate({
+      ...newChapter,
+      orderIndex: (chapters?.length || 0) + 1,
     });
   };
 
-  const handleSaveLesson = (lessonData: any) => {
-    console.log("handleSaveLesson called with:", { lessonData, selectedLesson });
+  const handleSaveChapter = (chapterData: any) => {
+    console.log("handleSaveChapter called with:", { chapterData, selectedChapter });
     
-    if (selectedLesson) {
-      console.log("Calling updateLessonMutation with:", {
-        lessonId: selectedLesson.id,
-        updates: lessonData,
+    if (selectedChapter) {
+      console.log("Calling updateChapterMutation with:", {
+        chapterId: selectedChapter.id,
+        updates: chapterData,
       });
       
-      updateLessonMutation.mutate({
-        lessonId: selectedLesson.id,
-        updates: lessonData,
+      updateChapterMutation.mutate({
+        chapterId: selectedChapter.id,
+        updates: chapterData,
       });
     } else {
-      console.error("No selected lesson in handleSaveLesson");
+      console.error("No selected chapter in handleSaveChapter");
     }
   };
 
@@ -232,30 +232,30 @@ export default function CourseBuilder() {
   // AI Assistant handlers
   const handleAIGenerateContent = (content: string, type: string) => {
     console.log("=== AI CONTENT GENERATION START ===");
-    console.log("AI Generate Content called with:", { content, type, selectedLesson });
+    console.log("AI Generate Content called with:", { content, type, selectedChapter });
     
-    if (selectedLesson) {
-      console.log("Selected lesson found:", selectedLesson);
+    if (selectedChapter) {
+      console.log("Selected chapter found:", selectedChapter);
       
-      const updatedLessonData = {
-        title: selectedLesson.title,
+      const updatedChapterData = {
+        title: selectedChapter.title,
         content: content,
         contentType: type,
-        duration: selectedLesson.duration
+        duration: selectedChapter.duration
       };
       
-      console.log("Updated lesson data for save:", updatedLessonData);
+      console.log("Updated chapter data for save:", updatedChapterData);
       
-      // Update the selected lesson state to reflect the new content immediately
-      const updatedLesson = {
-        ...selectedLesson,
+      // Update the selected chapter state to reflect the new content immediately
+      const updatedChapter = {
+        ...selectedChapter,
         content: content,
         contentType: type
       };
       
-      console.log("Updated lesson object:", updatedLesson);
-      console.log("Setting selected lesson state...");
-      setSelectedLesson(updatedLesson);
+      console.log("Updated chapter object:", updatedChapter);
+      console.log("Setting selected chapter state...");
+      setSelectedChapter(updatedChapter);
       
       console.log("Triggering force editor update...");
       setForceEditorUpdate(prev => {
@@ -263,48 +263,48 @@ export default function CourseBuilder() {
         return prev + 1;
       });
       
-      // Force a re-render by updating the lessons query
+      // Force a re-render by updating the chapters query
       console.log("Updating React Query cache...");
       queryClient.setQueryData(
-        ["/api/modules", selectedModule?.id, "lessons"],
+        ["/api/modules", selectedModule?.id, "chapters"],
         (oldData: any) => {
-          console.log("Old lessons data:", oldData);
+          console.log("Old chapters data:", oldData);
           if (oldData) {
-            const newData = oldData.map((lesson: any) => 
-              lesson.id === selectedLesson.id ? updatedLesson : lesson
+            const newData = oldData.map((chapter: any) => 
+              chapter.id === selectedChapter.id ? updatedChapter : chapter
             );
-            console.log("New lessons data:", newData);
+            console.log("New chapters data:", newData);
             return newData;
           }
           return oldData;
         }
       );
       
-      // Save the lesson with the new content
-      console.log("Attempting to save lesson...");
+      // Save the chapter with the new content
+      console.log("Attempting to save chapter...");
       try {
-        handleSaveLesson(updatedLessonData);
-        console.log("Save lesson called successfully");
+        handleSaveChapter(updatedChapterData);
+        console.log("Save chapter called successfully");
       } catch (error) {
-        console.error("Error saving lesson:", error);
+        console.error("Error saving chapter:", error);
         toast({
           title: "Save Warning",
-          description: "Content applied but save failed. Please manually save the lesson.",
+          description: "Content applied but save failed. Please manually save the chapter.",
           variant: "destructive",
         });
       }
       
       toast({
         title: "AI Content Applied",
-        description: "The AI-generated content has been applied to your lesson. Please save manually if needed.",
+        description: "The AI-generated content has been applied to your chapter. Please save manually if needed.",
       });
       
       console.log("=== AI CONTENT GENERATION END ===");
     } else {
-      console.error("No selected lesson found");
+      console.error("No selected chapter found");
       toast({
         title: "Error",
-        description: "No lesson selected. Please select a lesson first.",
+        description: "No chapter selected. Please select a chapter first.",
         variant: "destructive",
       });
     }
@@ -315,9 +315,9 @@ export default function CourseBuilder() {
     setIsModuleDialogOpen(true);
   };
 
-  const handleAIGenerateLesson = (lesson: { title: string; content: string; contentType: string; duration: number }) => {
-    setNewLesson(lesson);
-    setIsLessonDialogOpen(true);
+  const handleAIGenerateChapter = (chapter: { title: string; content: string; contentType: string; duration: number }) => {
+    setNewChapter(chapter);
+    setIsChapterDialogOpen(true);
   };
 
   const [, setLocation] = useLocation();
@@ -471,26 +471,26 @@ export default function CourseBuilder() {
                 courseDescription={course?.description}
                 onGenerateContent={handleAIGenerateContent}
                 onGenerateModule={handleAIGenerateModule}
-                onGenerateLesson={handleAIGenerateLesson}
-                disabled={!selectedLesson}
+                onGenerateLesson={handleAIGenerateChapter}
+                disabled={!selectedChapter}
               />
               <Button 
                 onClick={() => {
                   console.log("=== TEST BUTTON CLICKED ===");
-                  console.log("Selected lesson:", selectedLesson);
-                  if (selectedLesson) {
+                  console.log("Selected chapter:", selectedChapter);
+                  if (selectedChapter) {
                     handleAIGenerateContent("This is a test content from the test button!", "text");
                   } else {
                     toast({
-                      title: "No Lesson Selected",
-                      description: "Please select a lesson first before testing AI content.",
+                      title: "No Chapter Selected",
+                      description: "Please select a chapter first before testing AI content.",
                       variant: "destructive",
                     });
                   }
                 }}
                 variant="outline"
                 size="sm"
-                disabled={!selectedLesson}
+                disabled={!selectedChapter}
               >
                 Test AI Content
               </Button>
@@ -581,25 +581,25 @@ export default function CourseBuilder() {
                           </span>
                           <ChevronRight className="h-4 w-4 text-slate-400" />
                         </div>
-                        {lessons && selectedModule?.id === module.id && (
+                        {chapters && selectedModule?.id === module.id && (
                           <div className="mt-2 ml-4 space-y-1">
-                            {lessons.map((lesson: Lesson) => (
+                            {chapters.map((chapter: Chapter) => (
                               <div
-                                key={lesson.id}
+                                key={chapter.id}
                                 className={`p-2 text-xs rounded cursor-pointer transition-colors ${
-                                  selectedLesson?.id === lesson.id
+                                  selectedChapter?.id === chapter.id
                                     ? "bg-blue-100 text-blue-800"
                                     : "text-slate-600 hover:bg-slate-100"
                                 }`}
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  setSelectedLesson(lesson);
+                                  setSelectedChapter(chapter);
                                 }}
                               >
-                                {lesson.title}
+                                {chapter.title}
                               </div>
                             ))}
-                            <Dialog open={isLessonDialogOpen} onOpenChange={setIsLessonDialogOpen}>
+                            <Dialog open={isChapterDialogOpen} onOpenChange={setIsChapterDialogOpen}>
                               <DialogTrigger asChild>
                                 <Button 
                                   size="sm" 
@@ -608,40 +608,40 @@ export default function CourseBuilder() {
                                   onClick={(e) => e.stopPropagation()}
                                 >
                                   <Plus className="h-3 w-3 mr-1" />
-                                  Add Lesson
+                                  Add Chapter
                                 </Button>
                               </DialogTrigger>
                               <DialogContent>
                                 <DialogHeader>
-                                  <DialogTitle>Add New Lesson</DialogTitle>
+                                  <DialogTitle>Add New Chapter</DialogTitle>
                                   <DialogDescription>
-                                    Create a new lesson in {module.title}.
+                                    Create a new chapter in {module.title}.
                                   </DialogDescription>
                                 </DialogHeader>
                                 <div className="grid gap-4 py-4">
                                   <div className="grid gap-2">
-                                    <Label htmlFor="lesson-title">Title</Label>
+                                    <Label htmlFor="chapter-title">Title</Label>
                                     <Input
-                                      id="lesson-title"
-                                      value={newLesson.title}
-                                      onChange={(e) => setNewLesson({ ...newLesson, title: e.target.value })}
-                                      placeholder="Lesson title"
+                                      id="chapter-title"
+                                      value={newChapter.title}
+                                      onChange={(e) => setNewChapter({ ...newChapter, title: e.target.value })}
+                                      placeholder="Chapter title"
                                     />
                                   </div>
                                   <div className="grid gap-2">
-                                    <Label htmlFor="lesson-duration">Duration (minutes)</Label>
+                                    <Label htmlFor="chapter-duration">Duration (minutes)</Label>
                                     <Input
-                                      id="lesson-duration"
+                                      id="chapter-duration"
                                       type="number"
-                                      value={newLesson.duration}
-                                      onChange={(e) => setNewLesson({ ...newLesson, duration: parseInt(e.target.value) || 0 })}
+                                      value={newChapter.duration}
+                                      onChange={(e) => setNewChapter({ ...newChapter, duration: parseInt(e.target.value) || 0 })}
                                       placeholder="0"
                                     />
                                   </div>
                                 </div>
                                 <DialogFooter>
-                                  <Button onClick={handleCreateLesson} disabled={createLessonMutation.isPending}>
-                                    {createLessonMutation.isPending ? "Creating..." : "Create Lesson"}
+                                  <Button onClick={handleCreateChapter} disabled={createChapterMutation.isPending}>
+                                    {createChapterMutation.isPending ? "Creating..." : "Create Chapter"}
                                   </Button>
                                 </DialogFooter>
                               </DialogContent>
@@ -661,31 +661,31 @@ export default function CourseBuilder() {
 
             {/* Main Content Editor */}
             <div className="lg:col-span-3">
-              {selectedLesson ? (
+              {selectedChapter ? (
                 <Card>
                   <CardHeader>
                     <div className="flex items-center justify-between">
                       <div>
-                        <CardTitle>{selectedLesson.title}</CardTitle>
+                        <CardTitle>{selectedChapter.title}</CardTitle>
                         <p className="text-sm text-slate-600 mt-1">
                           Module: {selectedModule?.title}
                         </p>
                       </div>
                       <div className="flex items-center space-x-2">
                         <Badge variant="secondary">
-                          {selectedLesson.contentType}
+                          {selectedChapter.contentType}
                         </Badge>
                         <Badge variant="outline">
-                          {selectedLesson.duration || 0} min
+                          {selectedChapter.duration || 0} min
                         </Badge>
                       </div>
                     </div>
                   </CardHeader>
                   <CardContent>
                     <ContentEditor
-                      lesson={selectedLesson}
-                      onSave={handleSaveLesson}
-                      isLoading={updateLessonMutation.isPending}
+                      lesson={selectedChapter}
+                      onSave={handleSaveChapter}
+                      isLoading={updateChapterMutation.isPending}
                       forceUpdate={forceEditorUpdate}
                     />
                   </CardContent>
@@ -698,14 +698,14 @@ export default function CourseBuilder() {
                         {selectedModule.title}
                       </h3>
                       <p className="text-slate-600 mb-6">
-                        {selectedModule.description || "Select a lesson to start editing, or create a new lesson in this module."}
+                        {selectedModule.description || "Select a chapter to start editing, or create a new chapter in this module."}
                       </p>
                       <Button 
-                        onClick={() => setIsLessonDialogOpen(true)}
+                        onClick={() => setIsChapterDialogOpen(true)}
                         className="bg-blue-600 hover:bg-blue-700"
                       >
                         <Plus className="h-4 w-4 mr-2" />
-                        Create First Lesson
+                        Create First Chapter
                       </Button>
                     </div>
                   </CardContent>
@@ -718,7 +718,7 @@ export default function CourseBuilder() {
                         Welcome to Course Builder
                       </h3>
                       <p className="text-slate-600 mb-6">
-                        Start by creating modules to organize your course content, then add lessons within each module.
+                        Start by creating modules to organize your course content, then add chapters within each module.
                       </p>
                       <div className="flex flex-col sm:flex-row gap-3 justify-center">
                         <Button 
@@ -733,8 +733,8 @@ export default function CourseBuilder() {
                           courseDescription={course?.description}
                           onGenerateContent={handleAIGenerateContent}
                           onGenerateModule={handleAIGenerateModule}
-                          onGenerateLesson={handleAIGenerateLesson}
-                          disabled={!selectedLesson}
+                          onGenerateLesson={handleAIGenerateChapter}
+                          disabled={!selectedChapter}
                         />
                       </div>
                     </div>

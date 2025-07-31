@@ -24,44 +24,44 @@ import {
 } from "lucide-react";
 
 interface ContentEditorProps {
-  lesson: any;
-  onSave: (lessonData: any) => void;
+  chapter: any;
+  onSave: (chapterData: any) => void;
   isLoading?: boolean;
-  forceUpdate?: boolean;
+  forceUpdate?: number;
 }
 
-export default function ContentEditor({ lesson, onSave, isLoading, forceUpdate }: ContentEditorProps) {
-  const [lessonData, setLessonData] = useState({
-    title: lesson?.title || "",
-    content: lesson?.content || "",
-    contentType: lesson?.contentType || "text",
-    duration: lesson?.duration || 0,
+export default function ContentEditor({ chapter, onSave, isLoading, forceUpdate }: ContentEditorProps) {
+  const [chapterData, setChapterData] = useState({
+    title: chapter?.title || "",
+    content: chapter?.content || "",
+    contentType: chapter?.contentType || "text",
+    duration: chapter?.duration || 0,
   });
 
   const [isPreview, setIsPreview] = useState(false);
 
   useEffect(() => {
-    if (lesson) {
+    if (chapter) {
       console.log("=== CONTENT EDITOR UPDATE ===");
-      console.log("ContentEditor updating with lesson:", lesson);
+      console.log("ContentEditor updating with chapter:", chapter);
       console.log("Force update value:", forceUpdate);
-      console.log("Current lessonData:", lessonData);
+      console.log("Current chapterData:", chapterData);
       
-      const newLessonData = {
-        title: lesson.title || "",
-        content: lesson.content || "",
-        contentType: lesson.contentType || "text",
-        duration: lesson.duration || 0,
+      const newChapterData = {
+        title: chapter.title || "",
+        content: chapter.content || "",
+        contentType: chapter.contentType || "text",
+        duration: chapter.duration || 0,
       };
       
-      console.log("New lessonData to set:", newLessonData);
-      setLessonData(newLessonData);
+      console.log("New chapterData to set:", newChapterData);
+      setChapterData(newChapterData);
       console.log("=== CONTENT EDITOR UPDATE END ===");
     }
-  }, [lesson, forceUpdate]);
+  }, [chapter, forceUpdate]);
 
   const handleSave = () => {
-    onSave(lessonData);
+    onSave(chapterData);
   };
 
   const insertFormatting = (format: string) => {
@@ -70,7 +70,7 @@ export default function ContentEditor({ lesson, onSave, isLoading, forceUpdate }
 
     const start = textarea.selectionStart;
     const end = textarea.selectionEnd;
-    const selectedText = lessonData.content.substring(start, end);
+    const selectedText = chapterData.content.substring(start, end);
     
     let formattedText = '';
     switch (format) {
@@ -106,11 +106,11 @@ export default function ContentEditor({ lesson, onSave, isLoading, forceUpdate }
     }
 
     const newContent = 
-      lessonData.content.substring(0, start) + 
+      chapterData.content.substring(0, start) + 
       formattedText + 
-      lessonData.content.substring(end);
+      chapterData.content.substring(end);
 
-    setLessonData({ ...lessonData, content: newContent });
+    setChapterData({ ...chapterData, content: newContent });
   };
 
   const renderPreview = (content: string) => {
@@ -127,25 +127,25 @@ export default function ContentEditor({ lesson, onSave, isLoading, forceUpdate }
 
   return (
     <div className="space-y-6">
-      {/* Lesson Header */}
+      {/* Chapter Header */}
       <div className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label htmlFor="lesson-title">Lesson Title</Label>
+            <Label htmlFor="chapter-title">Chapter Title</Label>
             <Input
-              id="lesson-title"
-              value={lessonData.title}
-              onChange={(e) => setLessonData({ ...lessonData, title: e.target.value })}
-              placeholder="Enter lesson title"
+              id="chapter-title"
+              value={chapterData.title}
+              onChange={(e) => setChapterData({ ...chapterData, title: e.target.value })}
+              placeholder="Enter chapter title"
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="lesson-duration">Duration (minutes)</Label>
+            <Label htmlFor="chapter-duration">Duration (minutes)</Label>
             <Input
-              id="lesson-duration"
+              id="chapter-duration"
               type="number"
-              value={lessonData.duration}
-              onChange={(e) => setLessonData({ ...lessonData, duration: parseInt(e.target.value) || 0 })}
+              value={chapterData.duration}
+              onChange={(e) => setChapterData({ ...chapterData, duration: parseInt(e.target.value) || 0 })}
               placeholder="0"
             />
           </div>
@@ -154,15 +154,15 @@ export default function ContentEditor({ lesson, onSave, isLoading, forceUpdate }
         <div className="space-y-2">
           <Label htmlFor="content-type">Content Type</Label>
           <Select
-            value={lessonData.contentType}
-            onValueChange={(value) => setLessonData({ ...lessonData, contentType: value })}
+            value={chapterData.contentType}
+            onValueChange={(value) => setChapterData({ ...chapterData, contentType: value })}
           >
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="text">Text Content</SelectItem>
-              <SelectItem value="video">Video Lesson</SelectItem>
+              <SelectItem value="video">Video Chapter</SelectItem>
               <SelectItem value="interactive">Interactive Content</SelectItem>
               <SelectItem value="quiz">Quiz</SelectItem>
             </SelectContent>
@@ -180,7 +180,7 @@ export default function ContentEditor({ lesson, onSave, isLoading, forceUpdate }
           
           <div className="flex items-center space-x-2">
             <Badge variant="outline">
-              {lessonData.contentType}
+              {chapterData.contentType}
             </Badge>
             <Button 
               onClick={handleSave}
@@ -188,7 +188,7 @@ export default function ContentEditor({ lesson, onSave, isLoading, forceUpdate }
               className="bg-blue-600 hover:bg-blue-700"
             >
               <Save className="h-4 w-4 mr-2" />
-              {isLoading ? "Saving..." : "Save Lesson"}
+              {isLoading ? "Saving..." : "Save Chapter"}
             </Button>
           </div>
         </div>
@@ -275,19 +275,19 @@ export default function ContentEditor({ lesson, onSave, isLoading, forceUpdate }
 
           {/* Content Textarea */}
           <div className="space-y-2">
-            <Label htmlFor="content-textarea">Lesson Content</Label>
+            <Label htmlFor="content-textarea">Chapter Content</Label>
             <Textarea
               id="content-textarea"
-              value={lessonData.content}
-              onChange={(e) => setLessonData({ ...lessonData, content: e.target.value })}
-              placeholder="Write your lesson content here..."
+              value={chapterData.content}
+              onChange={(e) => setChapterData({ ...chapterData, content: e.target.value })}
+              placeholder="Write your chapter content here..."
               rows={20}
               className="font-mono"
             />
           </div>
 
           {/* Content Type Specific Options */}
-          {lessonData.contentType === "video" && (
+          {chapterData.contentType === "video" && (
             <Card>
               <CardContent className="p-4 space-y-4">
                 <h3 className="font-medium text-slate-800">Video Settings</h3>
@@ -311,7 +311,7 @@ export default function ContentEditor({ lesson, onSave, isLoading, forceUpdate }
             </Card>
           )}
 
-          {lessonData.contentType === "interactive" && (
+          {chapterData.contentType === "interactive" && (
             <Card>
               <CardContent className="p-4 space-y-4">
                 <h3 className="font-medium text-slate-800">Interactive Content</h3>
@@ -337,11 +337,11 @@ export default function ContentEditor({ lesson, onSave, isLoading, forceUpdate }
           <Card>
             <CardContent className="p-6">
               <div className="course-content">
-                <h1>{lessonData.title}</h1>
+                <h1>{chapterData.title}</h1>
                 <div 
                   className="prose max-w-none"
                   dangerouslySetInnerHTML={{ 
-                    __html: renderPreview(lessonData.content) 
+                    __html: renderPreview(chapterData.content) 
                   }}
                 />
               </div>

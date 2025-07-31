@@ -35,11 +35,11 @@ export default function CoursePreview() {
     },
   });
 
-  const { data: lessons, isLoading: isLessonsLoading, error: lessonsError } = useQuery({
-    queryKey: ["lessons", id, "public"],
+  const { data: chapters, isLoading: isChaptersLoading, error: chaptersError } = useQuery({
+    queryKey: ["chapters", id, "public"],
     queryFn: async () => {
-      const response = await fetch(`/api/courses/${id}/lessons/public`);
-      if (!response.ok) throw new Error('Failed to fetch lessons');
+      const response = await fetch(`/api/courses/${id}/chapters/public`);
+      if (!response.ok) throw new Error('Failed to fetch chapters');
       return response.json();
     },
   });
@@ -120,17 +120,23 @@ export default function CoursePreview() {
 
 
 
-  if (courseError || modulesError || lessonsError) {
+  if (courseError || modulesError || chaptersError) {
     return (
       <div className="min-h-screen bg-slate-50">
-        <main className="w-full p-8">
-          <div className="text-center py-12">
-            <h2 className="text-2xl font-bold text-slate-800 mb-2">Error Loading Course</h2>
-            <p className="text-slate-600">
-              {courseError?.message || modulesError?.message || lessonsError?.message}
-            </p>
-          </div>
-        </main>
+        <Header />
+        <div className="flex">
+          <Sidebar />
+          <main className="flex-1 p-8">
+            <div className="max-w-4xl mx-auto">
+              <div className="text-center py-12">
+                <h1 className="text-2xl font-bold text-slate-800 mb-4">Error Loading Course</h1>
+                <p className="text-slate-600">
+                  {courseError?.message || modulesError?.message || chaptersError?.message}
+                </p>
+              </div>
+            </div>
+          </main>
+        </div>
       </div>
     );
   }
@@ -216,7 +222,7 @@ export default function CoursePreview() {
           <h2 className="text-2xl font-bold text-slate-800 mb-4">Table of Contents</h2>
           <ol className="list-decimal list-inside space-y-2">
             <li>Course Overview</li>
-            <li>Modules and Lessons</li>
+            <li>Modules and Chapters</li>
             <li>Assignments</li>
             <li>Discussions</li>
             <li>Quizzes</li>
@@ -234,7 +240,7 @@ export default function CoursePreview() {
                 <li><span className="font-medium">Difficulty Level:</span> {course.difficulty}</li>
                 <li><span className="font-medium">Status:</span> {course.status}</li>
                 <li><span className="font-medium">Total Modules:</span> {modules?.length || 0}</li>
-                <li><span className="font-medium">Total Lessons:</span> {lessons?.length || 0}</li>
+                <li><span className="font-medium">Total Chapters:</span> {chapters?.length || 0}</li>
                 <li><span className="font-medium">Total Assignments:</span> {assignments?.length || 0}</li>
                 <li><span className="font-medium">Total Quizzes:</span> {quizzes?.length || 0}</li>
               </ul>
@@ -259,9 +265,9 @@ export default function CoursePreview() {
           </div>
         </section>
 
-        {/* Modules and Lessons */}
+        {/* Modules and Chapters */}
         <section className="mb-12">
-          <h2 className="text-2xl font-bold text-slate-800 mb-6">2. Modules and Lessons</h2>
+          <h2 className="text-2xl font-bold text-slate-800 mb-6">2. Modules and Chapters</h2>
           <div className="space-y-8">
             {modules?.map((module: any) => (
               <div key={module.id} className="border-b pb-6">
@@ -270,23 +276,16 @@ export default function CoursePreview() {
                   <p className="text-slate-600 mb-4">{module.description}</p>
                 )}
                 <div className="space-y-4">
-                  {lessons
-                    ?.filter((lesson: any) => lesson.moduleId === module.id)
-                    .map((lesson: any) => (
-                      <div key={lesson.id} className="pl-6">
-                        <h4 className="font-medium">{lesson.title}</h4>
-                        {lesson.content && (
-                          <div className="mt-2 pl-4 border-l-2 border-slate-200">
-                            <div 
-                              className="prose max-w-none text-slate-600"
-                              dangerouslySetInnerHTML={{ __html: lesson.content }} 
-                            />
-                          </div>
+                  {chapters
+                    ?.filter((chapter: any) => chapter.moduleId === module.id)
+                    .map((chapter: any) => (
+                      <div key={chapter.id} className="pl-6">
+                        <h4 className="font-medium">{chapter.title}</h4>
+                        {chapter.content && (
+                          <div className="prose prose-sm text-slate-700 mt-2" dangerouslySetInnerHTML={{ __html: chapter.content }} />
                         )}
-                        {lesson.duration && (
-                          <p className="text-sm text-slate-500 mt-1">
-                            Duration: {lesson.duration} minutes
-                          </p>
+                        {chapter.duration && (
+                          <p className="text-xs text-slate-500 mt-1">Duration: {chapter.duration} minutes</p>
                         )}
                       </div>
                     ))}

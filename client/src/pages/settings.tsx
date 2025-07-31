@@ -193,7 +193,7 @@ export default function Settings() {
                       <div className="flex items-center justify-between">
                         <div>
                           <Label htmlFor="course-updates">Course Updates</Label>
-                          <p className="text-sm text-slate-500">New lessons, announcements, and course changes</p>
+                          <p className="text-sm text-slate-500">New chapters, announcements, and course changes</p>
                         </div>
                         <Switch 
                           id="course-updates"
