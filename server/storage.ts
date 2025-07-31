@@ -13,7 +13,7 @@ import {
   quizAttempts,
   notifications,
   certificates,
-  lessonProgress,
+  chapterProgress,
   rubrics,
   rubricCriteria,
   rubricLevels,
@@ -381,7 +381,7 @@ export class DatabaseStorage implements IStorage {
   // Progress tracking
   async updateChapterProgress(userId: string, chapterId: number, completed: boolean): Promise<void> {
     await db
-      .insert(lessonProgress)
+      .insert(chapterProgress)
       .values({
         userId,
         chapterId,
@@ -389,7 +389,7 @@ export class DatabaseStorage implements IStorage {
         completedAt: completed ? new Date() : null,
       })
       .onConflictDoUpdate({
-        target: [lessonProgress.userId, lessonProgress.chapterId],
+        target: [chapterProgress.userId, chapterProgress.chapterId],
         set: {
           completed,
           completedAt: completed ? new Date() : null,
@@ -402,13 +402,13 @@ export class DatabaseStorage implements IStorage {
     const result = await db
       .select({
         totalChapters: count(chapters.id),
-        completedChapters: sql<number>`COUNT(CASE WHEN ${lessonProgress.completed} = true THEN 1 END)`,
+        completedChapters: sql<number>`COUNT(CASE WHEN ${chapterProgress.completed} = true THEN 1 END)`,
       })
       .from(chapters)
       .leftJoin(courseModules, eq(chapters.moduleId, courseModules.id))
-      .leftJoin(lessonProgress, and(
-        eq(lessonProgress.chapterId, chapters.id),
-        eq(lessonProgress.userId, userId)
+      .leftJoin(chapterProgress, and(
+        eq(chapterProgress.chapterId, chapters.id),
+        eq(chapterProgress.userId, userId)
       ))
       .where(eq(courseModules.courseId, courseId));
 
