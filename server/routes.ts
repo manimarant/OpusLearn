@@ -5,7 +5,7 @@ import { setupAuth, isAuthenticated } from "./replitAuth";
 import { 
   insertCourseSchema, 
   insertModuleSchema, 
-  insertLessonSchema,
+  insertChapterSchema,
   insertDiscussionSchema,
   insertDiscussionReplySchema,
   insertAssignmentSchema,
@@ -208,60 +208,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Lesson routes
-  app.get('/api/modules/:id/lessons', isAuthenticated, async (req, res) => {
+  // Chapter routes
+  app.get('/api/modules/:id/chapters', isAuthenticated, async (req, res) => {
     try {
       const moduleId = parseInt(req.params.id);
-      const lessons = await storage.getModuleLessons(moduleId);
-      res.json(lessons);
+      const chapters = await storage.getModuleChapters(moduleId);
+      res.json(chapters);
     } catch (error) {
-      console.error("Error fetching lessons:", error);
-      res.status(500).json({ message: "Failed to fetch lessons" });
+      console.error("Error fetching chapters:", error);
+      res.status(500).json({ message: "Failed to fetch chapters" });
     }
   });
 
-  // Public lessons endpoint for preview
-  app.get('/api/courses/:id/lessons/public', async (req, res) => {
+  // Public chapters endpoint for preview
+  app.get('/api/courses/:id/chapters/public', async (req, res) => {
     try {
       const courseId = parseInt(req.params.id);
-      const lessons = await storage.getCourseLessons(courseId);
-      res.json(lessons);
+      const chapters = await storage.getCourseChapters(courseId);
+      res.json(chapters);
     } catch (error) {
-      console.error("Error fetching lessons:", error);
-      res.status(500).json({ message: "Failed to fetch lessons" });
+      console.error("Error fetching chapters:", error);
+      res.status(500).json({ message: "Failed to fetch chapters" });
     }
   });
 
-  app.post('/api/modules/:id/lessons', isAuthenticated, async (req: any, res) => {
+  app.post('/api/modules/:id/chapters', isAuthenticated, async (req: any, res) => {
     try {
       const moduleId = parseInt(req.params.id);
       const userId = getUserId(req);
       
       // TODO: Add authorization check for module ownership
       
-      const lessonData = insertLessonSchema.parse({
+      const chapterData = insertChapterSchema.parse({
         ...req.body,
         moduleId,
       });
       
-      const lesson = await storage.createLesson(lessonData);
-      res.json(lesson);
+      const chapter = await storage.createChapter(chapterData);
+      res.json(chapter);
     } catch (error) {
-      console.error("Error creating lesson:", error);
-      res.status(400).json({ message: "Failed to create lesson" });
+      console.error("Error creating chapter:", error);
+      res.status(400).json({ message: "Failed to create chapter" });
     }
   });
 
-  app.put('/api/lessons/:id', isAuthenticated, async (req: any, res) => {
+  app.put('/api/chapters/:id', isAuthenticated, async (req: any, res) => {
     try {
-      const lessonId = parseInt(req.params.id);
-      const updates = insertLessonSchema.partial().parse(req.body);
+      const chapterId = parseInt(req.params.id);
+      const updates = insertChapterSchema.partial().parse(req.body);
       
-      const lesson = await storage.updateLesson(lessonId, updates);
-      res.json(lesson);
+      const chapter = await storage.updateChapter(chapterId, updates);
+      res.json(chapter);
     } catch (error) {
-      console.error("Error updating lesson:", error);
-      res.status(400).json({ message: "Failed to update lesson" });
+      console.error("Error updating chapter:", error);
+      res.status(400).json({ message: "Failed to update chapter" });
     }
   });
 
@@ -486,13 +486,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Progress tracking
-  app.post('/api/lessons/:id/progress', isAuthenticated, async (req: any, res) => {
+  app.post('/api/chapters/:id/progress', isAuthenticated, async (req: any, res) => {
     try {
-      const lessonId = parseInt(req.params.id);
+      const chapterId = parseInt(req.params.id);
       const userId = getUserId(req);
       const { completed } = req.body;
       
-      await storage.updateLessonProgress(userId, lessonId, completed);
+      await storage.updateChapterProgress(userId, chapterId, completed);
       res.json({ success: true });
     } catch (error) {
       console.error("Error updating progress:", error);
@@ -845,15 +845,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get course lessons
-  app.get('/api/courses/:id/lessons', isAuthenticated, async (req: any, res) => {
+  // Get course chapters
+  app.get('/api/courses/:id/chapters', isAuthenticated, async (req: any, res) => {
     try {
       const courseId = parseInt(req.params.id);
-      const lessons = await storage.getCourseLessons(courseId);
-      res.json(lessons);
+      const chapters = await storage.getCourseChapters(courseId);
+      res.json(chapters);
     } catch (error) {
-      console.error("Error fetching course lessons:", error);
-      res.status(400).json({ message: "Failed to fetch course lessons" });
+      console.error("Error fetching course chapters:", error);
+      res.status(400).json({ message: "Failed to fetch course chapters" });
     }
   });
 
