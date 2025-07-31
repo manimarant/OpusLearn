@@ -82,9 +82,14 @@ export default function CourseBuilder() {
     enabled: !!selectedModule,
   });
 
-  const { data: courses } = useQuery<Course[]>({
+  const { data: courses, isLoading: coursesLoading, error: coursesError } = useQuery<Course[]>({
     queryKey: ["/api/courses"],
   });
+
+  // Debug logging
+  console.log("Courses data:", courses);
+  console.log("Courses loading:", coursesLoading);
+  console.log("Courses error:", coursesError);
 
   const createModuleMutation = useMutation({
     mutationFn: async (moduleData: any) => {
@@ -372,6 +377,9 @@ export default function CourseBuilder() {
         }
       }
 
+      // Invalidate the courses query to refresh the list
+      queryClient.invalidateQueries({ queryKey: ["/api/courses"] });
+
       toast({
         title: "Course Created Successfully",
         description: `AI-generated course "${courseData.title}" has been created with ${courseData.modules.length} modules and ${courseData.modules.reduce((acc, mod) => acc + mod.chapters.length, 0)} chapters.`,
@@ -405,6 +413,14 @@ export default function CourseBuilder() {
                   <h2 className="text-2xl font-bold text-slate-800">Course Builder</h2>
                   <p className="text-slate-600 mt-1">Select a course to edit or create a new one</p>
                 </div>
+                <div className="flex items-center gap-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => queryClient.invalidateQueries({ queryKey: ["/api/courses"] })}
+                  >
+                    Refresh Courses
+                  </Button>
                 <Dialog>
                   <DialogTrigger asChild>
                     <Button className="bg-blue-600 hover:bg-blue-700">
@@ -495,27 +511,42 @@ export default function CourseBuilder() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {courses?.map((course: Course) => (
-                <Card 
-                  key={course.id} 
-                  className="cursor-pointer hover:shadow-lg transition-shadow"
-                  onClick={() => setLocation(`/course-builder/${course.id}`)}
-                >
-                  <CardContent className="p-6">
-                    <div className="flex items-start justify-between mb-4">
-                      <div>
-                        <h3 className="font-semibold text-lg text-slate-800 mb-1">{course.title}</h3>
-                        <p className="text-sm text-slate-600 line-clamp-2">{course.description}</p>
+              {coursesLoading ? (
+                <div className="col-span-full text-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                  <p className="text-slate-600">Loading courses...</p>
+                </div>
+              ) : coursesError ? (
+                <div className="col-span-full text-center py-8">
+                  <p className="text-red-600">Error loading courses. Please try again.</p>
+                </div>
+              ) : courses && courses.length > 0 ? (
+                courses.map((course: Course) => (
+                  <Card 
+                    key={course.id} 
+                    className="cursor-pointer hover:shadow-lg transition-shadow"
+                    onClick={() => setLocation(`/course-builder/${course.id}`)}
+                  >
+                    <CardContent className="p-6">
+                      <div className="flex items-start justify-between mb-4">
+                        <div>
+                          <h3 className="font-semibold text-lg text-slate-800 mb-1">{course.title}</h3>
+                          <p className="text-sm text-slate-600 line-clamp-2">{course.description}</p>
+                        </div>
+                        <Badge variant="outline">{course.status}</Badge>
                       </div>
-                      <Badge variant="outline">{course.status}</Badge>
-                    </div>
-                    <div className="flex items-center justify-between text-sm text-slate-500">
-                      <span>{course.category}</span>
-                      <span>{course.difficulty}</span>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                      <div className="flex items-center justify-between text-sm text-slate-500">
+                        <span>{course.category}</span>
+                        <span>{course.difficulty}</span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))
+              ) : (
+                <div className="col-span-full text-center py-8">
+                  <p className="text-slate-600">No courses found. Create your first course to get started.</p>
+                </div>
+              )}
             </div>
           </main>
         </div>
