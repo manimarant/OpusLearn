@@ -379,23 +379,27 @@ export default function CourseBuilder() {
       const newCourseId = createdCourse.id;
 
       // Create modules and chapters for the course
-      for (const moduleData of courseData.modules) {
+      for (let moduleIndex = 0; moduleIndex < courseData.modules.length; moduleIndex++) {
+        const moduleData = courseData.modules[moduleIndex];
         // Create module
         const moduleResponse = await apiRequest("POST", `/api/courses/${newCourseId}/modules`, {
           title: moduleData.title,
-          description: moduleData.description
+          description: moduleData.description,
+          orderIndex: moduleIndex + 1
         });
         
         const createdModule = await moduleResponse.json();
         const moduleId = createdModule.id;
 
         // Create chapters for this module
-        for (const chapterData of moduleData.chapters) {
+        for (let chapterIndex = 0; chapterIndex < moduleData.chapters.length; chapterIndex++) {
+          const chapterData = moduleData.chapters[chapterIndex];
           await apiRequest("POST", `/api/modules/${moduleId}/chapters`, {
             title: chapterData.title,
             content: chapterData.content,
             contentType: chapterData.contentType,
-            duration: chapterData.duration
+            duration: chapterData.duration,
+            orderIndex: chapterIndex + 1
           });
         }
 
