@@ -19,7 +19,7 @@ if (!process.env.DATABASE_URL) {
       users: { findMany: () => [], findFirst: () => null },
       courses: { findMany: () => [], findFirst: () => null },
       courseModules: { findMany: () => [], findFirst: () => null },
-      lessons: { findMany: () => [], findFirst: () => null },
+      chapters: { findMany: () => [], findFirst: () => null },
       enrollments: { findMany: () => [], findFirst: () => null },
       discussions: { findMany: () => [], findFirst: () => null },
       assignments: { findMany: () => [], findFirst: () => null },
