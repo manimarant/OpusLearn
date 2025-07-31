@@ -471,7 +471,7 @@ export default function CourseBuilder() {
                 courseDescription={course?.description}
                 onGenerateContent={handleAIGenerateContent}
                 onGenerateModule={handleAIGenerateModule}
-                onGenerateLesson={handleAIGenerateChapter}
+                onGenerateChapter={handleAIGenerateChapter}
                 disabled={!selectedChapter}
               />
               <Button 
@@ -683,7 +683,7 @@ export default function CourseBuilder() {
                   </CardHeader>
                   <CardContent>
                     <ContentEditor
-                      lesson={selectedChapter}
+                      chapter={selectedChapter}
                       onSave={handleSaveChapter}
                       isLoading={updateChapterMutation.isPending}
                       forceUpdate={forceEditorUpdate}
@@ -733,7 +733,7 @@ export default function CourseBuilder() {
                           courseDescription={course?.description}
                           onGenerateContent={handleAIGenerateContent}
                           onGenerateModule={handleAIGenerateModule}
-                          onGenerateLesson={handleAIGenerateChapter}
+                          onGenerateChapter={handleAIGenerateChapter}
                           disabled={!selectedChapter}
                         />
                       </div>
