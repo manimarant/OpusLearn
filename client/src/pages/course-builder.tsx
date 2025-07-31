@@ -340,6 +340,29 @@ export default function CourseBuilder() {
         contentType: string;
         duration: number;
       }>;
+      assignments?: Array<{
+        title: string;
+        description: string;
+        dueDate: string;
+        points: number;
+      }>;
+      quizzes?: Array<{
+        title: string;
+        description: string;
+        timeLimit: number;
+        questions: Array<{
+          question: string;
+          type: string;
+          options?: string[];
+          correctAnswer?: string;
+          points: number;
+        }>;
+      }>;
+      discussions?: Array<{
+        title: string;
+        description: string;
+        prompt: string;
+      }>;
     }>;
   }) => {
     try {
@@ -375,14 +398,68 @@ export default function CourseBuilder() {
             duration: chapterData.duration
           });
         }
+
+        // Create assignments for this module
+        if (moduleData.assignments) {
+          for (const assignmentData of moduleData.assignments) {
+            await apiRequest("POST", `/api/courses/${newCourseId}/assignments`, {
+              title: assignmentData.title,
+              description: assignmentData.description,
+              dueDate: assignmentData.dueDate,
+              maxPoints: assignmentData.points
+            });
+          }
+        }
+
+        // Create quizzes for this module
+        if (moduleData.quizzes) {
+          for (const quizData of moduleData.quizzes) {
+            const quizResponse = await apiRequest("POST", `/api/courses/${newCourseId}/quizzes`, {
+              title: quizData.title,
+              description: quizData.description,
+              timeLimit: quizData.timeLimit
+            });
+            
+            const createdQuiz = await quizResponse.json();
+            const quizId = createdQuiz.id;
+
+            // Create questions for this quiz
+            for (const questionData of quizData.questions) {
+              await apiRequest("POST", `/api/quizzes/${quizId}/questions`, {
+                question: questionData.question,
+                type: questionData.type,
+                options: questionData.options,
+                correctAnswer: questionData.correctAnswer,
+                points: questionData.points,
+                orderIndex: 1 // Default order index
+              });
+            }
+          }
+        }
+
+        // Create discussions for this module
+        if (moduleData.discussions) {
+          for (const discussionData of moduleData.discussions) {
+            await apiRequest("POST", `/api/courses/${newCourseId}/discussions`, {
+              title: discussionData.title,
+              content: discussionData.prompt // Use prompt as content
+            });
+          }
+        }
       }
 
       // Invalidate the courses query to refresh the list
       queryClient.invalidateQueries({ queryKey: ["/api/courses"] });
 
+      // Calculate totals
+      const totalChapters = courseData.modules.reduce((acc, mod) => acc + mod.chapters.length, 0);
+      const totalAssignments = courseData.modules.reduce((acc, mod) => acc + (mod.assignments?.length || 0), 0);
+      const totalQuizzes = courseData.modules.reduce((acc, mod) => acc + (mod.quizzes?.length || 0), 0);
+      const totalDiscussions = courseData.modules.reduce((acc, mod) => acc + (mod.discussions?.length || 0), 0);
+
       toast({
         title: "Course Created Successfully",
-        description: `AI-generated course "${courseData.title}" has been created with ${courseData.modules.length} modules and ${courseData.modules.reduce((acc, mod) => acc + mod.chapters.length, 0)} chapters.`,
+        description: `AI-generated course "${courseData.title}" has been created with ${courseData.modules.length} modules, ${totalChapters} chapters, ${totalAssignments} assignments, ${totalQuizzes} quizzes, and ${totalDiscussions} discussions.`,
       });
 
       // Navigate to the new course

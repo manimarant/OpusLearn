@@ -45,6 +45,29 @@ interface AICourseGeneratorProps {
         contentType: string;
         duration: number;
       }>;
+      assignments?: Array<{
+        title: string;
+        description: string;
+        dueDate: string;
+        points: number;
+      }>;
+      quizzes?: Array<{
+        title: string;
+        description: string;
+        timeLimit: number;
+        questions: Array<{
+          question: string;
+          type: string;
+          options?: string[];
+          correctAnswer?: string;
+          points: number;
+        }>;
+      }>;
+      discussions?: Array<{
+        title: string;
+        description: string;
+        prompt: string;
+      }>;
     }>;
   }) => void;
   disabled?: boolean;
@@ -233,6 +256,42 @@ We'll build a complete application that demonstrates all the concepts we've lear
                   contentType: "text",
                   duration: 90
                 }
+              ],
+              assignments: [
+                {
+                  title: "Final Project Implementation",
+                  description: "Create a complete application using all the concepts learned in this course. Submit your code, documentation, and a brief presentation.",
+                  dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 2 weeks from now
+                  points: 100
+                }
+              ],
+              quizzes: [
+                {
+                  title: "Practical Implementation Quiz",
+                  description: "Test your understanding of practical implementation concepts",
+                  timeLimit: 30,
+                  questions: [
+                    {
+                      question: "What is the first step in building a project?",
+                      type: "multiple-choice",
+                      options: ["Planning and design", "Coding", "Testing", "Deployment"],
+                      correctAnswer: "Planning and design",
+                      points: 10
+                    },
+                    {
+                      question: "Why is documentation important in project development?",
+                      type: "text",
+                      points: 15
+                    }
+                  ]
+                }
+              ],
+              discussions: [
+                {
+                  title: "Project Challenges and Solutions",
+                  description: "Share the challenges you faced during your project implementation and how you solved them",
+                  prompt: "What was the most challenging aspect of your project, and how did you overcome it? Share your experience and learn from others."
+                }
               ]
             }
           ]
@@ -269,6 +328,40 @@ The course is organized into logical modules, each building upon the previous on
                   contentType: "text",
                   duration: 40
                 }
+              ],
+              assignments: [
+                {
+                  title: "Foundation Concepts Assignment",
+                  description: "Create a comprehensive summary of the foundational concepts covered in this module. Include examples and practical applications.",
+                  dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 1 week from now
+                  points: 50
+                }
+              ],
+              quizzes: [
+                {
+                  title: "Foundation Basics Quiz",
+                  description: "Test your understanding of the foundational concepts",
+                  timeLimit: 20,
+                  questions: [
+                    {
+                      question: "What are the key principles covered in this module?",
+                      type: "text",
+                      points: 10
+                    },
+                    {
+                      question: "How do you apply these concepts in practice?",
+                      type: "text",
+                      points: 15
+                    }
+                  ]
+                }
+              ],
+              discussions: [
+                {
+                  title: "Understanding Fundamentals",
+                  description: "Discuss the importance of understanding fundamental concepts before moving to advanced topics",
+                  prompt: "Why is it crucial to master the fundamentals before advancing to more complex topics? Share your thoughts and experiences."
+                }
               ]
             }
           ]
@@ -301,6 +394,40 @@ Traditional learning methods are effective, but creative approaches can make lea
 - Community-driven learning`,
                   contentType: "text",
                   duration: 50
+                }
+              ],
+              assignments: [
+                {
+                  title: "Creative Learning Project",
+                  description: "Create a creative project that demonstrates your understanding of the concepts learned through innovative approaches.",
+                  dueDate: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 10 days from now
+                  points: 75
+                }
+              ],
+              quizzes: [
+                {
+                  title: "Creative Learning Assessment",
+                  description: "Test your understanding of creative learning approaches",
+                  timeLimit: 25,
+                  questions: [
+                    {
+                      question: "What are the benefits of creative learning approaches?",
+                      type: "text",
+                      points: 15
+                    },
+                    {
+                      question: "How can you apply creative methods to problem-solving?",
+                      type: "text",
+                      points: 20
+                    }
+                  ]
+                }
+              ],
+              discussions: [
+                {
+                  title: "Creative Learning Experiences",
+                  description: "Share your experiences with creative learning methods and their effectiveness",
+                  prompt: "What creative learning methods have you found most effective? Share your experiences and learn from others' approaches."
                 }
               ]
             }
