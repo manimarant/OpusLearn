@@ -136,7 +136,7 @@ export default function AICourseGenerator({
       
       const courseTemplates = {
         "gpt-4": {
-          title: "Complete Course on " + coursePrompt.split(" ").slice(0, 3).join(" "),
+          title: coursePrompt,
           description: `A comprehensive course covering all aspects of ${coursePrompt}. This course is designed to take you from beginner to advanced level with practical examples and real-world projects.`,
           modules: [
             {
@@ -196,6 +196,42 @@ Before we begin, you'll need to set up your development environment.
                   contentType: "text",
                   duration: 30
                 }
+              ],
+              assignments: [
+                {
+                  title: "Introduction Assignment",
+                  description: "Create a brief summary of what you learned about " + coursePrompt.split(" ")[0] + " and its importance in modern development.",
+                  dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 1 week from now
+                  points: 50
+                }
+              ],
+              quizzes: [
+                {
+                  title: "Introduction Quiz",
+                  description: "Test your understanding of the basic concepts and fundamentals",
+                  timeLimit: 20,
+                  questions: [
+                    {
+                      question: "What is the main purpose of " + coursePrompt.split(" ")[0] + "?",
+                      type: "multiple-choice",
+                      options: ["To solve complex problems", "To create simple applications", "To learn programming", "All of the above"],
+                      correctAnswer: "All of the above",
+                      points: 10
+                    },
+                    {
+                      question: "Why is it important to understand the fundamentals?",
+                      type: "text",
+                      points: 15
+                    }
+                  ]
+                }
+              ],
+              discussions: [
+                {
+                  title: "Getting Started Discussion",
+                  description: "Share your initial thoughts and questions about " + coursePrompt.split(" ")[0],
+                  prompt: "What aspects of " + coursePrompt.split(" ")[0] + " are you most excited to learn about? Share your goals and any questions you have."
+                }
               ]
             },
             {
@@ -222,6 +258,42 @@ Before we begin, you'll need to set up your development environment.
 - Common challenges and solutions`,
                   contentType: "text",
                   duration: 60
+                }
+              ],
+              assignments: [
+                {
+                  title: "Core Concepts Assignment",
+                  description: "Analyze and explain the core principles of " + coursePrompt.split(" ")[0] + " with real-world examples.",
+                  dueDate: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 10 days from now
+                  points: 75
+                }
+              ],
+              quizzes: [
+                {
+                  title: "Core Concepts Quiz",
+                  description: "Test your understanding of the fundamental principles and theories",
+                  timeLimit: 25,
+                  questions: [
+                    {
+                      question: "Which of the following is a core principle of " + coursePrompt.split(" ")[0] + "?",
+                      type: "multiple-choice",
+                      options: ["Speed over accuracy", "Accuracy over speed", "Balance of both", "None of the above"],
+                      correctAnswer: "Balance of both",
+                      points: 10
+                    },
+                    {
+                      question: "How do core principles apply to real-world scenarios?",
+                      type: "text",
+                      points: 20
+                    }
+                  ]
+                }
+              ],
+              discussions: [
+                {
+                  title: "Core Concepts Discussion",
+                  description: "Discuss the importance of understanding core principles in " + coursePrompt.split(" ")[0],
+                  prompt: "How do you think understanding the core principles will help you in practical applications? Share your thoughts and experiences."
                 }
               ]
             },
@@ -297,7 +369,7 @@ We'll build a complete application that demonstrates all the concepts we've lear
           ]
         },
         "claude-3": {
-          title: "Mastering " + coursePrompt.split(" ").slice(0, 2).join(" "),
+          title: coursePrompt,
           description: `An in-depth exploration of ${coursePrompt} with a focus on practical applications and real-world scenarios. This course combines theoretical knowledge with hands-on experience.`,
           modules: [
             {
@@ -367,7 +439,7 @@ The course is organized into logical modules, each building upon the previous on
           ]
         },
         "gemini-pro": {
-          title: "Creative " + coursePrompt.split(" ").slice(0, 2).join(" ") + " Course",
+          title: coursePrompt,
           description: `An innovative approach to learning ${coursePrompt} with creative projects and interactive learning experiences.`,
           modules: [
             {
