@@ -365,8 +365,20 @@ export default function CourseBuilder() {
       }>;
     }>;
   }) => {
+    console.log("=== AI Course Generator Debug ===");
+    console.log("Course data received:", courseData);
+    console.log("Number of modules:", courseData.modules.length);
+    
     try {
       // First create the course
+      console.log("Creating course with data:", {
+        title: courseData.title,
+        description: courseData.description,
+        category: courseData.category,
+        difficulty: courseData.difficulty,
+        status: "draft"
+      });
+      
       const courseResponse = await apiRequest("POST", "/api/courses", {
         title: courseData.title,
         description: courseData.description,
@@ -377,11 +389,13 @@ export default function CourseBuilder() {
       
       const createdCourse = await courseResponse.json();
       const newCourseId = createdCourse.id;
+      console.log("Course created successfully with ID:", newCourseId);
 
       // Create modules and chapters for the course
       for (let moduleIndex = 0; moduleIndex < courseData.modules.length; moduleIndex++) {
         const moduleData = courseData.modules[moduleIndex];
         // Create module
+        console.log(`Creating module ${moduleIndex + 1}:`, moduleData.title);
         const moduleResponse = await apiRequest("POST", `/api/courses/${newCourseId}/modules`, {
           title: moduleData.title,
           description: moduleData.description,
@@ -390,10 +404,13 @@ export default function CourseBuilder() {
         
         const createdModule = await moduleResponse.json();
         const moduleId = createdModule.id;
+        console.log(`Module created successfully with ID:`, moduleId);
 
         // Create chapters for this module
+        console.log(`Creating ${moduleData.chapters.length} chapters for module ${moduleIndex + 1}`);
         for (let chapterIndex = 0; chapterIndex < moduleData.chapters.length; chapterIndex++) {
           const chapterData = moduleData.chapters[chapterIndex];
+          console.log(`Creating chapter ${chapterIndex + 1}:`, chapterData.title);
           await apiRequest("POST", `/api/modules/${moduleId}/chapters`, {
             title: chapterData.title,
             content: chapterData.content,
@@ -401,6 +418,7 @@ export default function CourseBuilder() {
             duration: chapterData.duration,
             orderIndex: chapterIndex + 1
           });
+          console.log(`Chapter ${chapterIndex + 1} created successfully`);
         }
 
         // Create assignments for this module
@@ -471,9 +489,14 @@ export default function CourseBuilder() {
       
     } catch (error) {
       console.error("Error creating AI-generated course:", error);
+      console.error("Error details:", {
+        message: error.message,
+        stack: error.stack,
+        name: error.name
+      });
       toast({
         title: "Creation Failed",
-        description: "Failed to create the AI-generated course. Please try again.",
+        description: `Failed to create the AI-generated course: ${error.message}`,
         variant: "destructive",
       });
     }
@@ -589,7 +612,6 @@ export default function CourseBuilder() {
                   </DialogContent>
                 </Dialog>
               </div>
-            </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
