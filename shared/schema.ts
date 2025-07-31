@@ -65,8 +65,8 @@ export const courseModules = pgTable("course_modules", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-// Lessons within modules
-export const lessons = pgTable("lessons", {
+// Chapters within modules
+export const chapters = pgTable("chapters", {
   id: serial("id").primaryKey(),
   moduleId: integer("module_id").notNull(),
   title: text("title").notNull(),
@@ -88,10 +88,10 @@ export const enrollments = pgTable("enrollments", {
 });
 
 // Student progress tracking
-export const lessonProgress = pgTable("lesson_progress", {
+export const chapterProgress = pgTable("chapter_progress", {
   id: serial("id").primaryKey(),
   userId: varchar("user_id").notNull(),
-  lessonId: integer("lesson_id").notNull(),
+  chapterId: integer("chapter_id").notNull(),
   completed: boolean("completed").default(false),
   timeSpent: integer("time_spent").default(0), // in seconds
   completedAt: timestamp("completed_at"),
@@ -127,7 +127,7 @@ export const submissions = pgTable("submissions", {
 export const quizzes = pgTable("quizzes", {
   id: serial("id").primaryKey(),
   courseId: integer("course_id").notNull(),
-  lessonId: integer("lesson_id"),
+  chapterId: integer("chapter_id"),
   title: text("title").notNull(),
   description: text("description"),
   timeLimit: integer("time_limit"), // in minutes
@@ -278,15 +278,15 @@ export const courseModulesRelations = relations(courseModules, ({ one, many }) =
     fields: [courseModules.courseId],
     references: [courses.id],
   }),
-  lessons: many(lessons),
+  chapters: many(chapters),
 }));
 
-export const lessonsRelations = relations(lessons, ({ one, many }) => ({
+export const chaptersRelations = relations(chapters, ({ one, many }) => ({
   module: one(courseModules, {
-    fields: [lessons.moduleId],
+    fields: [chapters.moduleId],
     references: [courseModules.id],
   }),
-  progress: many(lessonProgress),
+  progress: many(chapterProgress),
 }));
 
 export const enrollmentsRelations = relations(enrollments, ({ one }) => ({
@@ -348,7 +348,7 @@ export const insertModuleSchema = createInsertSchema(courseModules).pick({
   orderIndex: true,
 });
 
-export const insertLessonSchema = createInsertSchema(lessons).pick({
+export const insertChapterSchema = createInsertSchema(chapters).pick({
   moduleId: true,
   title: true,
   content: true,
@@ -462,7 +462,7 @@ export type UpsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 export type Course = typeof courses.$inferSelect;
 export type CourseModule = typeof courseModules.$inferSelect;
-export type Lesson = typeof lessons.$inferSelect;
+export type Chapter = typeof chapters.$inferSelect;
 export type Enrollment = typeof enrollments.$inferSelect;
 export type Discussion = typeof discussions.$inferSelect;
 export type DiscussionReply = typeof discussionReplies.$inferSelect;
