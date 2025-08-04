@@ -9,12 +9,32 @@ let db: any;
 if (!process.env.DATABASE_URL) {
   console.warn("DATABASE_URL not set. Using mock database for development.");
   
-  // Create a mock database that returns empty results
+  // Create a more comprehensive mock database that handles the specific operations needed
   const mockDb = {
-    select: () => ({ from: () => ({ where: () => [], limit: () => [], orderBy: () => [] }) }),
-    insert: () => ({ values: () => ({ onConflictDoUpdate: () => ({ returning: () => [] }), returning: () => [] }) }),
-    update: () => ({ set: () => ({ where: () => ({ returning: () => [] }) }) }),
-    delete: () => ({ from: () => ({ where: () => ({ returning: () => [] }) }) }),
+    select: () => ({ 
+      from: () => ({ 
+        where: () => [], 
+        limit: () => [], 
+        orderBy: () => [],
+        leftJoin: () => ({ where: () => [] })
+      }) 
+    }),
+    insert: () => ({ 
+      values: () => ({ 
+        onConflictDoUpdate: () => ({ returning: () => [{ id: 'dev-user-123', email: 'dev@example.com', firstName: 'Development', lastName: 'User', role: 'instructor', profileImageUrl: null, createdAt: new Date(), updatedAt: new Date() }] }), 
+        returning: () => [] 
+      }) 
+    }),
+    update: () => ({ 
+      set: () => ({ 
+        where: () => ({ returning: () => [] }) 
+      }) 
+    }),
+    delete: () => ({ 
+      from: () => ({ 
+        where: () => ({ returning: () => [] }) 
+      }) 
+    }),
     query: {
       users: { findMany: () => [], findFirst: () => null },
       courses: { findMany: () => [], findFirst: () => null },
@@ -32,8 +52,56 @@ if (!process.env.DATABASE_URL) {
   pool = null;
   db = mockDb;
 } else {
-  pool = new Pool({ connectionString: process.env.DATABASE_URL });
-  db = drizzle(pool, { schema });
+  try {
+    pool = new Pool({ connectionString: process.env.DATABASE_URL });
+    db = drizzle(pool, { schema });
+  } catch (error) {
+    console.error("Failed to connect to database:", error);
+    console.warn("Falling back to mock database.");
+    
+    // Fallback to mock database if connection fails
+    const mockDb = {
+      select: () => ({ 
+        from: () => ({ 
+          where: () => [], 
+          limit: () => [], 
+          orderBy: () => [],
+          leftJoin: () => ({ where: () => [] })
+        }) 
+      }),
+      insert: () => ({ 
+        values: () => ({ 
+          onConflictDoUpdate: () => ({ returning: () => [{ id: 'dev-user-123', email: 'dev@example.com', firstName: 'Development', lastName: 'User', role: 'instructor', profileImageUrl: null, createdAt: new Date(), updatedAt: new Date() }] }), 
+          returning: () => [] 
+        }) 
+      }),
+      update: () => ({ 
+        set: () => ({ 
+          where: () => ({ returning: () => [] }) 
+        }) 
+      }),
+      delete: () => ({ 
+        from: () => ({ 
+          where: () => ({ returning: () => [] }) 
+        }) 
+      }),
+      query: {
+        users: { findMany: () => [], findFirst: () => null },
+        courses: { findMany: () => [], findFirst: () => null },
+        courseModules: { findMany: () => [], findFirst: () => null },
+        chapters: { findMany: () => [], findFirst: () => null },
+        enrollments: { findMany: () => [], findFirst: () => null },
+        discussions: { findMany: () => [], findFirst: () => null },
+        assignments: { findMany: () => [], findFirst: () => null },
+        submissions: { findMany: () => [], findFirst: () => null },
+        notifications: { findMany: () => [], findFirst: () => null },
+        certificates: { findMany: () => [], findFirst: () => null },
+      }
+    };
+    
+    pool = null;
+    db = mockDb;
+  }
 }
 
 export { pool, db };

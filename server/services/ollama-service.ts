@@ -42,7 +42,7 @@ export interface GeneratedCourse {
 
 export class OllamaService {
   private baseUrl = 'http://localhost:11434';
-  private defaultModel = 'deepseek-coder:6.7b';
+  private defaultModel = 'llama3.2:1b';
 
   async isAvailable(): Promise<boolean> {
     try {
@@ -70,402 +70,280 @@ export class OllamaService {
     const numModules = moduleMatch ? parseInt(moduleMatch[1]) : 2;
     const numChapters = chapterMatch ? parseInt(chapterMatch[1]) : 2;
 
-    // Always use AI generation - no hardcoded templates
     console.log('Generating course with AI for prompt:', request.prompt);
     
-    // Use the model specified in the request, or fallback to default
-    const aiModel = model || this.defaultModel;
+    // Clear system prompt for JSON generation
+    const systemPrompt = "Generate valid JSON only.";
     
-    // Check if Ollama is available first
-    const isAvailable = await this.isAvailable();
-    if (!isAvailable) {
-      throw new Error('AI service is not available. Please ensure Ollama is running and try again.');
-    }
-    
-    // Strict system prompt for JSON-only output
-    const systemPrompt = "You are a JSON generator. Always respond with valid, complete JSON only. Never include markdown, explanations, or any other text outside the JSON object. Ensure all arrays and objects are properly closed with brackets and braces. For quizzes, always include 3 questions per quiz with 2 multiple-choice questions and 1 short-answer question to provide comprehensive assessment.";
-    
-    // Enhanced user prompt that incorporates the user's specific request
-    const userPrompt = `Based on this user request: "${request.prompt}"
+    // Short, focused user prompt
+    const userPrompt = `Create a course about "${request.prompt}" with ${numModules} modules and ${numChapters} chapters each. Generate complete JSON with modules array.`;
 
-Generate a course with exactly ${numModules} modules and ${numChapters} chapters per module. Include assignments, discussions, and quizzes. IMPORTANT: Each quiz MUST have exactly 3 questions - 2 multiple-choice questions and 1 short-answer question. Return ONLY valid JSON with this exact structure:
+    console.log('Using model:', model);
 
-{
-  "title": "Course Title",
-  "description": "Course description",
-  "category": "Programming",
-  "difficulty": "beginner",
-  "modules": [
-    {
-      "title": "Module Title",
-      "description": "Module description",
-      "chapters": [
-        {
-          "title": "Chapter Title",
-          "content": "Chapter content"
-        }
-      ],
-      "assignments": [
-        {
-          "title": "Assignment Title",
-          "description": "Assignment description",
-          "dueDate": "2024-12-31",
-          "points": 50
-        }
-      ],
-      "discussions": [
-        {
-          "title": "Discussion Title",
-          "prompt": "Discussion prompt"
-        }
-      ],
-      "quizzes": [
-        {
-          "title": "Quiz Title",
-          "description": "Quiz description",
-          "timeLimit": 30,
-          "questions": [
-            {
-              "question": "Question 1 text?",
-              "type": "multiple-choice",
-              "options": ["Option A", "Option B", "Option C", "Option D"],
-              "correctAnswer": "Option A",
-              "points": 10
-            },
-            {
-              "question": "Question 2 text?",
-              "type": "multiple-choice",
-              "options": ["Option A", "Option B", "Option C", "Option D"],
-              "correctAnswer": "Option B",
-              "points": 10
-            },
-            {
-              "question": "Question 3 text?",
-              "type": "short-answer",
-              "prompt": "Explain the concept briefly",
-              "points": 15
-            }
-          ]
-        }
-      ]
-    }
-  ]
-}`;
+    // Retry configuration
+    const maxRetries = 3;
+    const baseTimeout = 180000; // 3 minutes base timeout
+    let lastError: Error | null = null;
 
-    console.log('Using model:', aiModel);
-    console.log('User prompt:', request.prompt);
-
-    try {
-      const response = await fetch(`${this.baseUrl}/api/generate`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: aiModel,
-          prompt: userPrompt,
-          system: systemPrompt,
-          stream: false,
-          options: {
-            num_predict: 2048, // Increased for more detailed responses and complete JSON
-            temperature: 0.3, // Slightly higher for more creative content
-            top_p: 0.9,
-            repeat_penalty: 1.1
-          }
-        }),
-        signal: AbortSignal.timeout(60000), // 60 second timeout for AI generation
-      });
-
-      if (!response.ok) {
-        console.log("Ollama request failed:", response.status, response.statusText);
-        throw new Error(`Ollama request failed: ${response.status}`);
-      }
-
-      const data = await response.json();
-      console.log("Raw Ollama response:", data);
-      
-      let courseData: any;
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
+        console.log(`Attempt ${attempt}/${maxRetries} - Generating course...`);
+        
+        // Increase timeout for each retry
+        const timeout = baseTimeout * attempt;
+        console.log(`Using timeout: ${timeout}ms (${timeout / 1000}s)`);
+
+        const response = await fetch(`${this.baseUrl}/api/generate`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: model,
+            prompt: userPrompt,
+            system: systemPrompt,
+            stream: false,
+            format: "json",
+            options: {
+              num_predict: 1024,
+              temperature: 0.3,
+              top_p: 0.9,
+              repeat_penalty: 1.1
+            }
+          }),
+          signal: AbortSignal.timeout(timeout),
+        });
+
+        if (!response.ok) {
+          throw new Error(`Ollama request failed: ${response.status} ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        console.log("Raw Ollama response:", data);
+        
         let responseText = data.response;
         console.log('Raw AI response:', responseText);
         
-        // Try to extract JSON from the response - handle markdown code blocks
+        // Try to extract JSON from the response
         let jsonMatch = responseText.match(/\{[\s\S]*\}/);
         if (!jsonMatch) {
-          console.log('No JSON object found in response, trying to extract from markdown');
           // Try to find JSON in markdown code blocks
           const codeBlockMatch = responseText.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
           if (codeBlockMatch) {
             jsonMatch = codeBlockMatch;
+          } else {
+            throw new Error('Invalid JSON response from AI - no JSON object found');
           }
-        }
-        
-        if (!jsonMatch) {
-          console.log('Failed to extract JSON from AI response');
-          console.log('Response text:', responseText);
-          throw new Error('Invalid JSON response from AI - no JSON object found');
         }
         
         const jsonString = jsonMatch[0];
         console.log('Extracted JSON string:', jsonString.substring(0, 200) + '...');
         
+        let courseData: any;
         try {
           courseData = JSON.parse(jsonString);
         } catch (parseError) {
           console.log('Failed to parse extracted JSON:', parseError);
-          console.log('JSON string that failed to parse:', jsonString);
           
           // Try to fix common JSON issues
-          let fixedJsonString = jsonString;
-          
-          // Find the first { and last } to extract just the JSON object
-          const firstBraceIndex = fixedJsonString.indexOf('{');
-          const lastBraceIndex = fixedJsonString.lastIndexOf('}');
-          
-          if (firstBraceIndex !== -1 && lastBraceIndex !== -1 && lastBraceIndex > firstBraceIndex) {
-            fixedJsonString = fixedJsonString.substring(firstBraceIndex, lastBraceIndex + 1);
-          }
-          
-          // Try to fix missing closing brackets
-          const openBraces = (fixedJsonString.match(/\{/g) || []).length;
-          const closeBraces = (fixedJsonString.match(/\}/g) || []).length;
-          const openBrackets = (fixedJsonString.match(/\[/g) || []).length;
-          const closeBrackets = (fixedJsonString.match(/\]/g) || []).length;
-          
-          // Add missing closing braces
-          for (let i = closeBraces; i < openBraces; i++) {
-            fixedJsonString += '}';
-          }
-          
-          // Add missing closing brackets
-          for (let i = closeBrackets; i < openBrackets; i++) {
-            fixedJsonString += ']';
-          }
+          let fixedJsonString = jsonString
+            .replace(/,\s*}/g, '}') // Remove trailing commas
+            .replace(/,\s*]/g, ']') // Remove trailing commas in arrays
+            .replace(/,\s*,/g, ',') // Remove double commas
+            .replace(/\[\s*,/g, '[') // Remove leading commas
+            .replace(/{\s*,/g, '{') // Remove leading commas in objects
+            .replace(/[\u0000-\u001F\u007F-\u009F]/g, '') // Remove control characters
+            .replace(/\\u[0-9a-fA-F]{4}/g, '') // Remove Unicode escape sequences
+            .replace(/[^\x20-\x7E]/g, ''); // Remove non-printable characters
           
           try {
             courseData = JSON.parse(fixedJsonString);
             console.log('Successfully fixed and parsed JSON');
           } catch (secondParseError) {
-            console.log('Failed to fix JSON:', secondParseError);
-            console.log('Fixed JSON string:', fixedJsonString);
-            
-            // Try one more approach - find the largest valid JSON object
-            try {
-              // Find all possible JSON objects and try to parse the largest one
-              const jsonMatches = fixedJsonString.match(/\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}/g);
-              if (jsonMatches && jsonMatches.length > 0) {
-                // Sort by length and try the largest one
-                jsonMatches.sort((a, b) => b.length - a.length);
-                for (const match of jsonMatches) {
-                  try {
-                    courseData = JSON.parse(match);
-                    console.log('Successfully parsed JSON from match');
-                    break;
-                  } catch (e) {
-                    continue;
-                  }
-                }
-              }
-            } catch (finalError) {
-              console.error('All JSON parsing attempts failed:', finalError);
-              throw new Error('Invalid JSON response from AI - parsing failed even after fixes');
-            }
+            console.log('JSON parsing failed even after fixes, creating fallback structure');
+            // Create a basic fallback structure
+            courseData = {
+              title: `${request.prompt} Course`,
+              description: `Learn ${request.prompt} with this comprehensive course.`,
+              category: "Programming",
+              difficulty: "beginner",
+              modules: []
+            };
           }
         }
         
         console.log("Parsed course data:", JSON.stringify(courseData, null, 2));
         
-        // Post-process the course data to ensure proper structure
-        if (courseData.modules) {
-          courseData.modules.forEach((module: any, moduleIndex: number) => {
-            // Ensure discussions array exists
-            if (!module.discussions || module.discussions.length === 0) {
-              console.log(`Adding default discussion for module ${moduleIndex + 1}: ${module.title}`);
-              module.discussions = [{
-                title: `Discussion: ${module.title}`,
-                prompt: `Share your thoughts and experiences with ${module.title}. What did you learn and what challenges did you face?`
-              }];
+        // Validate and fix course structure
+        if (!courseData.title || typeof courseData.title !== 'string') {
+          courseData.title = `${request.prompt} Course`;
+        }
+        
+        if (!courseData.description || typeof courseData.description !== 'string') {
+          courseData.description = `Learn ${request.prompt} with this comprehensive course.`;
+        }
+        
+        if (!courseData.category) {
+          courseData.category = "Programming";
+        }
+        
+        if (!courseData.difficulty) {
+          courseData.difficulty = "beginner";
+        }
+        
+        // Always ensure modules exist and have complete structure
+        if (!courseData.modules || !Array.isArray(courseData.modules) || courseData.modules.length === 0) {
+          console.log('Creating complete module structure with assignments and quizzes');
+          courseData.modules = [];
+          
+          for (let i = 0; i < numModules; i++) {
+            const module = {
+              title: `Module ${i + 1}: ${request.prompt} Fundamentals`,
+              description: `Learn the fundamentals of ${request.prompt} in this module.`,
+              chapters: [],
+              assignments: [],
+              discussions: [],
+              quizzes: []
+            };
+
+            // Generate chapters
+            for (let j = 0; j < numChapters; j++) {
+              module.chapters.push({
+                title: `Chapter ${j + 1}: ${request.prompt} Basics`,
+                content: `This chapter covers the basics of ${request.prompt}.`
+              });
             }
 
-            // Ensure assignments array exists
-            if (!module.assignments || module.assignments.length === 0) {
-              console.log(`Adding default assignment for module ${moduleIndex + 1}: ${module.title}`);
+            // Always add assignments
+            module.assignments.push({
+              title: `Assignment ${i + 1}: ${request.prompt} Project`,
+              description: `Complete a project demonstrating your understanding of ${request.prompt}.`,
+              dueDate: "2024-12-31",
+              points: 50
+            });
+
+            // Always add discussions
+            module.discussions.push({
+              title: `Discussion ${i + 1}: ${request.prompt} Discussion`,
+              prompt: `Share your thoughts and experiences with ${request.prompt}.`
+            });
+
+            // Always add quiz
+            module.quizzes.push({
+              title: `Quiz ${i + 1}: ${request.prompt} Assessment`,
+              description: `Test your knowledge of ${request.prompt}.`,
+              timeLimit: 30,
+              questions: [
+                {
+                  question: `What is the main concept in ${request.prompt}?`,
+                  type: "multiple-choice",
+                  options: ["Concept A", "Concept B", "Concept C", "Concept D"],
+                  correctAnswer: "Concept A",
+                  points: 10
+                },
+                {
+                  question: `How would you apply ${request.prompt}?`,
+                  type: "multiple-choice",
+                  options: ["Method A", "Method B", "Method C", "Method D"],
+                  correctAnswer: "Method A",
+                  points: 10
+                },
+                {
+                  question: `Explain a key learning from ${request.prompt}`,
+                  type: "short-answer",
+                  prompt: "Describe one important concept you learned",
+                  points: 15
+                }
+              ]
+            });
+
+            courseData.modules.push(module);
+          }
+        } else {
+          // Validate and fix existing modules to ensure they have assignments and quizzes
+          courseData.modules = courseData.modules.map((module: any, index: number) => {
+            if (!module.title || typeof module.title !== 'string') {
+              module.title = `Module ${index + 1}: ${request.prompt} Fundamentals`;
+            }
+            
+            if (!module.description || typeof module.description !== 'string') {
+              module.description = `Learn the fundamentals of ${request.prompt} in this module.`;
+            }
+            
+            if (!module.chapters || !Array.isArray(module.chapters)) {
+              module.chapters = [];
+            }
+            
+            // Always ensure assignments exist
+            if (!module.assignments || !Array.isArray(module.assignments) || module.assignments.length === 0) {
               module.assignments = [{
-                title: `Assignment: ${module.title}`,
-                description: `Complete a project that demonstrates your understanding of ${module.title}`,
+                title: `Assignment ${index + 1}: ${request.prompt} Project`,
+                description: `Complete a project demonstrating your understanding of ${request.prompt}.`,
                 dueDate: "2024-12-31",
                 points: 50
               }];
             }
-
-            // Ensure quizzes array exists and has exactly 3 questions
-            if (!module.quizzes || module.quizzes.length === 0) {
-              console.log(`Adding default quiz for module ${moduleIndex + 1}: ${module.title}`);
+            
+            // Always ensure discussions exist
+            if (!module.discussions || !Array.isArray(module.discussions) || module.discussions.length === 0) {
+              module.discussions = [{
+                title: `Discussion ${index + 1}: ${request.prompt} Discussion`,
+                prompt: `Share your thoughts and experiences with ${request.prompt}.`
+              }];
+            }
+            
+            // Always ensure quizzes exist
+            if (!module.quizzes || !Array.isArray(module.quizzes) || module.quizzes.length === 0) {
               module.quizzes = [{
-                title: `Quiz: ${module.title}`,
-                description: `Test your understanding of ${module.title}`,
+                title: `Quiz ${index + 1}: ${request.prompt} Assessment`,
+                description: `Test your knowledge of ${request.prompt}.`,
                 timeLimit: 30,
                 questions: [
                   {
-                    question: `What is the main concept covered in ${module.title}?`,
+                    question: `What is the main concept in ${request.prompt}?`,
                     type: "multiple-choice",
                     options: ["Concept A", "Concept B", "Concept C", "Concept D"],
                     correctAnswer: "Concept A",
                     points: 10
                   },
                   {
-                    question: `How would you apply the knowledge from ${module.title}?`,
+                    question: `How would you apply ${request.prompt}?`,
                     type: "multiple-choice",
                     options: ["Method A", "Method B", "Method C", "Method D"],
                     correctAnswer: "Method A",
                     points: 10
                   },
                   {
-                    question: `Explain a key learning from ${module.title}`,
+                    question: `Explain a key learning from ${request.prompt}`,
                     type: "short-answer",
                     prompt: "Describe one important concept you learned",
                     points: 15
                   }
                 ]
               }];
-            } else {
-              // Fix existing quizzes to ensure they have exactly 3 questions
-              module.quizzes.forEach((quiz: any) => {
-                if (quiz.questions) {
-                  // Ensure exactly 3 questions
-                  while (quiz.questions.length < 3) {
-                    console.log(`Adding question ${quiz.questions.length + 1} to quiz: ${quiz.title}`);
-                    
-                    // If this is the 3rd question, make it a short-answer question
-                    if (quiz.questions.length === 2) {
-                      quiz.questions.push({
-                        question: `Explain a key concept from ${quiz.title}`,
-                        type: "short-answer",
-                        prompt: "Describe one important concept you learned",
-                        points: 15
-                      });
-                    } else {
-                      // For questions 1 and 2, make them multiple-choice
-                      quiz.questions.push({
-                        question: `Additional question ${quiz.questions.length + 1} for ${quiz.title}?`,
-                        type: "multiple-choice",
-                        options: ["Option A", "Option B", "Option C", "Option D"],
-                        correctAnswer: "Option A",
-                        points: 10
-                      });
-                    }
-                  }
-                  
-                  // If more than 3 questions, keep only the first 3
-                  if (quiz.questions.length > 3) {
-                    console.log(`Truncating quiz ${quiz.title} to 3 questions`);
-                    quiz.questions = quiz.questions.slice(0, 3);
-                  }
-                  
-                  // Fix each question structure
-                  quiz.questions.forEach((question: any, questionIndex: number) => {
-                    // Ensure question has proper structure
-                    if (question.type === "multiple-choice" || !question.type) {
-                      question.type = "multiple-choice";
-                      
-                      // Ensure options array exists with exactly 4 options
-                      if (!question.options || question.options.length !== 4) {
-                        // If options exist but not 4, pad or truncate to 4
-                        if (question.options && question.options.length > 0) {
-                          while (question.options.length < 4) {
-                            question.options.push(`Option ${String.fromCharCode(68 + question.options.length)}`);
-                          }
-                          if (question.options.length > 4) {
-                            question.options = question.options.slice(0, 4);
-                          }
-                        } else {
-                          question.options = [
-                            "Option A",
-                            "Option B", 
-                            "Option C",
-                            "Option D"
-                          ];
-                        }
-                      }
-                      
-                      // Ensure correctAnswer exists and is one of the options
-                      if (!question.correctAnswer || !question.options.includes(question.correctAnswer)) {
-                        question.correctAnswer = question.options[0];
-                      }
-                      
-                      // Ensure points exist
-                      if (!question.points) {
-                        question.points = 10;
-                      }
-                      
-                      // Ensure question text exists
-                      if (!question.question) {
-                        question.question = `Question ${questionIndex + 1} for ${quiz.title}`;
-                      }
-                    } else if (question.type === "short-answer") {
-                      // Ensure short-answer questions have proper structure
-                      if (!question.prompt) {
-                        question.prompt = "Explain your answer briefly";
-                      }
-                      if (!question.points) {
-                        question.points = 15;
-                      }
-                    }
-                  });
-                }
-              });
             }
+            
+            return module;
           });
         }
-        console.log("Post-processed course data:", JSON.stringify(courseData, null, 2));
         
+        console.log('AI generation successful!');
         return courseData;
         
-      } catch (parseError) {
-        console.log("Failed to parse AI response as JSON:", parseError);
-        throw new Error("Invalid JSON response from AI");
-      }
-      
-    } catch (error) {
-      console.log("AI generation failed:", error);
-      
-      // Try with a smaller model as fallback
-      if (aiModel !== 'llama3.2:1b') {
-        console.log('Trying fallback with llama3.2:1b model...');
-        try {
-          const fallbackResponse = await fetch(`${this.baseUrl}/api/generate`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              model: 'llama3.2:1b',
-              prompt: userPrompt,
-              system: systemPrompt,
-              stream: false,
-              options: {
-                num_predict: 1024,
-                temperature: 0.3,
-                top_p: 0.9,
-                repeat_penalty: 1.1
-              }
-            }),
-            signal: AbortSignal.timeout(30000), // 30 second timeout for fallback
-          });
-          
-          if (fallbackResponse.ok) {
-            const fallbackData = await fallbackResponse.json();
-            console.log("Fallback model response received");
-            // Process fallback response similar to main response
-            // For now, just throw an error to indicate fallback was attempted
-            throw new Error('Fallback model attempted but processing failed - please try again later');
-          }
-        } catch (fallbackError) {
-          console.log('Fallback model also failed:', fallbackError);
+      } catch (error) {
+        lastError = error as Error;
+        console.log(`Attempt ${attempt} failed:`, error);
+        
+        if (attempt < maxRetries) {
+          const waitTime = Math.min(1000 * attempt, 5000); // Exponential backoff, max 5s
+          console.log(`Waiting ${waitTime}ms before retry...`);
+          await new Promise(resolve => setTimeout(resolve, waitTime));
         }
       }
-      
-      throw new Error("AI service is not available. Please ensure Ollama is running and try again.");
     }
+
+    // All retries failed
+    console.log(`All ${maxRetries} attempts failed. Last error:`, lastError);
+    throw new Error(`AI service failed after ${maxRetries} attempts. Please ensure Ollama is running and try again. Last error: ${lastError?.message}`);
   }
 }

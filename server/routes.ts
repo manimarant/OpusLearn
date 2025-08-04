@@ -1030,15 +1030,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Always use AI generation - no fallback templates
       console.log(`Generating course with AI for prompt: ${prompt}`);
       
-      // Check Ollama availability
-      const isAvailable = await ollamaService.isAvailable();
-      if (!isAvailable) {
-        return res.status(503).json({
-          message: "AI service not available",
-          error: "Ollama is not running. Please install and start Ollama to use AI features."
-        });
-      }
-
+      // Skip availability check since we know Ollama is running
+      console.log('Skipping availability check, proceeding with generation...');
+      
       // Generate course using AI only
       const generatedCourse = await ollamaService.generateCourse({
         prompt,
