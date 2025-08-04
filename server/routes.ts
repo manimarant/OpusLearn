@@ -19,6 +19,7 @@ import {
   insertRubricEvaluationSchema,
   type Quiz
 } from "@shared/schema";
+import { OllamaService } from "./services/ollama-service";
 
 // Helper function to get user ID (works in both development and production)
 function getUserId(req: any): string {
@@ -139,6 +140,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error creating course:", error);
       res.status(400).json({ message: "Failed to create course" });
+    }
+  });
+
+  app.delete('/api/courses/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const courseId = parseInt(req.params.id);
+      const userId = getUserId(req);
+      
+      // Verify course ownership
+      const course = await storage.getCourse(courseId);
+      if (!course || course.instructorId !== userId) {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+
+      await storage.deleteCourse(courseId);
+      res.json({ message: "Course deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting course:", error);
+      res.status(500).json({ message: "Failed to delete course" });
     }
   });
 
@@ -624,7 +644,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         quizId,
       });
       
+      console.log('Creating quiz question with data:', questionData);
+      console.log('Question options:', questionData.options);
+      
       const question = await storage.createQuizQuestion(questionData);
+      console.log('Created quiz question:', question);
       res.json(question);
     } catch (error) {
       console.error("Error creating quiz question:", error);
@@ -986,6 +1010,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching rubric evaluation:", error);
       res.status(500).json({ message: "Failed to fetch rubric evaluation" });
+    }
+  });
+
+  // AI Course Generation endpoint
+  app.post("/api/ai/generate-course", async (req, res) => {
+    try {
+      const { prompt, model } = req.body;
+      
+      if (!prompt) {
+        return res.status(400).json({ 
+          message: "Prompt is required",
+          errors: [{ code: "missing_field", message: "Prompt is required", path: ["prompt"] }]
+        });
+      }
+
+      const ollamaService = new OllamaService();
+      
+      // Always use AI generation - no fallback templates
+      console.log(`Generating course with AI for prompt: ${prompt}`);
+      
+      // Check Ollama availability
+      const isAvailable = await ollamaService.isAvailable();
+      if (!isAvailable) {
+        return res.status(503).json({
+          message: "AI service not available",
+          error: "Ollama is not running. Please install and start Ollama to use AI features."
+        });
+      }
+
+      // Generate course using AI only
+      const generatedCourse = await ollamaService.generateCourse({
+        prompt,
+        model: model || 'llama3.2:1b'
+      });
+
+      console.log('Course generated successfully:', generatedCourse.title);
+
+      res.json({
+        message: "Course generated successfully",
+        course: generatedCourse,
+        model: model || 'llama3.2:1b'
+      });
+
+    } catch (error) {
+      console.error("Error generating course:", error);
+      res.status(500).json({ 
+        message: "Failed to generate course",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
     }
   });
 

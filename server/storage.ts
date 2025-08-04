@@ -37,7 +37,7 @@ import {
   type RubricEvaluation,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, sql, count } from "drizzle-orm";
+import { eq, desc, and, sql, count, inArray } from "drizzle-orm";
 
 export interface IStorage {
   // User operations (required for Replit Auth)
@@ -49,6 +49,7 @@ export interface IStorage {
   getCourse(id: number): Promise<Course | undefined>;
   createCourse(course: any): Promise<Course>;
   updateCourse(id: number, updates: any): Promise<Course>;
+  deleteCourse(id: number): Promise<void>;
   
   // Module operations
   getCourseModules(courseId: number): Promise<CourseModule[]>;
@@ -203,6 +204,52 @@ export class DatabaseStorage implements IStorage {
     return course;
   }
 
+  async deleteCourse(id: number): Promise<void> {
+    try {
+      console.log(`Starting deletion of course ${id}...`);
+      
+      // Check if course exists first
+      const course = await this.getCourse(id);
+      if (!course) {
+        throw new Error(`Course ${id} not found`);
+      }
+      
+      console.log(`Course ${id} found, proceeding with deletion...`);
+      
+      // Delete related data first (cascade delete)
+      console.log(`Deleting chapters for course ${id}...`);
+      // Get module IDs first, then delete chapters
+      const moduleIds = await db.select({ id: courseModules.id }).from(courseModules).where(eq(courseModules.courseId, id));
+      if (moduleIds.length > 0) {
+        const ids = moduleIds.map(m => m.id);
+        await db.delete(chapters).where(inArray(chapters.moduleId, ids));
+      }
+      
+      console.log(`Deleting modules for course ${id}...`);
+      await db.delete(courseModules).where(eq(courseModules.courseId, id));
+      
+      console.log(`Deleting assignments for course ${id}...`);
+      await db.delete(assignments).where(eq(assignments.courseId, id));
+      
+      console.log(`Deleting discussions for course ${id}...`);
+      await db.delete(discussions).where(eq(discussions.courseId, id));
+      
+      console.log(`Deleting quizzes for course ${id}...`);
+      await db.delete(quizzes).where(eq(quizzes.courseId, id));
+      
+      console.log(`Deleting enrollments for course ${id}...`);
+      await db.delete(enrollments).where(eq(enrollments.courseId, id));
+      
+      console.log(`Deleting course ${id}...`);
+      await db.delete(courses).where(eq(courses.id, id));
+      
+      console.log(`Course ${id} deleted successfully`);
+    } catch (error) {
+      console.error(`Error deleting course ${id}:`, error);
+      throw error;
+    }
+  }
+
   // Module operations
   async getCourseModules(courseId: number): Promise<CourseModule[]> {
     return db
@@ -342,7 +389,7 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(assignments)
       .where(eq(assignments.courseId, courseId))
-      .orderBy(desc(assignments.createdAt));
+      .orderBy(assignments.createdAt);
     
     console.log('SQL Query:', query.toSQL());
     const result = await query;

@@ -43,7 +43,7 @@ interface QuizQuestion {
   id: number;
   quizId: number;
   question: string;
-  type: 'multiple_choice' | 'true_false' | 'short_answer';
+  type: 'multiple-choice' | 'multiple_choice' | 'true_false' | 'short_answer';
   options: string[];
   correctAnswer: string;
   points: number;

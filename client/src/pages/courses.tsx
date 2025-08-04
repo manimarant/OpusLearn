@@ -14,7 +14,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Search, Filter } from "lucide-react";
+import { Plus, Search, Filter, Trash2, Sparkles } from "lucide-react";
+import { AICourseGenerator } from "@/components/course/ai-course-generator";
 
 export default function Courses() {
   const { user } = useAuth();
@@ -22,6 +23,7 @@ export default function Courses() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterCategory, setFilterCategory] = useState("all");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isAICourseGeneratorOpen, setIsAICourseGeneratorOpen] = useState(false);
   const [newCourse, setNewCourse] = useState({
     title: "",
     description: "",
@@ -57,11 +59,19 @@ export default function Courses() {
             <div className="text-center py-12">
               <p className="text-red-500">Error loading courses: {error.message}</p>
             </div>
-          </main>
-        </div>
+                  </main>
       </div>
-    );
-  }
+
+      {/* AI Course Generator */}
+      {isAICourseGeneratorOpen && (
+        <AICourseGenerator
+          onGenerate={handleAIGenerateCompleteCourse}
+          onClose={() => setIsAICourseGeneratorOpen(false)}
+        />
+      )}
+    </div>
+  );
+}
 
   const createCourseMutation = useMutation({
     mutationFn: async (courseData: any) => {
@@ -86,6 +96,128 @@ export default function Courses() {
     },
   });
 
+  const deleteCourseMutation = useMutation({
+    mutationFn: async (courseId: number) => {
+      const response = await apiRequest("DELETE", `/api/courses/${courseId}`);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/courses"] });
+      toast({
+        title: "Course Deleted",
+        description: "Course has been deleted successfully.",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: "Failed to delete course. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleAIGenerateCompleteCourse = async (courseData: any) => {
+    console.log("Starting AI course generation with data:", courseData);
+    
+    try {
+      // Create the course
+      const courseResponse = await apiRequest("POST", "/api/courses", {
+        title: courseData.title,
+        description: courseData.description,
+        category: courseData.category,
+        difficulty: courseData.difficulty
+      });
+      const createdCourse = await courseResponse.json();
+      console.log("Course created:", createdCourse);
+
+      // Create modules and chapters
+      for (let moduleIndex = 0; moduleIndex < courseData.modules.length; moduleIndex++) {
+        const moduleData = courseData.modules[moduleIndex];
+        
+        const moduleResponse = await apiRequest("POST", `/api/courses/${createdCourse.id}/modules`, {
+          title: moduleData.title,
+          description: moduleData.description,
+          orderIndex: moduleIndex + 1
+        });
+        const createdModule = await moduleResponse.json();
+
+        // Create chapters for this module
+        for (let chapterIndex = 0; chapterIndex < moduleData.chapters.length; chapterIndex++) {
+          const chapterData = moduleData.chapters[chapterIndex];
+          
+          await apiRequest("POST", `/api/modules/${createdModule.id}/chapters`, {
+            title: chapterData.title,
+            content: chapterData.content,
+            contentType: "text",
+            duration: 30,
+            orderIndex: chapterIndex + 1
+          });
+        }
+
+        // Create assignments for this module
+        if (moduleData.assignments && moduleData.assignments.length > 0) {
+          for (const assignmentData of moduleData.assignments) {
+            await apiRequest("POST", `/api/courses/${createdCourse.id}/assignments`, {
+              title: assignmentData.title,
+              description: assignmentData.description,
+              dueDate: new Date(assignmentData.dueDate).toISOString(),
+              maxPoints: assignmentData.points
+            });
+          }
+        }
+
+        // Create discussions for this module
+        if (moduleData.discussions && moduleData.discussions.length > 0) {
+          for (const discussionData of moduleData.discussions) {
+            await apiRequest("POST", `/api/courses/${createdCourse.id}/discussions`, {
+              title: discussionData.title,
+              content: discussionData.prompt
+            });
+          }
+        }
+
+        // Create quizzes for this module
+        if (moduleData.quizzes && moduleData.quizzes.length > 0) {
+          for (const quizData of moduleData.quizzes) {
+            const quizResponse = await apiRequest("POST", `/api/courses/${createdCourse.id}/quizzes`, {
+              title: quizData.title,
+              description: quizData.description,
+              timeLimit: quizData.timeLimit || 30
+            });
+            const createdQuiz = await quizResponse.json();
+
+            // Create quiz questions
+            if (quizData.questions && quizData.questions.length > 0) {
+              for (const questionData of quizData.questions) {
+                await apiRequest("POST", `/api/quizzes/${createdQuiz.id}/questions`, {
+                  question: questionData.question,
+                  type: questionData.type,
+                  options: questionData.options,
+                  correctAnswer: questionData.correctAnswer,
+                  points: questionData.points
+                });
+              }
+            }
+          }
+        }
+      }
+
+      queryClient.invalidateQueries({ queryKey: ["/api/courses"] });
+      toast({
+        title: "AI Course Created",
+        description: "Your AI-generated course has been created successfully!",
+      });
+    } catch (error) {
+      console.error("Error creating AI course:", error);
+      toast({
+        title: "Error",
+        description: "Failed to create AI course. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleCreateCourse = () => {
     if (!newCourse.title || !newCourse.description) {
       toast({
@@ -96,6 +228,14 @@ export default function Courses() {
       return;
     }
     createCourseMutation.mutate(newCourse);
+  };
+
+  const handleDeleteCourse = (courseId: number) => {
+    console.log("Delete button clicked for course:", courseId);
+    if (confirm("Are you sure you want to delete this course? This action cannot be undone.")) {
+      console.log("Confirmed deletion for course:", courseId);
+      deleteCourseMutation.mutate(courseId);
+    }
   };
 
   const filteredCourses = courses?.filter((course: any) => {
@@ -133,13 +273,21 @@ export default function Courses() {
                 </p>
               </div>
               {isInstructor && (
-                <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-                  <DialogTrigger asChild>
-                    <Button className="bg-blue-600 hover:bg-blue-700 transition-colors">
-                      <Plus className="h-4 w-4 mr-2" />
-                      Create Course
-                    </Button>
-                  </DialogTrigger>
+                <div className="flex space-x-3">
+                  <Button 
+                    onClick={() => setIsAICourseGeneratorOpen(true)}
+                    className="bg-purple-600 hover:bg-purple-700 transition-colors"
+                  >
+                    <Sparkles className="h-4 w-4 mr-2" />
+                    AI Generate Course
+                  </Button>
+                  <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+                    <DialogTrigger asChild>
+                      <Button className="bg-blue-600 hover:bg-blue-700 transition-colors">
+                        <Plus className="h-4 w-4 mr-2" />
+                        Create Course
+                      </Button>
+                    </DialogTrigger>
                   <DialogContent className="sm:max-w-[425px]">
                     <DialogHeader>
                       <DialogTitle>Create New Course</DialogTitle>
@@ -214,7 +362,8 @@ export default function Courses() {
                     </DialogFooter>
                   </DialogContent>
                 </Dialog>
-              )}
+              </div>
+            )}
             </div>
           </div>
 
@@ -271,7 +420,24 @@ export default function Courses() {
               ))
             ) : filteredCourses.length > 0 ? (
               filteredCourses.map((course: any) => (
-                <CourseCard key={course.id} course={course} />
+                <div key={course.id} className="relative group">
+                  <CourseCard course={course} />
+                  {/* Debug info - remove this later */}
+                  <div className="absolute top-2 left-2 text-xs bg-black text-white p-1 rounded opacity-75">
+                    {isInstructor ? 'I' : 'S'} | {course.instructorId} | {user?.id}
+                  </div>
+                  {isInstructor && course.instructorId === user?.id && (
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      className="absolute top-2 right-2 opacity-100 z-10"
+                      onClick={() => handleDeleteCourse(course.id)}
+                      disabled={deleteCourseMutation.isPending}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
               ))
             ) : (
               <div className="col-span-full text-center py-12">
@@ -297,6 +463,14 @@ export default function Courses() {
           </div>
         </main>
       </div>
+
+      {/* AI Course Generator */}
+      {isAICourseGeneratorOpen && (
+        <AICourseGenerator
+          onGenerate={handleAIGenerateCompleteCourse}
+          onClose={() => setIsAICourseGeneratorOpen(false)}
+        />
+      )}
     </div>
   );
 }

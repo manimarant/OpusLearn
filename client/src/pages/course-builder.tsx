@@ -1,26 +1,22 @@
-import { useState } from "react";
-import { useParams } from "wouter";
-import { useQuery, useMutation } from "@tanstack/react-query";
-import { queryClient } from "@/lib/queryClient";
-import { useAuth } from "@/hooks/useAuth";
-import { apiRequest } from "@/lib/queryClient";
-import { useToast } from "@/hooks/use-toast";
-import Sidebar from "@/components/layout/sidebar";
-import Header from "@/components/layout/header";
-import ContentEditor from "@/components/course/content-editor";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { Plus, Save, Eye, Upload, ChevronRight, Edit, Trash2 } from "lucide-react";
-import AIAssistant from "@/components/course/ai-assistant";
-import AICourseGenerator from "@/components/course/ai-course-generator";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import React, { useState } from "react";
 import { useLocation } from "wouter";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Plus, Eye, Upload, BookOpen, Sparkles } from "lucide-react";
+import Header from "@/components/layout/header";
+import Sidebar from "@/components/layout/sidebar";
+import ContentEditor from "@/components/course/content-editor";
+import AIAssistant from "@/components/course/ai-assistant";
+import { AICourseGenerator } from "@/components/course/ai-course-generator";
 
 interface Course {
   id: number;
@@ -49,47 +45,85 @@ interface Chapter {
 }
 
 export default function CourseBuilder() {
-  const params = useParams();
-  const courseId = params.id ? parseInt(params.id) : null;
-  const { user } = useAuth();
-  const { toast } = useToast();
+  const [location, setLocation] = useLocation();
+  const queryClient = useQueryClient();
+  const courseId = location.split("/").pop();
+
+  // State
   const [selectedModule, setSelectedModule] = useState<Module | null>(null);
   const [selectedChapter, setSelectedChapter] = useState<Chapter | null>(null);
   const [isModuleDialogOpen, setIsModuleDialogOpen] = useState(false);
   const [isChapterDialogOpen, setIsChapterDialogOpen] = useState(false);
-  const [forceEditorUpdate, setForceEditorUpdate] = useState(0);
-  const [newModule, setNewModule] = useState({ title: "", description: "" });
-  const [newChapter, setNewChapter] = useState({ title: "", content: "", contentType: "text", duration: 0 });
+  const [isCourseDialogOpen, setIsCourseDialogOpen] = useState(false);
+  const [isAICourseGeneratorOpen, setIsAICourseGeneratorOpen] = useState(false);
+  const [isAIAssistantOpen, setIsAIAssistantOpen] = useState(false);
   const [newCourse, setNewCourse] = useState({
     title: "",
     description: "",
     category: "Programming",
-    difficulty: "beginner",
+    difficulty: "beginner"
   });
 
-  const { data: course } = useQuery<Course>({
-    queryKey: ["/api/courses", courseId],
-    enabled: !!courseId,
-  });
-
-  const { data: modules } = useQuery<Module[]>({
-    queryKey: ["/api/courses", courseId, "modules"],
-    enabled: !!courseId,
-  });
-
-  const { data: chapters } = useQuery<Chapter[]>({
-    queryKey: ["/api/modules", selectedModule?.id, "chapters"],
-    enabled: !!selectedModule,
-  });
-
-  const { data: courses, isLoading: coursesLoading, error: coursesError } = useQuery<Course[]>({
+  // Queries
+  const { data: courses, isLoading: coursesLoading, error: coursesError } = useQuery({
     queryKey: ["/api/courses"],
+    queryFn: async () => {
+      const response = await apiRequest("GET", "/api/courses");
+      return response.json();
+    }
   });
 
-  // Debug logging
-  console.log("Courses data:", courses);
-  console.log("Courses loading:", coursesLoading);
-  console.log("Courses error:", coursesError);
+  const { data: course } = useQuery({
+    queryKey: ["/api/courses", courseId],
+    queryFn: async () => {
+      const response = await apiRequest("GET", `/api/courses/${courseId}`);
+      return response.json();
+    },
+    enabled: !!courseId
+  });
+
+  const { data: modules = [] } = useQuery({
+    queryKey: ["/api/courses", courseId, "modules"],
+    queryFn: async () => {
+      const response = await apiRequest("GET", `/api/courses/${courseId}/modules`);
+      return response.json();
+    },
+    enabled: !!courseId
+  });
+
+  const { data: chapters = [] } = useQuery({
+    queryKey: ["/api/chapters", selectedModule?.id],
+    queryFn: async () => {
+      if (!selectedModule) return [];
+      const response = await apiRequest("GET", `/api/modules/${selectedModule.id}/chapters`);
+      return response.json();
+    },
+    enabled: !!selectedModule
+  });
+
+  // Mutations
+  const createCourseMutation = useMutation({
+    mutationFn: async (courseData: any) => {
+      const response = await apiRequest("POST", "/api/courses", courseData);
+      return response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/courses"] });
+      setLocation(`/course-builder/${data.id}`);
+      setIsCourseDialogOpen(false);
+      toast({
+        title: "Course Created",
+        description: "Your course has been created successfully.",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: "Failed to create course. Please try again.",
+        variant: "destructive",
+      });
+    }
+  });
 
   const createModuleMutation = useMutation({
     mutationFn: async (moduleData: any) => {
@@ -99,12 +133,11 @@ export default function CourseBuilder() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/courses", courseId, "modules"] });
       setIsModuleDialogOpen(false);
-      setNewModule({ title: "", description: "" });
       toast({
         title: "Module Created",
-        description: "Your new module has been created successfully.",
+        description: "Module has been created successfully.",
       });
-    },
+    }
   });
 
   const createChapterMutation = useMutation({
@@ -113,926 +146,711 @@ export default function CourseBuilder() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/modules", selectedModule?.id, "chapters"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/chapters", selectedModule?.id] });
       setIsChapterDialogOpen(false);
-      setNewChapter({ title: "", content: "", contentType: "text", duration: 0 });
       toast({
         title: "Chapter Created",
-        description: "Your new chapter has been created successfully.",
+        description: "Chapter has been created successfully.",
       });
-    },
+    }
   });
 
   const updateChapterMutation = useMutation({
-    mutationFn: async ({ chapterId, updates }: { chapterId: number; updates: any }) => {
-      console.log("=== MUTATION FUNCTION START ===");
-      console.log("Mutation called with chapterId:", chapterId);
-      console.log("Mutation called with updates:", updates);
-      
-      const response = await apiRequest("PUT", `/api/chapters/${chapterId}`, updates);
-      console.log("API response:", response);
-      
-      const data = await response.json();
-      console.log("Parsed response data:", data);
-      console.log("=== MUTATION FUNCTION END ===");
-      
-      return data;
-    },
-    onSuccess: (data) => {
-      console.log("=== MUTATION SUCCESS ===");
-      console.log("Chapter update successful:", data);
-      queryClient.invalidateQueries({ queryKey: ["/api/modules", selectedModule?.id, "chapters"] });
-      toast({
-        title: "Chapter Updated",
-        description: "Your chapter has been saved successfully.",
-      });
-      console.log("=== MUTATION SUCCESS END ===");
-    },
-    onError: (error) => {
-      console.log("=== MUTATION ERROR ===");
-      console.error("Error updating chapter:", error);
-      toast({
-        title: "Update Failed",
-        description: "Failed to save chapter. Please try again.",
-        variant: "destructive",
-      });
-      console.log("=== MUTATION ERROR END ===");
-    },
-  });
-
-  const createCourseMutation = useMutation({
-    mutationFn: async (courseData: any) => {
-      const response = await apiRequest("POST", "/api/courses", courseData);
+    mutationFn: async (chapterData: any) => {
+      const response = await apiRequest("PUT", `/api/chapters/${selectedChapter?.id}`, chapterData);
       return response.json();
     },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/courses"] });
-      window.location.href = `/course-builder/${data.id}`;
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/chapters", selectedModule?.id] });
       toast({
-        title: "Course Created",
-        description: "Your new course has been created successfully.",
+        title: "Chapter Updated",
+        description: "Chapter has been updated successfully.",
       });
-    },
+    }
   });
 
+  // Handlers
+  const handleCreateCourse = () => {
+    createCourseMutation.mutate(newCourse);
+  };
+
   const handleCreateModule = () => {
-    if (!newModule.title) {
-      toast({
-        title: "Validation Error",
-        description: "Please enter a module title.",
-        variant: "destructive",
-      });
-      return;
-    }
+    const titleInput = document.getElementById("module-title") as HTMLInputElement;
+    const descriptionInput = document.getElementById("module-description") as HTMLTextAreaElement;
+    
     createModuleMutation.mutate({
-      ...newModule,
-      orderIndex: (modules?.length || 0) + 1,
+      title: titleInput?.value || "New Module",
+      description: descriptionInput?.value || "Module description",
+      orderIndex: modules.length + 1
     });
   };
 
   const handleCreateChapter = () => {
-    if (!newChapter.title) {
-      toast({
-        title: "Validation Error",
-        description: "Please enter a chapter title.",
-        variant: "destructive",
-      });
-      return;
-    }
+    const titleInput = document.getElementById("chapter-title") as HTMLInputElement;
+    const contentInput = document.getElementById("chapter-content") as HTMLTextAreaElement;
+    
     createChapterMutation.mutate({
-      ...newChapter,
-      orderIndex: (chapters?.length || 0) + 1,
+      title: titleInput?.value || "New Chapter",
+      content: contentInput?.value || "Chapter content",
+      contentType: "text",
+      duration: 30,
+      orderIndex: chapters.length + 1
     });
   };
 
   const handleSaveChapter = (chapterData: any) => {
-    console.log("handleSaveChapter called with:", { chapterData, selectedChapter });
-    
-    if (selectedChapter) {
-      console.log("Calling updateChapterMutation with:", {
-        chapterId: selectedChapter.id,
-        updates: chapterData,
-      });
-      
-      updateChapterMutation.mutate({
-        chapterId: selectedChapter.id,
-        updates: chapterData,
-      });
-    } else {
-      console.error("No selected chapter in handleSaveChapter");
-    }
+    updateChapterMutation.mutate(chapterData);
   };
 
-  const handleCreateCourse = () => {
-    if (!newCourse.title) {
-      toast({
-        title: "Validation Error",
-        description: "Please enter a course title.",
-        variant: "destructive",
-      });
-      return;
-    }
-    createCourseMutation.mutate(newCourse);
-  };
-
-  // AI Assistant handlers
   const handleAIGenerateContent = (content: string, type: string) => {
-    console.log("=== AI CONTENT GENERATION START ===");
-    console.log("AI Generate Content called with:", { content, type, selectedChapter });
-    
     if (selectedChapter) {
-      console.log("Selected chapter found:", selectedChapter);
-      
-      const updatedChapterData = {
-        title: selectedChapter.title,
-        content: content,
-        contentType: type,
-        duration: selectedChapter.duration
-      };
-      
-      console.log("Updated chapter data for save:", updatedChapterData);
-      
-      // Update the selected chapter state to reflect the new content immediately
-      const updatedChapter = {
+      updateChapterMutation.mutate({
         ...selectedChapter,
         content: content,
         contentType: type
-      };
-      
-      console.log("Updated chapter object:", updatedChapter);
-      console.log("Setting selected chapter state...");
-      setSelectedChapter(updatedChapter);
-      
-      console.log("Triggering force editor update...");
-      setForceEditorUpdate(prev => {
-        console.log("Force update triggered, new value:", prev + 1);
-        return prev + 1;
-      });
-      
-      // Force a re-render by updating the chapters query
-      console.log("Updating React Query cache...");
-      queryClient.setQueryData(
-        ["/api/modules", selectedModule?.id, "chapters"],
-        (oldData: any) => {
-          console.log("Old chapters data:", oldData);
-          if (oldData) {
-            const newData = oldData.map((chapter: any) => 
-              chapter.id === selectedChapter.id ? updatedChapter : chapter
-            );
-            console.log("New chapters data:", newData);
-            return newData;
-          }
-          return oldData;
-        }
-      );
-      
-      // Save the chapter with the new content
-      console.log("Attempting to save chapter...");
-      try {
-        handleSaveChapter(updatedChapterData);
-        console.log("Save chapter called successfully");
-      } catch (error) {
-        console.error("Error saving chapter:", error);
-        toast({
-          title: "Save Warning",
-          description: "Content applied but save failed. Please manually save the chapter.",
-          variant: "destructive",
-        });
-      }
-      
-      toast({
-        title: "AI Content Applied",
-        description: "The AI-generated content has been applied to your chapter. Please save manually if needed.",
-      });
-      
-      console.log("=== AI CONTENT GENERATION END ===");
-    } else {
-      console.error("No selected chapter found");
-      toast({
-        title: "Error",
-        description: "No chapter selected. Please select a chapter first.",
-        variant: "destructive",
       });
     }
   };
 
   const handleAIGenerateModule = (module: { title: string; description: string }) => {
-    setNewModule(module);
-    setIsModuleDialogOpen(true);
+    createModuleMutation.mutate({
+      ...module,
+      orderIndex: modules.length + 1
+    });
   };
 
   const handleAIGenerateChapter = (chapter: { title: string; content: string; contentType: string; duration: number }) => {
-    setNewChapter(chapter);
-    setIsChapterDialogOpen(true);
+    createChapterMutation.mutate({
+      ...chapter,
+      orderIndex: chapters.length + 1
+    });
   };
 
-  const handleAIGenerateCompleteCourse = async (courseData: {
-    title: string;
-    description: string;
-    category: string;
-    difficulty: string;
-    modules: Array<{
-      title: string;
-      description: string;
-      chapters: Array<{
-        title: string;
-        content: string;
-        contentType: string;
-        duration: number;
-      }>;
-      assignments?: Array<{
-        title: string;
-        description: string;
-        dueDate: string;
-        points: number;
-      }>;
-      quizzes?: Array<{
-        title: string;
-        description: string;
-        timeLimit: number;
-        questions: Array<{
-          question: string;
-          type: string;
-          options?: string[];
-          correctAnswer?: string;
-          points: number;
-        }>;
-      }>;
-      discussions?: Array<{
-        title: string;
-        description: string;
-        prompt: string;
-      }>;
-    }>;
-  }) => {
-    console.log("=== AI Course Generator Debug ===");
-    console.log("Course data received:", courseData);
-    console.log("Number of modules:", courseData.modules.length);
+  const handleAIGenerateCompleteCourse = async (courseData: any) => {
+    console.log("Starting AI course generation with data:", courseData);
+    console.log("Course data structure:", JSON.stringify(courseData, null, 2));
+    
+    // Use the user's course title from the form instead of AI-generated title
+    const courseTitle = newCourse.title || courseData.title;
     
     try {
-      // First create the course
-      console.log("Creating course with data:", {
-        title: courseData.title,
-        description: courseData.description,
-        category: courseData.category,
-        difficulty: courseData.difficulty,
-        status: "draft"
-      });
-      
+      // Create the course
       const courseResponse = await apiRequest("POST", "/api/courses", {
-        title: courseData.title,
+        title: courseTitle,
         description: courseData.description,
         category: courseData.category,
-        difficulty: courseData.difficulty,
-        status: "draft"
+        difficulty: courseData.difficulty
       });
-      
       const createdCourse = await courseResponse.json();
-      const newCourseId = createdCourse.id;
-      console.log("Course created successfully with ID:", newCourseId);
+      console.log("Course created:", createdCourse);
 
-      // Create modules and chapters for the course
+      // Create modules and chapters
       for (let moduleIndex = 0; moduleIndex < courseData.modules.length; moduleIndex++) {
         const moduleData = courseData.modules[moduleIndex];
-        // Create module
         console.log(`Creating module ${moduleIndex + 1}:`, moduleData.title);
-        const moduleResponse = await apiRequest("POST", `/api/courses/${newCourseId}/modules`, {
+        console.log("Module data structure:", JSON.stringify(moduleData, null, 2));
+        console.log("Module has discussions:", moduleData.discussions ? moduleData.discussions.length : 0);
+        console.log("Module has quizzes:", moduleData.quizzes ? moduleData.quizzes.length : 0);
+        console.log("Module has assignments:", moduleData.assignments ? moduleData.assignments.length : 0);
+        
+        const moduleResponse = await apiRequest("POST", `/api/courses/${createdCourse.id}/modules`, {
           title: moduleData.title,
           description: moduleData.description,
           orderIndex: moduleIndex + 1
         });
-        
         const createdModule = await moduleResponse.json();
-        const moduleId = createdModule.id;
-        console.log(`Module created successfully with ID:`, moduleId);
+        console.log("Module created:", createdModule);
 
         // Create chapters for this module
-        console.log(`Creating ${moduleData.chapters.length} chapters for module ${moduleIndex + 1}`);
         for (let chapterIndex = 0; chapterIndex < moduleData.chapters.length; chapterIndex++) {
           const chapterData = moduleData.chapters[chapterIndex];
           console.log(`Creating chapter ${chapterIndex + 1}:`, chapterData.title);
-          await apiRequest("POST", `/api/modules/${moduleId}/chapters`, {
+          
+          await apiRequest("POST", `/api/modules/${createdModule.id}/chapters`, {
             title: chapterData.title,
             content: chapterData.content,
-            contentType: chapterData.contentType,
-            duration: chapterData.duration,
+            contentType: "text",
+            duration: 30,
             orderIndex: chapterIndex + 1
           });
-          console.log(`Chapter ${chapterIndex + 1} created successfully`);
         }
 
         // Create assignments for this module
-        if (moduleData.assignments) {
-          for (const assignmentData of moduleData.assignments) {
-            console.log(`Creating assignment: ${assignmentData.title}`);
-            // Convert date string to proper ISO datetime format
-            const dueDate = new Date(assignmentData.dueDate).toISOString();
-            console.log(`Due date converted: ${dueDate}`);
-            await apiRequest("POST", `/api/courses/${newCourseId}/assignments`, {
-              title: assignmentData.title,
-              description: assignmentData.description,
-              dueDate: dueDate,
-              maxPoints: assignmentData.points
-            });
-            console.log(`Assignment created successfully: ${assignmentData.title}`);
-          }
-        }
-
-        // Create quizzes for this module
-        if (moduleData.quizzes) {
-          for (const quizData of moduleData.quizzes) {
-            console.log(`Creating quiz: ${quizData.title}`);
-            const quizResponse = await apiRequest("POST", `/api/courses/${newCourseId}/quizzes`, {
-              title: quizData.title,
-              description: quizData.description,
-              timeLimit: quizData.timeLimit
-            });
+        console.log("=== ASSIGNMENT CREATION START ===");
+        console.log("Checking for assignments in module:", moduleData.title);
+        console.log("Module data keys:", Object.keys(moduleData));
+        console.log("Full module data:", JSON.stringify(moduleData, null, 2));
+        console.log("Module index:", moduleIndex);
+        console.log("Module title:", moduleData.title);
+        
+        if (moduleData.assignments && moduleData.assignments.length > 0) {
+          console.log("Found assignments:", moduleData.assignments.length);
+          for (let assignmentIndex = 0; assignmentIndex < moduleData.assignments.length; assignmentIndex++) {
+            const assignmentData = moduleData.assignments[assignmentIndex];
+            console.log(`Creating assignment ${assignmentIndex + 1} for module ${moduleIndex + 1} (${moduleData.title}):`, assignmentData.title);
+            console.log("Assignment data:", JSON.stringify(assignmentData, null, 2));
             
-            const createdQuiz = await quizResponse.json();
-            const quizId = createdQuiz.id;
-            console.log(`Quiz created successfully with ID: ${quizId}`);
-
-            // Create questions for this quiz
-            console.log(`Creating ${quizData.questions.length} questions for quiz: ${quizData.title}`);
-            for (const questionData of quizData.questions) {
-              await apiRequest("POST", `/api/quizzes/${quizId}/questions`, {
-                question: questionData.question,
-                type: questionData.type,
-                options: questionData.options,
-                correctAnswer: questionData.correctAnswer,
-                points: questionData.points,
-                orderIndex: 1 // Default order index
+            try {
+              const assignmentResponse = await apiRequest("POST", `/api/courses/${createdCourse.id}/assignments`, {
+                title: assignmentData.title,
+                description: assignmentData.description,
+                dueDate: new Date(assignmentData.dueDate).toISOString(),
+                maxPoints: assignmentData.points
               });
-              console.log(`Question created: ${questionData.question.substring(0, 50)}...`);
+              const createdAssignment = await assignmentResponse.json();
+              console.log("Assignment created successfully:", createdAssignment);
+            } catch (assignmentError) {
+              console.error("Error creating assignment:", assignmentError);
             }
-            console.log(`Quiz "${quizData.title}" created successfully with ${quizData.questions.length} questions`);
           }
+        } else {
+          console.log("No assignments found in module:", moduleData.title);
         }
+        console.log("=== ASSIGNMENT CREATION END ===");
 
         // Create discussions for this module
-        if (moduleData.discussions) {
+        console.log("=== DISCUSSION CREATION START ===");
+        console.log("Checking for discussions in module:", moduleData.title);
+        console.log("moduleData.discussions:", moduleData.discussions);
+        console.log("moduleData.discussions.length:", moduleData.discussions ? moduleData.discussions.length : 0);
+        
+        if (moduleData.discussions && moduleData.discussions.length > 0) {
+          console.log("Found discussions:", moduleData.discussions.length);
           for (const discussionData of moduleData.discussions) {
-            console.log(`Creating discussion: ${discussionData.title}`);
-            await apiRequest("POST", `/api/courses/${newCourseId}/discussions`, {
-              title: discussionData.title,
-              content: discussionData.prompt // Use prompt as content
+            console.log("Creating discussion:", discussionData.title);
+            console.log("Discussion data:", JSON.stringify(discussionData, null, 2));
+            
+            try {
+              const discussionResponse = await apiRequest("POST", `/api/courses/${createdCourse.id}/discussions`, {
+                title: discussionData.title,
+                content: discussionData.prompt // Map prompt to content
+              });
+              const createdDiscussion = await discussionResponse.json();
+              console.log("Discussion created successfully:", createdDiscussion);
+            } catch (discussionError) {
+              console.error("Error creating discussion:", discussionError);
+            }
+          }
+        } else {
+          console.log("No discussions found in module, creating default discussion");
+          // Create a default discussion if none exist
+          try {
+            const discussionResponse = await apiRequest("POST", `/api/courses/${createdCourse.id}/discussions`, {
+              title: "Module Discussion",
+              content: "Share your thoughts and experiences with this module. What did you learn and what challenges did you face?"
             });
-            console.log(`Discussion created successfully: ${discussionData.title}`);
+            const createdDiscussion = await discussionResponse.json();
+            console.log("Default discussion created successfully:", createdDiscussion);
+          } catch (discussionError) {
+            console.error("Error creating default discussion:", discussionError);
           }
         }
+        console.log("=== DISCUSSION CREATION END ===");
+
+        // Create quizzes for this module (only if quizzes are mentioned in the prompt)
+        // Check if the course data contains 'quiz' - if not, skip quiz creation entirely
+        const coursePrompt = courseData.description || courseData.title || '';
+        const promptIncludesQuiz = coursePrompt.toLowerCase().includes('quiz');
+        
+        console.log("=== QUIZ CREATION START ===");
+        console.log("Course prompt:", coursePrompt);
+        console.log("Prompt includes quiz:", promptIncludesQuiz);
+        console.log("moduleData.quizzes:", moduleData.quizzes);
+        console.log("moduleData.quizzes.length:", moduleData.quizzes ? moduleData.quizzes.length : 0);
+        
+        // Create quizzes if they exist OR if the prompt mentions quizzes
+        if ((moduleData.quizzes && moduleData.quizzes.length > 0) || promptIncludesQuiz) {
+          console.log("Creating quizzes - found in data or prompt includes quiz");
+          
+          // If no quizzes in data but prompt mentions quiz, create a default quiz
+          const quizzesToCreate = moduleData.quizzes && moduleData.quizzes.length > 0 
+            ? moduleData.quizzes 
+            : [{
+                title: `${moduleData.title} Quiz`,
+                description: `Test your understanding of ${moduleData.title}`,
+                timeLimit: 30,
+                questions: [
+                  {
+                    question: "What did you learn in this module?",
+                    type: "multiple-choice",
+                    options: ["A lot", "Some", "A little", "Nothing"],
+                    correctAnswer: "A lot",
+                    points: 10
+                  }
+                ]
+              }];
+          
+          console.log("Quizzes to create:", JSON.stringify(quizzesToCreate, null, 2));
+          
+          for (const quizData of quizzesToCreate) {
+            console.log("Creating quiz:", quizData.title);
+            console.log("Quiz data:", JSON.stringify(quizData, null, 2));
+            
+            const quizResponse = await apiRequest("POST", `/api/courses/${createdCourse.id}/quizzes`, {
+              title: quizData.title,
+              description: quizData.description,
+              timeLimit: quizData.timeLimit || 30,
+              maxPoints: 100
+            });
+            const createdQuiz = await quizResponse.json();
+            console.log("Quiz created successfully:", createdQuiz);
+
+            // Create questions for the quiz
+            if (quizData.questions && quizData.questions.length > 0) {
+              console.log("Creating questions for quiz:", quizData.title);
+              console.log("Questions to create:", JSON.stringify(quizData.questions, null, 2));
+              
+              for (let questionIndex = 0; questionIndex < quizData.questions.length; questionIndex++) {
+                const questionData = quizData.questions[questionIndex];
+                console.log(`Creating question ${questionIndex + 1}:`, questionData.question?.substring(0, 50) + "...");
+                console.log("Question data:", JSON.stringify(questionData, null, 2));
+                
+                // Validate and sanitize question data
+                if (!questionData.question || typeof questionData.question !== 'string') {
+                  console.warn("Invalid question data, skipping:", questionData);
+                  continue;
+                }
+                
+                const sanitizedQuestion = {
+                  question: String(questionData.question || "Question"),
+                  type: String(questionData.type || "multiple-choice"),
+                  options: Array.isArray(questionData.options) && questionData.options.length > 0 
+                    ? questionData.options.map((opt: any) => String(opt)).filter((opt: any) => opt.trim() !== '')
+                    : ["Option 1", "Option 2", "Option 3", "Option 4"],
+                  correctAnswer: String(questionData.correctAnswer || "Option 1"),
+                  points: Number(questionData.points) || 10,
+                  orderIndex: questionIndex + 1
+                };
+                
+                // Ensure we have valid options
+                if (sanitizedQuestion.options.length === 0) {
+                  sanitizedQuestion.options = ["Option 1", "Option 2", "Option 3", "Option 4"];
+                }
+                
+                // Ensure correctAnswer is one of the options
+                if (!sanitizedQuestion.options.includes(sanitizedQuestion.correctAnswer)) {
+                  sanitizedQuestion.correctAnswer = sanitizedQuestion.options[0];
+                }
+                
+                try {
+                  const questionResponse = await apiRequest("POST", `/api/quizzes/${createdQuiz.id}/questions`, {
+                    question: sanitizedQuestion.question,
+                    type: sanitizedQuestion.type,
+                    options: sanitizedQuestion.options,
+                    correctAnswer: sanitizedQuestion.correctAnswer,
+                    points: sanitizedQuestion.points,
+                    orderIndex: sanitizedQuestion.orderIndex
+                  });
+                  const createdQuestion = await questionResponse.json();
+                  console.log("Question created successfully:", createdQuestion);
+                } catch (questionError) {
+                  console.error("Error creating question:", questionError);
+                }
+              }
+            } else {
+              console.log("No questions found in quiz data");
+            }
+          }
+        } else {
+          console.log("No quizzes to create - prompt doesn't mention quiz and no quiz data found");
+        }
+        console.log("=== QUIZ CREATION END ===");
       }
 
-      // Invalidate the courses query to refresh the list
+      // Invalidate queries to refresh data
       queryClient.invalidateQueries({ queryKey: ["/api/courses"] });
-
-      // Calculate totals
-      const totalChapters = courseData.modules.reduce((acc, mod) => acc + mod.chapters.length, 0);
-      const totalAssignments = courseData.modules.reduce((acc, mod) => acc + (mod.assignments?.length || 0), 0);
-      const totalQuizzes = courseData.modules.reduce((acc, mod) => acc + (mod.quizzes?.length || 0), 0);
-      const totalDiscussions = courseData.modules.reduce((acc, mod) => acc + (mod.discussions?.length || 0), 0);
-
-      toast({
-        title: "Course Created Successfully",
-        description: `AI-generated course "${courseData.title}" has been created with ${courseData.modules.length} modules, ${totalChapters} chapters, ${totalAssignments} assignments, ${totalQuizzes} quizzes, and ${totalDiscussions} discussions.`,
-      });
-
+      
       // Navigate to the new course
-      setLocation(`/course-builder/${newCourseId}`);
+      setLocation(`/course-builder/${createdCourse.id}`);
+      
+      toast({
+        title: "Course Generated Successfully",
+        description: "Your AI-generated course has been created with all modules, chapters, assignments, quizzes, and discussions.",
+      });
       
     } catch (error) {
-      console.error("Error creating AI-generated course:", error);
-      console.error("Error details:", {
-        message: error.message,
-        stack: error.stack,
-        name: error.name
-      });
+      console.error("Error generating complete course:", error);
       toast({
-        title: "Creation Failed",
-        description: `Failed to create the AI-generated course: ${error.message}`,
+        title: "Generation Failed",
+        description: "Failed to create the complete course. Please try again.",
         variant: "destructive",
       });
     }
   };
 
-  const [, setLocation] = useLocation();
-
-  if (!courseId) {
     return (
-      <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-gray-50">
         <Header />
         <div className="flex">
           <Sidebar />
-          <main className="flex-1 p-8">
-            <div className="mb-8">
-              <div className="flex items-center justify-between">
+        <div className="flex-1">
+          {!courseId ? (
+            // Course List View
+            <main className="p-6">
+              <div className="flex items-center justify-between mb-6">
                 <div>
-                  <h2 className="text-2xl font-bold text-slate-800">Course Builder</h2>
-                  <p className="text-slate-600 mt-1">Select a course to edit or create a new one</p>
+                  <h1 className="text-2xl font-bold text-slate-900">Course Builder</h1>
+                  <p className="text-slate-600">Create and manage your courses</p>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => queryClient.invalidateQueries({ queryKey: ["/api/courses"] })}
+                <div className="flex space-x-3">
+                  <Button
+                    onClick={() => setIsCourseDialogOpen(true)}
+                    className="bg-blue-600 hover:bg-blue-700"
                   >
-                    Refresh Courses
-                  </Button>
-                  <Dialog>
-                    <DialogTrigger asChild>
-                      <Button className="bg-blue-600 hover:bg-blue-700">
-                        <Plus className="h-4 w-4 mr-2" />
-                        Create New Course
-                      </Button>
-                    </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Create New Course</DialogTitle>
-                      <DialogDescription>
-                        Set up your course structure and initial content.
-                      </DialogDescription>
-                    </DialogHeader>
-                    <div className="grid gap-4 py-4">
-                      <div className="grid gap-2">
-                        <Label htmlFor="title">Course Title</Label>
-                        <Input
-                          id="title"
-                          value={newCourse.title}
-                          onChange={(e) => setNewCourse({ ...newCourse, title: e.target.value })}
-                          placeholder="Enter course title"
-                        />
-                      </div>
-                      <div className="grid gap-2">
-                        <Label htmlFor="description">Description</Label>
-                        <Textarea
-                          id="description"
-                          value={newCourse.description}
-                          onChange={(e) => setNewCourse({ ...newCourse, description: e.target.value })}
-                          placeholder="Describe your course..."
-                          rows={3}
-                        />
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="grid gap-2">
-                          <Label htmlFor="category">Category</Label>
-                          <Select
-                            value={newCourse.category}
-                            onValueChange={(value) => setNewCourse({ ...newCourse, category: value })}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select category" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="Programming">Programming</SelectItem>
-                              <SelectItem value="Web Development">Web Development</SelectItem>
-                              <SelectItem value="Data Science">Data Science</SelectItem>
-                              <SelectItem value="Mobile Development">Mobile Development</SelectItem>
-                              <SelectItem value="Databases">Databases</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="grid gap-2">
-                          <Label htmlFor="difficulty">Difficulty</Label>
-                          <Select
-                            value={newCourse.difficulty}
-                            onValueChange={(value) => setNewCourse({ ...newCourse, difficulty: value })}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select difficulty" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="beginner">Beginner</SelectItem>
-                              <SelectItem value="intermediate">Intermediate</SelectItem>
-                              <SelectItem value="advanced">Advanced</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-                    </div>
-                    <DialogFooter className="flex flex-col sm:flex-row gap-3">
-                      <div className="flex-1">
-                        <AICourseGenerator
-                          onCourseGenerated={handleAIGenerateCompleteCourse}
-                        />
-                        <Button 
-                          onClick={() => {
-                            console.log("=== TESTING AI COURSE GENERATOR ===");
-                            const testCourseData = {
-                              title: "Test AI Generated Course",
-                              description: "This is a test course generated by AI",
-                              category: "Programming",
-                              difficulty: "beginner",
-                              modules: [
-                                {
-                                  title: "Test Module 1",
-                                  description: "Test module description",
-                                  chapters: [
-                                    {
-                                      title: "Test Chapter 1",
-                                      content: "# Test Chapter Content\n\nThis is test content for the AI generated course.",
-                                      contentType: "text",
-                                      duration: 30
-                                    }
-                                  ],
-                                  assignments: [
-                                    {
-                                      title: "Test Assignment",
-                                      description: "Test assignment description",
-                                      dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-                                      points: 50
-                                    }
-                                  ],
-                                  quizzes: [
-                                    {
-                                      title: "Test Quiz",
-                                      description: "Test quiz description",
-                                      timeLimit: 30,
-                                      questions: [
-                                        {
-                                          question: "What is the main purpose of this course?",
-                                          type: "multiple-choice",
-                                          options: ["To learn programming", "To test AI", "To have fun", "All of the above"],
-                                          correctAnswer: "To learn programming",
-                                          points: 10
-                                        }
-                                      ]
-                                    }
-                                  ],
-                                  discussions: [
-                                    {
-                                      title: "Test Discussion",
-                                      description: "Test discussion description",
-                                      prompt: "What did you learn from this test course?"
-                                    }
-                                  ]
-                                }
-                              ]
-                            };
-                            handleAIGenerateCompleteCourse(testCourseData);
-                          }}
-                          variant="outline"
-                          size="sm"
-                          className="mt-2"
-                        >
-                          Test AI Course Generator
-                        </Button>
-                      </div>
-                      <Button 
-                        onClick={handleCreateCourse}
-                        disabled={createCourseMutation.isPending}
-                      >
-                        {createCourseMutation.isPending ? "Creating..." : "Create Course"}
-                      </Button>
-                    </DialogFooter>
-                  </DialogContent>
-                </Dialog>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Create New Course
+                    </Button>
               </div>
             </div>
-          </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {coursesLoading ? (
-                <div className="col-span-full text-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                  <p className="text-slate-600">Loading courses...</p>
-                </div>
-              ) : coursesError ? (
-                <div className="col-span-full text-center py-8">
-                  <p className="text-red-600">Error loading courses. Please try again.</p>
-                </div>
-              ) : courses && courses.length > 0 ? (
-                courses.map((course: Course) => (
-                  <Card 
-                    key={course.id} 
-                    className="cursor-pointer hover:shadow-lg transition-shadow"
-                    onClick={() => setLocation(`/course-builder/${course.id}`)}
-                  >
-                    <CardContent className="p-6">
-                      <div className="flex items-start justify-between mb-4">
-                        <div>
-                          <h3 className="font-semibold text-lg text-slate-800 mb-1">{course.title}</h3>
-                          <p className="text-sm text-slate-600 line-clamp-2">{course.description}</p>
-                        </div>
-                        <Badge variant="outline">{course.status}</Badge>
-                      </div>
-                      <div className="flex items-center justify-between text-sm text-slate-500">
-                        <span>{course.category}</span>
-                        <span>{course.difficulty}</span>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))
-              ) : (
-                <div className="col-span-full text-center py-8">
-                  <p className="text-slate-600">No courses found. Create your first course to get started.</p>
-                </div>
-              )}
-            </div>
-          </main>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="min-h-screen bg-slate-50">
-      <Header />
-      
-      <div className="flex">
-        <Sidebar />
-        
-        <main className="flex-1 p-8">
-          {/* Page Header */}
-          <div className="mb-8">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-2xl font-bold text-slate-800">Course Builder</h2>
-                <p className="text-slate-600 mt-1">
-                  {course?.title || "Loading course..."}
-                </p>
-              </div>
-              <div className="flex items-center space-x-3">
-                <AIAssistant
-                  courseTitle={course?.title}
-                  courseDescription={course?.description}
-                  onGenerateContent={handleAIGenerateContent}
-                  onGenerateModule={handleAIGenerateModule}
-                  onGenerateChapter={handleAIGenerateChapter}
-                  disabled={!selectedChapter}
-                />
-              <Button 
-                onClick={() => {
-                  console.log("=== TEST BUTTON CLICKED ===");
-                  console.log("Selected chapter:", selectedChapter);
-                  if (selectedChapter) {
-                    handleAIGenerateContent("This is a test content from the test button!", "text");
-                  } else {
-                    toast({
-                      title: "No Chapter Selected",
-                      description: "Please select a chapter first before testing AI content.",
-                      variant: "destructive",
-                    });
-                  }
-                }}
-                variant="outline"
-                size="sm"
-                disabled={!selectedChapter}
-              >
-                Test AI Content
-              </Button>
-                <Button 
-                  variant="outline"
-                  onClick={() => window.location.href = `/courses/${courseId}/preview`}
+                {coursesLoading ? (
+                  <div className="col-span-full text-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                    <p className="text-slate-600">Loading courses...</p>
+                  </div>
+                ) : coursesError ? (
+                  <div className="col-span-full text-center py-8">
+                    <p className="text-red-600">Error loading courses. Please try again.</p>
+                  </div>
+                ) : courses && courses.length > 0 ? (
+                  courses.map((course: Course) => (
+                <Card 
+                  key={course.id} 
+                  className="cursor-pointer hover:shadow-lg transition-shadow"
+                  onClick={() => setLocation(`/course-builder/${course.id}`)}
                 >
-                  <Eye className="h-4 w-4 mr-2" />
-                  Preview
-                </Button>
-                <Button 
-                  className="bg-blue-600 hover:bg-blue-700"
-                  onClick={() => window.location.href = `/courses/${courseId}`}
-                >
-                  <Upload className="h-4 w-4 mr-2" />
-                  Publish
-                </Button>
-              </div>
+                  <CardContent className="p-6">
+                    <div className="flex items-start justify-between mb-4">
+                      <div>
+                        <h3 className="font-semibold text-lg text-slate-800 mb-1">{course.title}</h3>
+                        <p className="text-sm text-slate-600 line-clamp-2">{course.description}</p>
+                      </div>
+                      <Badge variant="outline">{course.status}</Badge>
+                    </div>
+                    <div className="flex items-center justify-between text-sm text-slate-500">
+                      <span>{course.category}</span>
+                      <span>{course.difficulty}</span>
+                    </div>
+                  </CardContent>
+                </Card>
+                  ))
+                ) : (
+                  <div className="col-span-full text-center py-8">
+                    <p className="text-slate-600">No courses found. Create your first course to get started.</p>
             </div>
+                )}
           </div>
 
-          {/* Course Builder Interface */}
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-            {/* Course Structure Sidebar */}
-            <div className="lg:col-span-1">
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <CardTitle>Course Structure</CardTitle>
-                    <Dialog open={isModuleDialogOpen} onOpenChange={setIsModuleDialogOpen}>
-                      <DialogTrigger asChild>
-                        <Button size="sm" variant="outline">
-                          <Plus className="h-4 w-4" />
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent>
+              {/* Create Course Dialog */}
+              <Dialog open={isCourseDialogOpen} onOpenChange={setIsCourseDialogOpen}>
+                <DialogContent className="sm:max-w-md">
                         <DialogHeader>
-                          <DialogTitle>Add New Module</DialogTitle>
+                    <DialogTitle>Create New Course</DialogTitle>
                           <DialogDescription>
-                            Create a new module to organize your course content.
+                      Create a new course to start building your content.
                           </DialogDescription>
                         </DialogHeader>
                         <div className="grid gap-4 py-4">
                           <div className="grid gap-2">
-                            <Label htmlFor="module-title">Title</Label>
+                      <Label htmlFor="course-title">Course Title</Label>
                             <Input
-                              id="module-title"
-                              value={newModule.title}
-                              onChange={(e) => setNewModule({ ...newModule, title: e.target.value })}
-                              placeholder="Module title"
+                        id="course-title"
+                        placeholder="Enter course title"
+                        value={newCourse.title}
+                        onChange={(e) => setNewCourse({ ...newCourse, title: e.target.value })}
                             />
                           </div>
                           <div className="grid gap-2">
-                            <Label htmlFor="module-description">Description</Label>
+                      <Label htmlFor="course-description">Description</Label>
                             <Textarea
-                              id="module-description"
-                              value={newModule.description}
-                              onChange={(e) => setNewModule({ ...newModule, description: e.target.value })}
-                              placeholder="Module description (optional)"
+                        id="course-description"
+                        placeholder="Describe your course..."
                               rows={3}
+                        value={newCourse.description}
+                        onChange={(e) => setNewCourse({ ...newCourse, description: e.target.value })}
                             />
                           </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="grid gap-2">
+                        <Label htmlFor="course-category">Category</Label>
+                        <Select value={newCourse.category} onValueChange={(value) => setNewCourse({ ...newCourse, category: value })}>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Programming">Programming</SelectItem>
+                            <SelectItem value="Design">Design</SelectItem>
+                            <SelectItem value="Business">Business</SelectItem>
+                            <SelectItem value="Marketing">Marketing</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="course-difficulty">Difficulty</Label>
+                        <Select value={newCourse.difficulty} onValueChange={(value) => setNewCourse({ ...newCourse, difficulty: value })}>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="beginner">Beginner</SelectItem>
+                            <SelectItem value="intermediate">Intermediate</SelectItem>
+                            <SelectItem value="advanced">Advanced</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  </div>
+                  <DialogFooter className="flex flex-col sm:flex-row gap-3">
+                    <div className="flex-1">
+                      <Button
+                        onClick={() => {
+                          setIsCourseDialogOpen(false);
+                          setIsAICourseGeneratorOpen(true);
+                        }}
+                        variant="outline"
+                        size="sm"
+                        className="w-full"
+                      >
+                        <Sparkles className="h-4 w-4 mr-2" />
+                        AI Course Generator
+                      </Button>
                         </div>
-                        <DialogFooter>
-                          <Button onClick={handleCreateModule} disabled={createModuleMutation.isPending}>
-                            {createModuleMutation.isPending ? "Creating..." : "Create Module"}
+                    <Button 
+                      onClick={handleCreateCourse}
+                      disabled={createCourseMutation.isPending}
+                    >
+                      {createCourseMutation.isPending ? "Creating..." : "Create Course"}
                           </Button>
                         </DialogFooter>
                       </DialogContent>
                     </Dialog>
+            </main>
+          ) : (
+            // Course Builder View
+            <main className="p-6">
+              {course ? (
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h1 className="text-2xl font-bold text-gray-900">{course.title}</h1>
+                      <p className="text-gray-600">{course.description}</p>
+                    </div>
+                    <div className="flex space-x-3">
+                      <Button
+                        onClick={() => window.location.href = `/courses/${course.id}/preview`}
+                        variant="outline"
+                      >
+                        Preview
+                      </Button>
+                      <Button onClick={() => setIsAIAssistantOpen(true)}>
+                        <Sparkles className="h-4 w-4 mr-2" />
+                        AI Assistant
+                      </Button>
+                    </div>
                   </div>
-                </CardHeader>
-                <CardContent className="p-0">
-                  <div className="space-y-2 p-6">
-                    {modules?.map((module: Module, index: number) => (
+
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div className="lg:col-span-1">
+                      <div className="bg-white rounded-lg shadow p-6">
+                        <div className="flex items-center justify-between mb-4">
+                          <h2 className="text-lg font-semibold">Modules</h2>
+                          <Button
+                            onClick={() => setIsModuleDialogOpen(true)}
+                            size="sm"
+                          >
+                            Add Module
+                          </Button>
+                        </div>
+                        <div className="space-y-2">
+                          {modules.map((module: Module) => (
                       <div
                         key={module.id}
-                        className={`p-3 border rounded-lg cursor-pointer transition-colors ${
+                              className={`p-3 rounded-lg cursor-pointer transition-colors ${
                           selectedModule?.id === module.id
                             ? "bg-blue-50 border-blue-200"
-                            : "hover:bg-slate-50 border-slate-200"
+                                  : "bg-gray-50 hover:bg-gray-100"
                         }`}
                         onClick={() => setSelectedModule(module)}
                       >
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium text-slate-800">
-                            {index + 1}. {module.title}
-                          </span>
-                          <ChevronRight className="h-4 w-4 text-slate-400" />
+                              <h3 className="font-medium">{module.title}</h3>
+                              <p className="text-sm text-gray-600">{module.description}</p>
+                            </div>
+                          ))}
                         </div>
-                        {chapters && selectedModule?.id === module.id && (
-                          <div className="mt-2 ml-4 space-y-1">
+                      </div>
+                    </div>
+
+                    <div className="lg:col-span-2">
+                      {selectedModule ? (
+                        <div className="bg-white rounded-lg shadow p-6">
+                          <div className="flex items-center justify-between mb-4">
+                            <h2 className="text-lg font-semibold">Chapters in {selectedModule.title}</h2>
+                            <Button
+                              onClick={() => setIsChapterDialogOpen(true)}
+                              size="sm"
+                            >
+                              Add Chapter
+                            </Button>
+                          </div>
+                          <div className="space-y-3">
                             {chapters.map((chapter: Chapter) => (
                               <div
                                 key={chapter.id}
-                                className={`p-2 text-xs rounded cursor-pointer transition-colors ${
+                                className={`p-3 rounded-lg cursor-pointer transition-colors ${
                                   selectedChapter?.id === chapter.id
-                                    ? "bg-blue-100 text-blue-800"
-                                    : "text-slate-600 hover:bg-slate-100"
+                                    ? "bg-blue-50 border-blue-200"
+                                    : "bg-gray-50 hover:bg-gray-100"
                                 }`}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSelectedChapter(chapter);
-                                }}
+                                onClick={() => setSelectedChapter(chapter)}
                               >
-                                {chapter.title}
+                                <h3 className="font-medium">{chapter.title}</h3>
+                                <p className="text-sm text-gray-600">{chapter.content.substring(0, 100)}...</p>
                               </div>
                             ))}
-                            <Dialog open={isChapterDialogOpen} onOpenChange={setIsChapterDialogOpen}>
-                              <DialogTrigger asChild>
-                                <Button 
-                                  size="sm" 
-                                  variant="ghost" 
-                                  className="w-full text-xs mt-2"
-                                  onClick={(e) => e.stopPropagation()}
-                                >
-                                  <Plus className="h-3 w-3 mr-1" />
-                                  Add Chapter
-                                </Button>
-                              </DialogTrigger>
-                              <DialogContent>
-                                <DialogHeader>
-                                  <DialogTitle>Add New Chapter</DialogTitle>
-                                  <DialogDescription>
-                                    Create a new chapter in {module.title}.
-                                  </DialogDescription>
-                                </DialogHeader>
-                                <div className="grid gap-4 py-4">
-                                  <div className="grid gap-2">
-                                    <Label htmlFor="chapter-title">Title</Label>
-                                    <Input
-                                      id="chapter-title"
-                                      value={newChapter.title}
-                                      onChange={(e) => setNewChapter({ ...newChapter, title: e.target.value })}
-                                      placeholder="Chapter title"
-                                    />
-                                  </div>
-                                  <div className="grid gap-2">
-                                    <Label htmlFor="chapter-duration">Duration (minutes)</Label>
-                                    <Input
-                                      id="chapter-duration"
-                                      type="number"
-                                      value={newChapter.duration}
-                                      onChange={(e) => setNewChapter({ ...newChapter, duration: parseInt(e.target.value) || 0 })}
-                                      placeholder="0"
-                                    />
-                                  </div>
-                                </div>
-                                <DialogFooter>
-                                  <Button onClick={handleCreateChapter} disabled={createChapterMutation.isPending}>
-                                    {createChapterMutation.isPending ? "Creating..." : "Create Chapter"}
-                                  </Button>
-                                </DialogFooter>
-                              </DialogContent>
-                            </Dialog>
                           </div>
-                        )}
-                      </div>
-                    )) || (
-                      <p className="text-slate-500 text-sm text-center py-4">
-                        No modules yet. Create your first module to get started.
-                      </p>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Main Content Editor */}
-            <div className="lg:col-span-3">
-              {selectedChapter ? (
-                <Card>
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <CardTitle>{selectedChapter.title}</CardTitle>
-                        <p className="text-sm text-slate-600 mt-1">
-                          Module: {selectedModule?.title}
-                        </p>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Badge variant="secondary">
-                          {selectedChapter.contentType}
-                        </Badge>
-                        <Badge variant="outline">
-                          {selectedChapter.duration || 0} min
-                        </Badge>
-                      </div>
                     </div>
-                  </CardHeader>
-                  <CardContent>
-                    <ContentEditor
-                      chapter={selectedChapter}
-                      onSave={handleSaveChapter}
-                      isLoading={updateChapterMutation.isPending}
-                      forceUpdate={forceEditorUpdate}
-                    />
-                  </CardContent>
-                </Card>
-              ) : selectedModule ? (
-                <Card>
-                  <CardContent className="p-12 text-center">
-                    <div className="max-w-md mx-auto">
-                      <h3 className="text-lg font-medium text-slate-800 mb-4">
-                        {selectedModule.title}
-                      </h3>
-                      <p className="text-slate-600 mb-6">
-                        {selectedModule.description || "Select a chapter to start editing, or create a new chapter in this module."}
-                      </p>
-                      <Button 
-                        onClick={() => setIsChapterDialogOpen(true)}
-                        className="bg-blue-600 hover:bg-blue-700"
-                      >
-                        <Plus className="h-4 w-4 mr-2" />
-                        Create First Chapter
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
               ) : (
                 <Card>
                   <CardContent className="p-12 text-center">
                     <div className="max-w-md mx-auto">
                       <h3 className="text-lg font-medium text-slate-800 mb-4">
-                        Welcome to Course Builder
+                                Select a Module
                       </h3>
                       <p className="text-slate-600 mb-6">
-                        Start by creating modules to organize your course content, then add chapters within each module.
+                                Choose a module from the left to view and manage its chapters.
                       </p>
-                      <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                        <Button 
-                          onClick={() => setIsModuleDialogOpen(true)}
-                          className="bg-blue-600 hover:bg-blue-700"
-                        >
-                          <Plus className="h-4 w-4 mr-2" />
-                          Create First Module
-                        </Button>
-                        <AICourseGenerator
-                          onCourseGenerated={handleAIGenerateCompleteCourse}
-                        />
-                        <AIAssistant
-                          courseTitle={course?.title}
-                          courseDescription={course?.description}
-                          onGenerateContent={handleAIGenerateContent}
-                          onGenerateModule={handleAIGenerateModule}
-                          onGenerateChapter={handleAIGenerateChapter}
-                          disabled={!selectedChapter}
-                        />
-                      </div>
+                      <Button 
+                        onClick={() => setIsModuleDialogOpen(true)}
+                        className="bg-blue-600 hover:bg-blue-700"
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                                Add Module
+                      </Button>
                     </div>
                   </CardContent>
                 </Card>
               )}
             </div>
           </div>
+
+                  {selectedChapter && (
+                    <div className="bg-white rounded-lg shadow p-6">
+                      <h2 className="text-lg font-semibold mb-4">Edit Chapter: {selectedChapter.title}</h2>
+                      <ContentEditor
+                        chapter={selectedChapter}
+                        onSave={handleSaveChapter}
+                        isLoading={false}
+                        forceUpdate={0}
+                      />
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <BookOpen className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                  <h3 className="mt-2 text-lg font-semibold text-gray-900">No Course Selected</h3>
+                  <p className="mt-1 text-sm text-gray-500">
+                    Please select a course from the list or create a new one to start building.
+                  </p>
+                </div>
+              )}
         </main>
+          )}
+        </div>
       </div>
+
+      {/* AI Course Generator */}
+      {isAICourseGeneratorOpen && (
+        <AICourseGenerator
+          onGenerate={handleAIGenerateCompleteCourse}
+          onClose={() => setIsAICourseGeneratorOpen(false)}
+        />
+      )}
+
+      {/* AI Assistant */}
+      {isAIAssistantOpen && selectedChapter && (
+        <AIAssistant
+          onGenerateChapter={handleAIGenerateChapter}
+          onGenerateContent={handleAIGenerateContent}
+          onGenerateModule={handleAIGenerateModule}
+          courseTitle={course?.title}
+          courseDescription={course?.description}
+          disabled={!selectedChapter}
+        />
+      )}
+
+      {/* Module Creation Dialog */}
+      <Dialog open={isModuleDialogOpen} onOpenChange={setIsModuleDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create New Module</DialogTitle>
+            <DialogDescription>
+              Add a new module to organize your course content.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="module-title">Module Title</Label>
+              <Input
+                id="module-title"
+                placeholder="Enter module title"
+                defaultValue="New Module"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="module-description">Description</Label>
+              <Textarea
+                id="module-description"
+                placeholder="Describe this module..."
+                rows={3}
+                defaultValue="Module description"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button onClick={handleCreateModule}>
+              Create Module
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Chapter Creation Dialog */}
+      <Dialog open={isChapterDialogOpen} onOpenChange={setIsChapterDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create New Chapter</DialogTitle>
+            <DialogDescription>
+              Add a new chapter to the selected module.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="chapter-title">Chapter Title</Label>
+              <Input
+                id="chapter-title"
+                placeholder="Enter chapter title"
+                defaultValue="New Chapter"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="chapter-content">Content</Label>
+              <Textarea
+                id="chapter-content"
+                placeholder="Enter chapter content..."
+                rows={5}
+                defaultValue="Chapter content"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button onClick={handleCreateChapter}>
+              Create Chapter
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

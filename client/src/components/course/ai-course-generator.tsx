@@ -1,695 +1,299 @@
-import { useState } from "react";
+import React, { useState, useEffect } from "react";
+
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { 
-  Sparkles, 
-  BookOpen, 
-  FileText, 
-  MessageSquare, 
-  Lightbulb, 
-  Wand2, 
-  Copy, 
-  Check,
-  Loader2,
-  Brain,
-  Target,
-  Users,
-  Clock,
-  Award,
-  Zap,
-  Play,
-  BookMarked,
-  GraduationCap
-} from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import { Loader2, Sparkles, BookOpen, FileText, MessageSquare, Calendar } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
-interface AICourseGeneratorProps {
-  onCourseGenerated: (courseData: {
+export interface AICourseGeneratorProps {
+  onGenerate: (courseData: any) => void;
+  onClose: () => void;
+}
+
+interface GeneratedCourse {
+  title: string;
+  description: string;
+  category: string;
+  difficulty: string;
+  modules: Array<{
     title: string;
     description: string;
-    category: string;
-    difficulty: string;
-    modules: Array<{
+    chapters: Array<{
+      title: string;
+      content: string;
+    }>;
+    assignments?: Array<{
       title: string;
       description: string;
-      chapters: Array<{
-        title: string;
-        content: string;
-        contentType: string;
-        duration: number;
-      }>;
-      assignments?: Array<{
-        title: string;
-        description: string;
-        dueDate: string;
+      dueDate: string;
+      points: number;
+    }>;
+    quizzes?: Array<{
+      title: string;
+      description: string;
+      timeLimit?: number;
+      questions?: Array<{
+        question: string;
+        type: string;
+        options?: string[];
+        correctAnswer?: string;
         points: number;
       }>;
-      quizzes?: Array<{
-        title: string;
-        description: string;
-        timeLimit: number;
-        questions: Array<{
-          question: string;
-          type: string;
-          options?: string[];
-          correctAnswer?: string;
-          points: number;
-        }>;
-      }>;
-      discussions?: Array<{
-        title: string;
-        description: string;
-        prompt: string;
-      }>;
     }>;
-  }) => void;
-  disabled?: boolean;
+    discussions?: Array<{
+      title: string;
+      prompt: string;
+    }>;
+  }>;
 }
 
-interface AIModel {
-  id: string;
-  name: string;
-  description: string;
-  icon: React.ReactNode;
-}
-
-const AI_MODELS: AIModel[] = [
-  {
-    id: "gpt-4",
-    name: "GPT-4",
-    description: "Advanced language model with deep understanding",
-    icon: <Brain className="h-4 w-4" />
-  },
-  {
-    id: "claude-3",
-    name: "Claude 3",
-    description: "Anthropic's latest model with excellent reasoning",
-    icon: <Sparkles className="h-4 w-4" />
-  },
-  {
-    id: "gemini-pro",
-    name: "Gemini Pro",
-    description: "Google's multimodal AI with creative capabilities",
-    icon: <Zap className="h-4 w-4" />
-  }
-];
-
-export default function AICourseGenerator({
-  onCourseGenerated,
-  disabled = false
-}: AICourseGeneratorProps) {
-  const { toast } = useToast();
-  const [isOpen, setIsOpen] = useState(false);
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [selectedModel, setSelectedModel] = useState("gpt-4");
+export function AICourseGenerator({ onGenerate, onClose }: AICourseGeneratorProps) {
   const [coursePrompt, setCoursePrompt] = useState("");
-  const [generatedCourse, setGeneratedCourse] = useState<any>(null);
-  const [courseDetails, setCourseDetails] = useState({
-    title: "",
-    description: "",
-    category: "Programming",
-    difficulty: "beginner"
-  });
+  const [selectedModel, setSelectedModel] = useState("deepseek-coder:6.7b");
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generatedCourse, setGeneratedCourse] = useState<GeneratedCourse | null>(null);
+  const [activeTab, setActiveTab] = useState("setup");
+  const [selectedPromptTemplate, setSelectedPromptTemplate] = useState("");
+  const { toast } = useToast();
+
+  // Pre-constructed prompts that are unique and encourage AI generation
+  const promptTemplates = [
+    {
+      id: "ai-ml-beginners",
+      name: "AI/ML for Beginners",
+      description: "Comprehensive AI/ML course with practical projects",
+      prompt: "Create an introductory course on Artificial Intelligence and Machine Learning for complete beginners. Focus on practical applications, real-world examples, and hands-on projects. Include modern AI tools and frameworks."
+    },
+    {
+      id: "web-development",
+      name: "Modern Web Development",
+      description: "Full-stack web development with modern technologies",
+      prompt: "Design a comprehensive web development course covering modern frontend and backend technologies. Include responsive design, modern JavaScript frameworks, API development, and deployment strategies."
+    },
+    {
+      id: "python-basics",
+      name: "Python Programming",
+      description: "Python from basics to advanced concepts",
+      prompt: "Create a Python programming course that covers everything from basic syntax to advanced topics like web development, data analysis, and automation. Include practical projects and real-world applications."
+    },
+    {
+      id: "data-science",
+      name: "Data Science & Analytics",
+      description: "Data analysis, visualization, and machine learning",
+      prompt: "Develop a data science course that teaches data analysis, visualization, statistical modeling, and introductory machine learning. Include tools like Python, pandas, matplotlib, and scikit-learn."
+    },
+    {
+      id: "javascript-es6",
+      name: "Modern JavaScript Development",
+      description: "ES6+, React, Node.js, and modern web development",
+      prompt: "Create an advanced JavaScript course covering modern ES6+ features, React development, Node.js backend, and full-stack web applications. Focus on practical, industry-relevant skills."
+    }
+  ];
+
+  // Debug useEffect
+  useEffect(() => {
+    console.log("generatedCourse changed:", generatedCourse);
+  }, [generatedCourse]);
+
+  useEffect(() => {
+    console.log("activeTab changed:", activeTab);
+  }, [activeTab]);
+
+  // Handle prompt template selection
+  const handlePromptTemplateChange = (templateId: string) => {
+    setSelectedPromptTemplate(templateId);
+    const template = promptTemplates.find(t => t.id === templateId);
+    if (template) {
+      setCoursePrompt(template.prompt);
+    }
+  };
+
+  const availableModels = [
+    "deepseek-coder:6.7b",
+    "llama3.2:3b", 
+    "llama3.2:1b"
+  ];
 
   const generateCompleteCourse = async () => {
     if (!coursePrompt.trim()) {
       toast({
         title: "Prompt Required",
-        description: "Please enter a detailed prompt describing the course you want to create.",
+        description: "Please enter a course prompt to generate content.",
         variant: "destructive",
       });
       return;
     }
 
     setIsGenerating(true);
-    
+    setActiveTab("generation");
+
     try {
-      // Simulate AI course generation with different models
-      await new Promise(resolve => setTimeout(resolve, 3000));
-      
-      const courseTemplates = {
-        "gpt-4": {
-          title: coursePrompt,
-          description: `A comprehensive course covering all aspects of ${coursePrompt}. This course is designed to take you from beginner to advanced level with practical examples and real-world projects.`,
-          modules: [
-            {
-              title: "Introduction and Fundamentals",
-              description: "Get started with the basics and understand core concepts",
-              chapters: [
-                {
-                  title: "What is " + coursePrompt.split(" ")[0] + "?",
-                  content: `# Introduction to ${coursePrompt.split(" ")[0]}
-
-## Overview
-This chapter provides a comprehensive introduction to ${coursePrompt.split(" ")[0]} and its importance in modern development.
-
-## Learning Objectives
-- Understand the basic concepts
-- Learn about the history and evolution
-- Explore real-world applications
-
-## Key Topics
-1. **Definition and Scope**: What exactly is ${coursePrompt.split(" ")[0]}?
-2. **History and Evolution**: How did it develop over time?
-3. **Current State**: What's happening in the field today?
-4. **Future Trends**: Where is it heading?
-
-## Practical Examples
-- Basic setup and configuration
-- Simple "Hello World" examples
-- Common use cases and scenarios
-
-## Summary
-By the end of this chapter, you'll have a solid foundation to build upon.`,
-                  contentType: "text",
-                  duration: 45
-                },
-                {
-                  title: "Setting Up Your Environment",
-                  content: `# Setting Up Your Development Environment
-
-## Prerequisites
-Before we begin, you'll need to set up your development environment.
-
-## Installation Steps
-1. **Download Required Tools**
-2. **Configure Your IDE**
-3. **Set Up Version Control**
-4. **Install Dependencies**
-
-## Verification
-- Test your installation
-- Run your first program
-- Troubleshoot common issues
-
-## Best Practices
-- Keep your environment updated
-- Use virtual environments
-- Follow security guidelines`,
-                  contentType: "text",
-                  duration: 30
-                }
-              ],
-              assignments: [
-                {
-                  title: "Introduction Assignment",
-                  description: "Create a brief summary of what you learned about " + coursePrompt.split(" ")[0] + " and its importance in modern development.",
-                  dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 1 week from now
-                  points: 50
-                }
-              ],
-              quizzes: [
-                {
-                  title: "Introduction Quiz",
-                  description: "Test your understanding of the basic concepts and fundamentals",
-                  timeLimit: 20,
-                  questions: [
-                    {
-                      question: "What is the main purpose of " + coursePrompt.split(" ")[0] + "?",
-                      type: "multiple-choice",
-                      options: ["To solve complex problems", "To create simple applications", "To learn programming", "All of the above"],
-                      correctAnswer: "All of the above",
-                      points: 10
-                    },
-                    {
-                      question: "Why is it important to understand the fundamentals?",
-                      type: "text",
-                      points: 15
-                    }
-                  ]
-                }
-              ],
-              discussions: [
-                {
-                  title: "Getting Started Discussion",
-                  description: "Share your initial thoughts and questions about " + coursePrompt.split(" ")[0],
-                  prompt: "What aspects of " + coursePrompt.split(" ")[0] + " are you most excited to learn about? Share your goals and any questions you have."
-                }
-              ]
-            },
-            {
-              title: "Core Concepts and Theory",
-              description: "Deep dive into the fundamental principles and theories",
-              chapters: [
-                {
-                  title: "Understanding Core Principles",
-                  content: `# Core Principles of ${coursePrompt.split(" ")[0]}
-
-## Fundamental Concepts
-1. **Principle 1**: Detailed explanation with examples
-2. **Principle 2**: Step-by-step breakdown
-3. **Principle 3**: Advanced concepts and applications
-
-## Theory Behind the Practice
-- Mathematical foundations
-- Logical reasoning
-- Problem-solving approaches
-
-## Real-World Applications
-- Industry use cases
-- Success stories
-- Common challenges and solutions`,
-                  contentType: "text",
-                  duration: 60
-                }
-              ],
-              assignments: [
-                {
-                  title: "Core Concepts Assignment",
-                  description: "Analyze and explain the core principles of " + coursePrompt.split(" ")[0] + " with real-world examples.",
-                  dueDate: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 10 days from now
-                  points: 75
-                }
-              ],
-              quizzes: [
-                {
-                  title: "Core Concepts Quiz",
-                  description: "Test your understanding of the fundamental principles and theories",
-                  timeLimit: 25,
-                  questions: [
-                    {
-                      question: "Which of the following is a core principle of " + coursePrompt.split(" ")[0] + "?",
-                      type: "multiple-choice",
-                      options: ["Speed over accuracy", "Accuracy over speed", "Balance of both", "None of the above"],
-                      correctAnswer: "Balance of both",
-                      points: 10
-                    },
-                    {
-                      question: "How do core principles apply to real-world scenarios?",
-                      type: "text",
-                      points: 20
-                    }
-                  ]
-                }
-              ],
-              discussions: [
-                {
-                  title: "Core Concepts Discussion",
-                  description: "Discuss the importance of understanding core principles in " + coursePrompt.split(" ")[0],
-                  prompt: "How do you think understanding the core principles will help you in practical applications? Share your thoughts and experiences."
-                }
-              ]
-            },
-            {
-              title: "Practical Implementation",
-              description: "Hands-on projects and real-world applications",
-              chapters: [
-                {
-                  title: "Building Your First Project",
-                  content: `# Your First Project
-
-## Project Overview
-We'll build a complete application that demonstrates all the concepts we've learned.
-
-## Project Structure
-- Planning and design
-- Implementation steps
-- Testing and debugging
-- Deployment considerations
-
-## Step-by-Step Guide
-1. **Project Setup**
-2. **Core Implementation**
-3. **Advanced Features**
-4. **Testing and Optimization**
-
-## Best Practices
-- Code organization
-- Documentation
-- Performance optimization
-- Security considerations`,
-                  contentType: "text",
-                  duration: 90
-                }
-              ],
-              assignments: [
-                {
-                  title: "Final Project Implementation",
-                  description: "Create a complete application using all the concepts learned in this course. Submit your code, documentation, and a brief presentation.",
-                  dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 2 weeks from now
-                  points: 100
-                }
-              ],
-              quizzes: [
-                {
-                  title: "Practical Implementation Quiz",
-                  description: "Test your understanding of practical implementation concepts",
-                  timeLimit: 30,
-                  questions: [
-                    {
-                      question: "What is the first step in building a project?",
-                      type: "multiple-choice",
-                      options: ["Planning and design", "Coding", "Testing", "Deployment"],
-                      correctAnswer: "Planning and design",
-                      points: 10
-                    },
-                    {
-                      question: "Why is documentation important in project development?",
-                      type: "text",
-                      points: 15
-                    }
-                  ]
-                }
-              ],
-              discussions: [
-                {
-                  title: "Project Challenges and Solutions",
-                  description: "Share the challenges you faced during your project implementation and how you solved them",
-                  prompt: "What was the most challenging aspect of your project, and how did you overcome it? Share your experience and learn from others."
-                }
-              ]
-            }
-          ]
+      const response = await fetch("/api/ai/generate-course", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
         },
-        "claude-3": {
-          title: coursePrompt,
-          description: `An in-depth exploration of ${coursePrompt} with a focus on practical applications and real-world scenarios. This course combines theoretical knowledge with hands-on experience.`,
-          modules: [
-            {
-              title: "Foundation and Basics",
-              description: "Establish a strong foundation with essential concepts",
-              chapters: [
-                {
-                  title: "Getting Started with " + coursePrompt.split(" ")[0],
-                  content: `# Getting Started
-
-## Welcome to the Course
-This comprehensive course will guide you through ${coursePrompt} from the ground up.
-
-## What You'll Learn
-- Fundamental concepts and principles
-- Practical implementation strategies
-- Real-world problem solving
-- Advanced techniques and optimization
-
-## Course Structure
-The course is organized into logical modules, each building upon the previous one.
-
-## Getting the Most from This Course
-- Complete all exercises
-- Practice regularly
-- Join the community
-- Build your own projects`,
-                  contentType: "text",
-                  duration: 40
-                }
-              ],
-              assignments: [
-                {
-                  title: "Foundation Concepts Assignment",
-                  description: "Create a comprehensive summary of the foundational concepts covered in this module. Include examples and practical applications.",
-                  dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 1 week from now
-                  points: 50
-                }
-              ],
-              quizzes: [
-                {
-                  title: "Foundation Basics Quiz",
-                  description: "Test your understanding of the foundational concepts",
-                  timeLimit: 20,
-                  questions: [
-                    {
-                      question: "What are the key principles covered in this module?",
-                      type: "text",
-                      points: 10
-                    },
-                    {
-                      question: "How do you apply these concepts in practice?",
-                      type: "text",
-                      points: 15
-                    }
-                  ]
-                }
-              ],
-              discussions: [
-                {
-                  title: "Understanding Fundamentals",
-                  description: "Discuss the importance of understanding fundamental concepts before moving to advanced topics",
-                  prompt: "Why is it crucial to master the fundamentals before advancing to more complex topics? Share your thoughts and experiences."
-                }
-              ]
-            }
-          ]
-        },
-        "gemini-pro": {
-          title: coursePrompt,
-          description: `An innovative approach to learning ${coursePrompt} with creative projects and interactive learning experiences.`,
-          modules: [
-            {
-              title: "Creative Introduction",
-              description: "Learn through creative and engaging methods",
-              chapters: [
-                {
-                  title: "Creative Learning Approach",
-                  content: `# Creative Learning Journey
-
-## Why Creative Learning?
-Traditional learning methods are effective, but creative approaches can make learning more engaging and memorable.
-
-## Our Approach
-- Interactive exercises
-- Creative projects
-- Real-world applications
-- Collaborative learning
-
-## What Makes This Different
-- Hands-on projects from day one
-- Creative problem-solving
-- Real-world applications
-- Community-driven learning`,
-                  contentType: "text",
-                  duration: 50
-                }
-              ],
-              assignments: [
-                {
-                  title: "Creative Learning Project",
-                  description: "Create a creative project that demonstrates your understanding of the concepts learned through innovative approaches.",
-                  dueDate: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 10 days from now
-                  points: 75
-                }
-              ],
-              quizzes: [
-                {
-                  title: "Creative Learning Assessment",
-                  description: "Test your understanding of creative learning approaches",
-                  timeLimit: 25,
-                  questions: [
-                    {
-                      question: "What are the benefits of creative learning approaches?",
-                      type: "text",
-                      points: 15
-                    },
-                    {
-                      question: "How can you apply creative methods to problem-solving?",
-                      type: "text",
-                      points: 20
-                    }
-                  ]
-                }
-              ],
-              discussions: [
-                {
-                  title: "Creative Learning Experiences",
-                  description: "Share your experiences with creative learning methods and their effectiveness",
-                  prompt: "What creative learning methods have you found most effective? Share your experiences and learn from others' approaches."
-                }
-              ]
-            }
-          ]
-        }
-      };
-
-      const template = courseTemplates[selectedModel as keyof typeof courseTemplates];
-      const generatedData = {
-        ...courseDetails,
-        ...template,
-        modules: template.modules
-      };
-
-      setGeneratedCourse(generatedData);
-      
-      toast({
-        title: "Course Generated Successfully",
-        description: `AI has created a complete course structure using ${AI_MODELS.find(m => m.id === selectedModel)?.name}.`,
+        body: JSON.stringify({
+          prompt: coursePrompt,
+          model: selectedModel,
+        }),
       });
+
+      const data = await response.json();
+      console.log("AI Response:", data); // Debug log
+
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to generate course");
+      } else {
+        console.log("Setting generated course:", data.course); // Debug log
+        setGeneratedCourse(data.course);
+        toast({
+          title: "Course Generated Successfully",
+          description: `AI has created a complete course structure using ${selectedModel}.`,
+        });
+      }
+
+      setActiveTab("preview");
     } catch (error) {
+      console.error("Error generating course:", error);
       toast({
         title: "Generation Failed",
         description: "Failed to generate course. Please try again.",
         variant: "destructive",
       });
+      setActiveTab("setup");
     } finally {
       setIsGenerating(false);
     }
   };
 
-  const applyGeneratedCourse = () => {
+  const handleCreateCourse = () => {
     if (generatedCourse) {
-      onCourseGenerated(generatedCourse);
-      setIsOpen(false);
-      setGeneratedCourse(null);
-      setCoursePrompt("");
+      onGenerate(generatedCourse);
+      onClose();
       toast({
-        title: "Course Applied Successfully",
-        description: "The AI-generated course has been applied. You can now edit and customize it.",
+        title: "Course Creation Started",
+        description: "Your AI-generated course is being created. You'll see it in your course list shortly.",
       });
     }
   };
 
+  const getContentStats = (course: GeneratedCourse) => {
+    const totalModules = course.modules.length;
+    const totalChapters = course.modules.reduce((sum, module) => sum + module.chapters.length, 0);
+    const totalAssignments = course.modules.reduce((sum, module) => sum + (module.assignments?.length || 0), 0);
+    const totalQuizzes = course.modules.reduce((sum, module) => sum + (module.quizzes?.length || 0), 0);
+    const totalDiscussions = course.modules.reduce((sum, module) => sum + (module.discussions?.length || 0), 0);
+
+    return { totalModules, totalChapters, totalAssignments, totalQuizzes, totalDiscussions };
+  };
+
   return (
-    <>
-      <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogTrigger asChild>
-          <Button 
-            className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white" 
-            disabled={disabled}
-          >
-            <Sparkles className="h-4 w-4 mr-2" />
-            AI Course Generator
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl h-[90vh] flex flex-col">
+        <div className="flex items-center justify-between p-6 border-b flex-shrink-0">
+          <div className="flex items-center space-x-2">
+            <Sparkles className="h-5 w-5 text-blue-600" />
+            <h2 className="text-xl font-semibold">AI Course Generator</h2>
+          </div>
+          <Button variant="ghost" size="sm" onClick={onClose}>
+            ✕
           </Button>
-        </DialogTrigger>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Sparkles className="h-5 w-5" />
-              AI Course Generator
-            </DialogTitle>
-            <DialogDescription>
-              Create a complete course with modules and chapters using AI. Choose your preferred AI model and describe your course.
-            </DialogDescription>
-          </DialogHeader>
+        </div>
 
-          <Tabs defaultValue="setup" className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="setup">Course Setup</TabsTrigger>
-              <TabsTrigger value="generate">AI Generation</TabsTrigger>
-              <TabsTrigger value="preview">Preview</TabsTrigger>
-            </TabsList>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col flex-1 min-h-0">
+          <TabsList className="grid w-full grid-cols-3 flex-shrink-0">
+            <TabsTrigger value="setup" disabled={isGenerating}>Setup</TabsTrigger>
+            <TabsTrigger value="generation" disabled={!coursePrompt.trim()}>Generation</TabsTrigger>
+            <TabsTrigger value="preview" disabled={!generatedCourse}>Preview</TabsTrigger>
+          </TabsList>
 
-            <TabsContent value="setup" className="space-y-4">
-              <div className="grid gap-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="course-title">Course Title</Label>
-                  <Input
-                    id="course-title"
-                    value={courseDetails.title}
-                    onChange={(e) => setCourseDetails({ ...courseDetails, title: e.target.value })}
-                    placeholder="Enter course title"
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="course-description">Description</Label>
-                  <Textarea
-                    id="course-description"
-                    value={courseDetails.description}
-                    onChange={(e) => setCourseDetails({ ...courseDetails, description: e.target.value })}
-                    placeholder="Describe your course..."
-                    rows={3}
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="category">Category</Label>
-                    <Select
-                      value={courseDetails.category}
-                      onValueChange={(value) => setCourseDetails({ ...courseDetails, category: value })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select category" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Programming">Programming</SelectItem>
-                        <SelectItem value="Web Development">Web Development</SelectItem>
-                        <SelectItem value="Data Science">Data Science</SelectItem>
-                        <SelectItem value="Mobile Development">Mobile Development</SelectItem>
-                        <SelectItem value="Databases">Databases</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="difficulty">Difficulty</Label>
-                    <Select
-                      value={courseDetails.difficulty}
-                      onValueChange={(value) => setCourseDetails({ ...courseDetails, difficulty: value })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select difficulty" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="beginner">Beginner</SelectItem>
-                        <SelectItem value="intermediate">Intermediate</SelectItem>
-                        <SelectItem value="advanced">Advanced</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              </div>
-            </TabsContent>
-
-            <TabsContent value="generate" className="space-y-4">
-              <div className="grid gap-4">
-                <div className="grid gap-2">
-                  <Label>Select AI Model</Label>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    {AI_MODELS.map((model) => (
-                      <Card
-                        key={model.id}
-                        className={`cursor-pointer transition-all ${
-                          selectedModel === model.id
-                            ? "ring-2 ring-blue-500 bg-blue-50"
-                            : "hover:shadow-md"
-                        }`}
-                        onClick={() => setSelectedModel(model.id)}
-                      >
-                        <CardContent className="p-4">
-                          <div className="flex items-center gap-3">
-                            <div className="text-blue-600">{model.icon}</div>
-                            <div>
-                              <h4 className="font-semibold">{model.name}</h4>
-                              <p className="text-sm text-slate-600">{model.description}</p>
-                            </div>
+          <div className="flex-1 min-h-0 overflow-hidden">
+            <TabsContent value="setup" className="h-full overflow-y-auto p-6">
+              <div className="space-y-6">
+                <div>
+                  <Label htmlFor="prompt-template">Quick Start Templates</Label>
+                  <Select value={selectedPromptTemplate} onValueChange={handlePromptTemplateChange}>
+                    <SelectTrigger className="mt-2">
+                      <SelectValue placeholder="Choose a pre-built template..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {promptTemplates.map((template) => (
+                        <SelectItem key={template.id} value={template.id}>
+                          <div className="flex flex-col">
+                            <span className="font-medium">{template.name}</span>
+                            <span className="text-sm text-gray-500">{template.description}</span>
                           </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="grid gap-2">
-                  <Label htmlFor="course-prompt">Course Description Prompt</Label>
-                  <Textarea
-                    id="course-prompt"
-                    value={coursePrompt}
-                    onChange={(e) => setCoursePrompt(e.target.value)}
-                    placeholder="Describe the course you want to create. Be specific about topics, learning objectives, and target audience..."
-                    rows={4}
-                  />
-                  <p className="text-sm text-slate-500">
-                    Example: "Create a comprehensive JavaScript course for beginners covering ES6, DOM manipulation, and modern web development practices"
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-sm text-gray-500 mt-2">
+                    💡 <strong>Tip:</strong> Choose a template for quick start, or write your own prompt for unique AI-generated content. All courses are generated by AI.
                   </p>
                 </div>
 
-                <Button
+                <div>
+                  <Label htmlFor="prompt">Course Prompt</Label>
+                  <Textarea
+                    id="prompt"
+                    placeholder="Describe the course you want to create (e.g., 'JavaScript for beginners with ES6, DOM manipulation, and modern web development')"
+                    value={coursePrompt}
+                    onChange={(e) => setCoursePrompt(e.target.value)}
+                    className="mt-2"
+                    rows={4}
+                  />
+                  <p className="text-sm text-gray-500 mt-2">
+                    💡 <strong>Custom:</strong> Write your own prompt for unique, AI-generated content tailored to your specific needs. All content is generated by AI.
+                  </p>
+                </div>
+
+                <div>
+                  <Label htmlFor="model">AI Model</Label>
+                  <Select value={selectedModel} onValueChange={setSelectedModel}>
+                    <SelectTrigger className="mt-2">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableModels.map((model) => (
+                        <SelectItem key={model} value={model}>
+                          <div className="flex flex-col">
+                            <span className="font-medium">{model}</span>
+                            <span className="text-sm text-gray-500">
+                              {model.includes("llama3.2") ? "Fast and reliable" : "Best for programming"}
+                            </span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-sm text-gray-500 mt-2">
+                    💡 <strong>Free AI:</strong> Using Ollama for local AI generation. 
+                    <a href="https://ollama.ai" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline ml-1">
+                      Install Ollama
+                    </a>
+                  </p>
+                </div>
+
+                <Button 
                   onClick={generateCompleteCourse}
-                  disabled={isGenerating || !coursePrompt.trim()}
+                  disabled={!coursePrompt.trim() || isGenerating}
                   className="w-full"
                 >
                   {isGenerating ? (
                     <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       Generating Course...
                     </>
                   ) : (
                     <>
-                      <Sparkles className="h-4 w-4 mr-2" />
+                      <Sparkles className="mr-2 h-4 w-4" />
                       Generate Complete Course
                     </>
                   )}
@@ -697,72 +301,171 @@ Traditional learning methods are effective, but creative approaches can make lea
               </div>
             </TabsContent>
 
-            <TabsContent value="preview" className="space-y-4">
+            <TabsContent value="generation" className="h-full flex items-center justify-center p-6">
+              <div className="flex flex-col items-center justify-center py-12">
+                <Loader2 className="h-12 w-12 animate-spin text-blue-600 mb-4" />
+                <h3 className="text-lg font-semibold mb-2">Generating Your Course</h3>
+                <p className="text-gray-600 text-center max-w-md">
+                  AI is creating a comprehensive course structure with modules, chapters, assignments, quizzes, and discussions...
+                </p>
+                <div className="mt-4 flex items-center space-x-2 text-sm text-gray-500">
+                  <Sparkles className="h-4 w-4" />
+                  <span>Using {selectedModel} for AI generation</span>
+                </div>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="preview" className="h-full p-6 overflow-y-auto">
+              
+              {/* Debug information */}
+              <div className="mb-4 p-4 bg-yellow-100 border border-yellow-300 rounded">
+                <p className="text-sm font-medium">Debug Info:</p>
+                <p className="text-xs">activeTab: {activeTab}</p>
+                <p className="text-xs">generatedCourse exists: {generatedCourse ? 'Yes' : 'No'}</p>
+                <p className="text-xs">generatedCourse title: {generatedCourse?.title || 'N/A'}</p>
+                <p className="text-xs">modules count: {generatedCourse?.modules?.length || 0}</p>
+                <p className="text-xs">Raw generatedCourse: {JSON.stringify(generatedCourse, null, 2).substring(0, 500)}...</p>
+              </div>
+              
               {generatedCourse ? (
-                <div className="space-y-4">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <BookMarked className="h-5 w-5" />
-                        Generated Course: {generatedCourse.title}
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-slate-600 mb-4">{generatedCourse.description}</p>
-                      <div className="flex gap-2 mb-4">
-                        <Badge variant="outline">{generatedCourse.category}</Badge>
-                        <Badge variant="outline">{generatedCourse.difficulty}</Badge>
-                        <Badge variant="outline">{generatedCourse.modules.length} Modules</Badge>
-                      </div>
-                      
-                      <div className="space-y-3">
-                        <h4 className="font-semibold">Course Structure:</h4>
-                        {generatedCourse.modules.map((module: any, moduleIndex: number) => (
-                          <div key={moduleIndex} className="border rounded-lg p-3 bg-slate-50">
-                            <h5 className="font-medium text-slate-800 mb-2">
-                              Module {moduleIndex + 1}: {module.title}
-                            </h5>
-                            <p className="text-sm text-slate-600 mb-2">{module.description}</p>
-                            <div className="space-y-1">
-                              {module.chapters.map((chapter: any, chapterIndex: number) => (
-                                <div key={chapterIndex} className="flex items-center gap-2 text-sm">
-                                  <Clock className="h-3 w-3 text-slate-400" />
-                                  <span>Chapter {chapterIndex + 1}: {chapter.title}</span>
-                                  <Badge variant="secondary" className="text-xs">
-                                    {chapter.duration} min
-                                  </Badge>
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-lg font-semibold">{generatedCourse.title}</h3>
+                      <p className="text-gray-600">{generatedCourse.description}</p>
+                    </div>
+                    <div className="flex space-x-2">
+                      <Badge variant="secondary">{generatedCourse.category}</Badge>
+                      <Badge variant="outline">{generatedCourse.difficulty}</Badge>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                    {Object.entries(getContentStats(generatedCourse)).map(([key, value]) => (
+                      <Card key={key} className="text-center">
+                        <CardContent className="p-4">
+                          <div className="text-2xl font-bold text-blue-600">{value}</div>
+                          <div className="text-sm text-gray-600 capitalize">
+                            {key.replace(/([A-Z])/g, ' $1').trim()}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+
+                  <div className="space-y-4">
+                    <h4 className="font-semibold">Course Structure</h4>
+                    {generatedCourse.modules.map((module, moduleIndex) => (
+                      <Card key={moduleIndex}>
+                        <CardHeader>
+                          <CardTitle className="flex items-center space-x-2">
+                            <BookOpen className="h-4 w-4" />
+                            <span>{module.title}</span>
+                          </CardTitle>
+                          <CardDescription>{module.description}</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <h5 className="font-medium mb-2">Chapters ({module.chapters.length})</h5>
+                              <ul className="space-y-1 text-sm">
+                                {module.chapters.map((chapter, chapterIndex) => (
+                                  <li key={chapterIndex} className="flex items-center space-x-2">
+                                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                                    <span>{chapter.title}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                            
+                            <div className="space-y-3">
+                              {module.assignments && module.assignments.length > 0 && (
+                                <div>
+                                  <h5 className="font-medium mb-2 flex items-center space-x-1">
+                                    <FileText className="h-4 w-4" />
+                                    <span>Assignments ({module.assignments.length})</span>
+                                  </h5>
+                                  <ul className="space-y-1 text-sm">
+                                    {module.assignments.map((assignment, assignmentIndex) => (
+                                      <li key={assignmentIndex} className="flex items-center justify-between">
+                                        <span>{assignment.title}</span>
+                                        <Badge variant="outline">{assignment.points} pts</Badge>
+                                      </li>
+                                    ))}
+                                  </ul>
                                 </div>
-                              ))}
+                              )}
+
+                              {module.quizzes && module.quizzes.length > 0 && (
+                                <div>
+                                  <h5 className="font-medium mb-2 flex items-center space-x-1">
+                                    <Calendar className="h-4 w-4" />
+                                    <span>Quizzes ({module.quizzes.length})</span>
+                                  </h5>
+                                  <ul className="space-y-1 text-sm">
+                                    {module.quizzes.map((quiz, quizIndex) => (
+                                      <li key={quizIndex} className="flex items-center justify-between">
+                                        <span>{quiz.title}</span>
+                                        <Badge variant="outline">
+                                          {quiz.timeLimit ? `${quiz.timeLimit}m` : 'Quiz'}
+                                        </Badge>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+
+                              {module.discussions && module.discussions.length > 0 && (
+                                <div>
+                                  <h5 className="font-medium mb-2 flex items-center space-x-1">
+                                    <MessageSquare className="h-4 w-4" />
+                                    <span>Discussions ({module.discussions.length})</span>
+                                  </h5>
+                                  <ul className="space-y-1 text-sm">
+                                    {module.discussions.map((discussion, discussionIndex) => (
+                                      <li key={discussionIndex}>{discussion.title}</li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
                             </div>
                           </div>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  <DialogFooter>
-                    <Button variant="outline" onClick={() => setGeneratedCourse(null)}>
-                      Regenerate
-                    </Button>
-                    <Button onClick={applyGeneratedCourse}>
-                      <Check className="h-4 w-4 mr-2" />
-                      Apply Course
-                    </Button>
-                  </DialogFooter>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
                 </div>
               ) : (
-                <div className="text-center py-8">
-                  <Sparkles className="h-12 w-12 text-slate-300 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-slate-600 mb-2">No Course Generated Yet</h3>
-                  <p className="text-slate-500">
-                    Go to the "AI Generation" tab to create your course with AI.
-                  </p>
+                <div className="flex flex-col items-center justify-center py-12">
+                  <div className="text-center">
+                    <h3 className="text-lg font-semibold mb-2">No Course Generated</h3>
+                    <p className="text-gray-600 mb-4">
+                      No course content is available. Please generate a course first.
+                    </p>
+                    <Button onClick={() => setActiveTab("setup")}>
+                      Go to Setup
+                    </Button>
+                  </div>
                 </div>
               )}
             </TabsContent>
-          </Tabs>
-        </DialogContent>
-      </Dialog>
-    </>
+          </div>
+        </Tabs>
+        
+        {/* Footer buttons for preview tab */}
+        {activeTab === "preview" && (
+          <div className="flex-shrink-0 p-6 border-t bg-gray-50">
+            <div className="flex space-x-3">
+              <Button onClick={handleCreateCourse} className="flex-1" disabled={!generatedCourse}>
+                Create Course
+              </Button>
+              <Button variant="outline" onClick={() => setActiveTab("setup")}>
+                Generate Again
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
   );
 } 

@@ -86,8 +86,11 @@ export default function Discussions() {
 
   const createDiscussionMutation = useMutation({
     mutationFn: async (discussionData: any) => {
+      console.log('Creating discussion with data:', discussionData);
       const response = await apiRequest("POST", `/api/courses/${discussionData.courseId}/discussions`, discussionData);
-      return response.json();
+      const result = await response.json();
+      console.log('Discussion creation result:', result);
+      return result;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/courses", selectedCourse, "discussions"] });
@@ -96,6 +99,14 @@ export default function Discussions() {
       toast({
         title: "Discussion Created",
         description: "Your discussion has been created successfully.",
+      });
+    },
+    onError: (error: any) => {
+      console.error('Discussion creation error:', error);
+      toast({
+        title: "Error",
+        description: error?.message || "Failed to create discussion",
+        variant: "destructive",
       });
     },
   });
@@ -184,8 +195,11 @@ export default function Discussions() {
                     <div className="grid gap-2">
                       <Label htmlFor="course">Course</Label>
                       <Select
-                        value={newDiscussion.courseId.toString()}
-                        onValueChange={(value) => setNewDiscussion({ ...newDiscussion, courseId: parseInt(value) })}
+                        value={selectedCourse || ""}
+                        onValueChange={(value) => {
+                          setSelectedCourse(value);
+                          setNewDiscussion({ ...newDiscussion, courseId: parseInt(value) });
+                        }}
                       >
                         <SelectTrigger>
                           <SelectValue placeholder="Select a course" />
