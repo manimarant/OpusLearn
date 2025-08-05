@@ -323,7 +323,9 @@ export default function CourseBuilder() {
             try {
               const discussionResponse = await apiRequest("POST", `/api/courses/${createdCourse.id}/discussions`, {
                 title: discussionData.title,
-                content: discussionData.prompt // Map prompt to content
+                content: discussionData.prompt || "Share your thoughts and experiences with this module.", // Map prompt to content
+                pinned: false,
+                locked: false
               });
               const createdDiscussion = await discussionResponse.json();
               console.log("Discussion created successfully:", createdDiscussion);
@@ -337,7 +339,9 @@ export default function CourseBuilder() {
           try {
             const discussionResponse = await apiRequest("POST", `/api/courses/${createdCourse.id}/discussions`, {
               title: "Module Discussion",
-              content: "Share your thoughts and experiences with this module. What did you learn and what challenges did you face?"
+              content: "Share your thoughts and experiences with this module. What did you learn and what challenges did you face?",
+              pinned: false,
+              locked: false
             });
             const createdDiscussion = await discussionResponse.json();
             console.log("Default discussion created successfully:", createdDiscussion);
@@ -460,12 +464,12 @@ export default function CourseBuilder() {
       // Invalidate queries to refresh data
       queryClient.invalidateQueries({ queryKey: ["/api/courses"] });
       
-      // Navigate to the new course
-      setLocation(`/course-builder/${createdCourse.id}`);
+      // Navigate back to course list to show the newly created course
+      setLocation("/course-builder");
       
       toast({
         title: "Course Generated Successfully",
-        description: "Your AI-generated course has been created with all modules, chapters, assignments, quizzes, and discussions.",
+        description: "Your AI-generated course has been created with all modules, chapters, assignments, quizzes, and discussions. You can now see it in your course list.",
       });
       
     } catch (error) {
@@ -517,8 +521,7 @@ export default function CourseBuilder() {
                   courses.map((course: Course) => (
                 <Card 
                   key={course.id} 
-                  className="cursor-pointer hover:shadow-lg transition-shadow"
-                  onClick={() => setLocation(`/course-builder/${course.id}`)}
+                  className="hover:shadow-lg transition-shadow"
                 >
                   <CardContent className="p-6">
                     <div className="flex items-start justify-between mb-4">
@@ -528,9 +531,19 @@ export default function CourseBuilder() {
                       </div>
                       <Badge variant="outline">{course.status}</Badge>
                     </div>
-                    <div className="flex items-center justify-between text-sm text-slate-500">
-                      <span>{course.category}</span>
-                      <span>{course.difficulty}</span>
+                    <div className="flex items-center justify-between">
+                      <div className="text-sm text-slate-500">
+                        <span>{course.category}</span>
+                        <span className="mx-2">•</span>
+                        <span>{course.difficulty}</span>
+                      </div>
+                      <Button
+                        onClick={() => setLocation(`/course-builder/${course.id}`)}
+                        size="sm"
+                        variant="outline"
+                      >
+                        View Course
+                      </Button>
                     </div>
                   </CardContent>
                 </Card>
@@ -632,9 +645,18 @@ export default function CourseBuilder() {
               {course ? (
                 <div className="space-y-6">
                   <div className="flex items-center justify-between">
-                    <div>
-                      <h1 className="text-2xl font-bold text-gray-900">{course.title}</h1>
-                      <p className="text-gray-600">{course.description}</p>
+                    <div className="flex items-center space-x-4">
+                      <Button
+                        onClick={() => setLocation("/course-builder")}
+                        variant="outline"
+                        size="sm"
+                      >
+                        ← Back to Courses
+                      </Button>
+                      <div>
+                        <h1 className="text-2xl font-bold text-gray-900">{course.title}</h1>
+                        <p className="text-gray-600">{course.description}</p>
+                      </div>
                     </div>
                     <div className="flex space-x-3">
                       <Button

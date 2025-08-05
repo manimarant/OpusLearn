@@ -172,7 +172,9 @@ export default function Courses() {
           for (const discussionData of moduleData.discussions) {
             await apiRequest("POST", `/api/courses/${createdCourse.id}/discussions`, {
               title: discussionData.title,
-              content: discussionData.prompt
+              content: discussionData.prompt || "Share your thoughts and experiences with this module.",
+              pinned: false,
+              locked: false
             });
           }
         }

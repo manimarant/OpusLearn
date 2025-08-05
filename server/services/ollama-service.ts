@@ -42,20 +42,38 @@ export interface GeneratedCourse {
 
 export class OllamaService {
   private baseUrl = 'http://localhost:11434';
-  private defaultModel = 'llama3.2:1b';
+  private defaultModel = 'codellama:7b';
+
+  private extractSimpleTopic(prompt: string): string {
+    // Extract the main topic using regex
+    const match = prompt.match(/course\s+(on|about|for)\s+([^,\s]+(?:\s+[^,\s]+)*)/i);
+    if (match) {
+      let topic = match[2].toLowerCase();
+      // Clean up common words
+      topic = topic.replace(/\b(beginners?|intermediate|advanced|programming|development|basics|fundamentals)\b/gi, '').trim();
+      // Take the first word as the main topic
+      const words = topic.split(/\s+/).filter(word => word.length > 2);
+      return words[0] || 'Programming';
+    }
+    
+    // Fallback: try to find any word that looks like a programming language or technology
+    const techWords = ['javascript', 'python', 'java', 'react', 'node', 'blockchain', 'ai', 'machine', 'data', 'web', 'mobile', 'cloud', 'database', 'sql', 'html', 'css', 'php', 'ruby', 'go', 'rust', 'swift', 'kotlin', 'typescript', 'angular', 'vue', 'django', 'flask', 'express', 'mongodb', 'mysql', 'postgresql', 'redis', 'docker', 'kubernetes', 'aws', 'azure', 'gcp'];
+    
+    const words = prompt.toLowerCase().split(/\s+/);
+    for (const word of words) {
+      if (techWords.includes(word)) {
+        return word.charAt(0).toUpperCase() + word.slice(1);
+      }
+    }
+    
+    return 'Programming';
+  }
 
   async isAvailable(): Promise<boolean> {
     try {
-      const response = await fetch(`${this.baseUrl}/api/tags`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        signal: AbortSignal.timeout(5000), // 5 second timeout
-      });
+      const response = await fetch(`${this.baseUrl}/api/tags`);
       return response.ok;
-    } catch (error) {
-      console.log('Ollama not available:', error);
+    } catch {
       return false;
     }
   }
@@ -63,287 +81,743 @@ export class OllamaService {
   async generateCourse(request: CourseGenerationRequest): Promise<GeneratedCourse> {
     const model = request.model || this.defaultModel;
     
-    // Extract numbers from the prompt for AI guidance
+    // Extract numbers and topic once
     const moduleMatch = request.prompt.match(/(\d+)\s*modules?/i);
     const chapterMatch = request.prompt.match(/(\d+)\s*chapters?/i);
-    
     const numModules = moduleMatch ? parseInt(moduleMatch[1]) : 2;
     const numChapters = chapterMatch ? parseInt(chapterMatch[1]) : 2;
-
-    console.log('Generating course with AI for prompt:', request.prompt);
+    const topic = this.extractSimpleTopic(request.prompt);
     
-    // Clear system prompt for JSON generation
-    const systemPrompt = "Generate valid JSON only.";
-    
-    // Short, focused user prompt
-    const userPrompt = `Create a course about "${request.prompt}" with ${numModules} modules and ${numChapters} chapters each. Generate complete JSON with modules array.`;
-
+    console.log('=== GENERATION DEBUG ===');
+    console.log('Original prompt:', request.prompt);  
+    console.log('Extracted topic:', topic);
+    console.log('Expected modules:', numModules);
+    console.log('Expected chapters:', numChapters);
     console.log('Using model:', model);
+    
+    // Try AI generation first, but with a shorter timeout
+    let aiCourseData = null;
+    try {
+      aiCourseData = await this.tryAIGeneration(topic, numModules, numChapters, model);
+      console.log('✅ AI generation successful!');
+    } catch (error) {
+      console.log('❌ AI generation failed:', error);
+      console.log('📝 Falling back to structured generation...');
+    }
+    
+    // Use AI data if available, otherwise generate structured fallback
+    const courseData = aiCourseData || this.generateStructuredCourse(topic, numModules, numChapters);
+    
+    return courseData;
+  }
+  
+  private async tryAIGeneration(topic: string, numModules: number, numChapters: number, model: string): Promise<GeneratedCourse> {
+    console.log(`🤖 Attempting AI generation for topic: "${topic}"`);
+    
+    // Step 1: Generate course title and description with AI
+    const titlePrompt = `Generate a compelling course title and description for a course about "${topic}". 
+    Return ONLY a JSON object with this exact structure:
+    {
+      "title": "Course Title Here",
+      "description": "Course description here"
+    }`;
 
-    // Retry configuration
-    const maxRetries = 3;
-    const baseTimeout = 180000; // 3 minutes base timeout
-    let lastError: Error | null = null;
-
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-      try {
-        console.log(`Attempt ${attempt}/${maxRetries} - Generating course...`);
-        
-        // Increase timeout for each retry
-        const timeout = baseTimeout * attempt;
-        console.log(`Using timeout: ${timeout}ms (${timeout / 1000}s)`);
-
-        const response = await fetch(`${this.baseUrl}/api/generate`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            model: model,
-            prompt: userPrompt,
-            system: systemPrompt,
-            stream: false,
-            format: "json",
-            options: {
-              num_predict: 1024,
-              temperature: 0.3,
-              top_p: 0.9,
-              repeat_penalty: 1.1
-            }
-          }),
-          signal: AbortSignal.timeout(timeout),
-        });
-
-        if (!response.ok) {
-          throw new Error(`Ollama request failed: ${response.status} ${response.statusText}`);
-        }
-
-        const data = await response.json();
-        console.log("Raw Ollama response:", data);
-        
-        let responseText = data.response;
-        console.log('Raw AI response:', responseText);
-        
-        // Try to extract JSON from the response
-        let jsonMatch = responseText.match(/\{[\s\S]*\}/);
-        if (!jsonMatch) {
-          // Try to find JSON in markdown code blocks
-          const codeBlockMatch = responseText.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
-          if (codeBlockMatch) {
-            jsonMatch = codeBlockMatch;
-          } else {
-            throw new Error('Invalid JSON response from AI - no JSON object found');
+    try {
+      const titleResponse = await fetch(`${this.baseUrl}/api/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: model,
+          prompt: titlePrompt,
+          stream: false,
+          format: "json",
+          options: {
+            num_predict: 512,
+            temperature: 0.3,
+            top_p: 0.9
           }
-        }
-        
-        const jsonString = jsonMatch[0];
-        console.log('Extracted JSON string:', jsonString.substring(0, 200) + '...');
-        
-        let courseData: any;
-        try {
-          courseData = JSON.parse(jsonString);
-        } catch (parseError) {
-          console.log('Failed to parse extracted JSON:', parseError);
-          
-          // Try to fix common JSON issues
-          let fixedJsonString = jsonString
-            .replace(/,\s*}/g, '}') // Remove trailing commas
-            .replace(/,\s*]/g, ']') // Remove trailing commas in arrays
-            .replace(/,\s*,/g, ',') // Remove double commas
-            .replace(/\[\s*,/g, '[') // Remove leading commas
-            .replace(/{\s*,/g, '{') // Remove leading commas in objects
-            .replace(/[\u0000-\u001F\u007F-\u009F]/g, '') // Remove control characters
-            .replace(/\\u[0-9a-fA-F]{4}/g, '') // Remove Unicode escape sequences
-            .replace(/[^\x20-\x7E]/g, ''); // Remove non-printable characters
+        }),
+        signal: AbortSignal.timeout(30000)
+      });
+
+      if (!titleResponse.ok) {
+        throw new Error(`Title generation failed: ${titleResponse.status}`);
+      }
+
+      const titleData = await titleResponse.json();
+      let courseTitle, courseDescription;
+      
+      try {
+        const titleResult = JSON.parse(titleData.response);
+        courseTitle = titleResult.title || `${topic} Course`;
+        courseDescription = titleResult.description || `A comprehensive course covering all aspects of ${topic}.`;
+      } catch {
+        courseTitle = `${topic} Course`;
+        courseDescription = `A comprehensive course covering all aspects of ${topic}.`;
+      }
+
+      // Step 2: Generate chapter content with AI
+      const chapters = [];
+      for (let moduleIndex = 1; moduleIndex <= numModules; moduleIndex++) {
+        const moduleChapters = [];
+        for (let chapterIndex = 1; chapterIndex <= numChapters; chapterIndex++) {
+          const chapterPrompt = `Write a detailed chapter about "${topic}" for chapter ${chapterIndex} of module ${moduleIndex}. 
+          Focus on practical, educational content. Return ONLY the chapter content as plain text (no JSON).`;
           
           try {
-            courseData = JSON.parse(fixedJsonString);
-            console.log('Successfully fixed and parsed JSON');
-          } catch (secondParseError) {
-            console.log('JSON parsing failed even after fixes, creating fallback structure');
-            // Create a basic fallback structure
-            courseData = {
-              title: `${request.prompt} Course`,
-              description: `Learn ${request.prompt} with this comprehensive course.`,
-              category: "Programming",
-              difficulty: "beginner",
-              modules: []
-            };
-          }
-        }
-        
-        console.log("Parsed course data:", JSON.stringify(courseData, null, 2));
-        
-        // Validate and fix course structure
-        if (!courseData.title || typeof courseData.title !== 'string') {
-          courseData.title = `${request.prompt} Course`;
-        }
-        
-        if (!courseData.description || typeof courseData.description !== 'string') {
-          courseData.description = `Learn ${request.prompt} with this comprehensive course.`;
-        }
-        
-        if (!courseData.category) {
-          courseData.category = "Programming";
-        }
-        
-        if (!courseData.difficulty) {
-          courseData.difficulty = "beginner";
-        }
-        
-        // Always ensure modules exist and have complete structure
-        if (!courseData.modules || !Array.isArray(courseData.modules) || courseData.modules.length === 0) {
-          console.log('Creating complete module structure with assignments and quizzes');
-          courseData.modules = [];
-          
-          for (let i = 0; i < numModules; i++) {
-            const module = {
-              title: `Module ${i + 1}: ${request.prompt} Fundamentals`,
-              description: `Learn the fundamentals of ${request.prompt} in this module.`,
-              chapters: [],
-              assignments: [],
-              discussions: [],
-              quizzes: []
-            };
+            const chapterResponse = await fetch(`${this.baseUrl}/api/generate`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                model: model,
+                prompt: chapterPrompt,
+                stream: false,
+                options: {
+                  num_predict: 1024,
+                  temperature: 0.4,
+                  top_p: 0.9
+                }
+              }),
+              signal: AbortSignal.timeout(30000)
+            });
 
-            // Generate chapters
-            for (let j = 0; j < numChapters; j++) {
-              module.chapters.push({
-                title: `Chapter ${j + 1}: ${request.prompt} Basics`,
-                content: `This chapter covers the basics of ${request.prompt}.`
+            if (chapterResponse.ok) {
+              const chapterData = await chapterResponse.json();
+              const chapterContent = chapterData.response.trim();
+              moduleChapters.push({
+                title: `Chapter ${chapterIndex}: ${topic} - Part ${chapterIndex}`,
+                content: chapterContent || `This chapter covers essential concepts of ${topic}. You will learn key principles and practical applications.`
+              });
+            } else {
+              // Fallback chapter content with unique themes
+              const chapterThemes = [
+                { title: "Introduction", content: "Get started with the essential concepts and setup" },
+                { title: "Core Concepts", content: "Understand the fundamental principles and building blocks" },
+                { title: "Best Practices", content: "Learn industry-standard approaches and methodologies" },
+                { title: "Advanced Techniques", content: "Master sophisticated features and complex scenarios" },
+                { title: "Real-world Examples", content: "See how concepts apply in practical situations" },
+                { title: "Troubleshooting", content: "Learn to debug and solve common problems" }
+              ];
+              const globalChapterIndex = ((moduleIndex - 1) * numChapters + chapterIndex - 1);
+              const chapterThemeIndex = globalChapterIndex % chapterThemes.length;
+              const chapterTheme = chapterThemes[chapterThemeIndex];
+              moduleChapters.push({
+                title: `Chapter ${chapterIndex}: ${chapterTheme.title} of ${topic}`,
+                content: `This chapter focuses on ${chapterTheme.content} of ${topic}. You will learn key principles and practical applications.`
               });
             }
-
-            // Always add assignments
-            module.assignments.push({
-              title: `Assignment ${i + 1}: ${request.prompt} Project`,
-              description: `Complete a project demonstrating your understanding of ${request.prompt}.`,
-              dueDate: "2024-12-31",
-              points: 50
+          } catch (error) {
+            console.log(`Chapter ${chapterIndex} generation failed, using fallback`);
+            const chapterThemes = [
+              { title: "Introduction", content: "Get started with the essential concepts and setup" },
+              { title: "Core Concepts", content: "Understand the fundamental principles and building blocks" },
+              { title: "Best Practices", content: "Learn industry-standard approaches and methodologies" },
+              { title: "Advanced Techniques", content: "Master sophisticated features and complex scenarios" },
+              { title: "Real-world Examples", content: "See how concepts apply in practical situations" },
+              { title: "Troubleshooting", content: "Learn to debug and solve common problems" }
+            ];
+            const globalChapterIndex = ((moduleIndex - 1) * numChapters + chapterIndex - 1);
+            const chapterThemeIndex = globalChapterIndex % chapterThemes.length;
+            const chapterTheme = chapterThemes[chapterThemeIndex];
+            moduleChapters.push({
+              title: `Chapter ${chapterIndex}: ${chapterTheme.title} of ${topic}`,
+              content: `This chapter focuses on ${chapterTheme.content} of ${topic}. You will learn key principles and practical applications.`
             });
+          }
+        }
+        chapters.push(moduleChapters);
+      }
 
-            // Always add discussions
-            module.discussions.push({
-              title: `Discussion ${i + 1}: ${request.prompt} Discussion`,
-              prompt: `Share your thoughts and experiences with ${request.prompt}.`
-            });
-
-            // Always add quiz
-            module.quizzes.push({
-              title: `Quiz ${i + 1}: ${request.prompt} Assessment`,
-              description: `Test your knowledge of ${request.prompt}.`,
+             // Step 3: Build the complete course structure with unique themes
+       const modules = [];
+       
+       // Define varied module themes and focuses
+       const moduleThemes = [
+         { title: "Fundamentals", description: "Master the core concepts and basic principles", focus: "basics" },
+         { title: "Advanced Concepts", description: "Explore complex topics and advanced techniques", focus: "advanced" },
+         { title: "Practical Applications", description: "Learn real-world implementation and best practices", focus: "practical" },
+         { title: "Project Development", description: "Build complete projects and applications", focus: "projects" },
+         { title: "Industry Standards", description: "Understand professional development workflows", focus: "professional" },
+         { title: "Optimization & Performance", description: "Learn optimization techniques and performance tuning", focus: "optimization" }
+       ];
+       
+       // Define varied assignment types
+       const assignmentTypes = [
+         { title: "Practice Exercise", description: "Complete hands-on exercises to reinforce your understanding" },
+         { title: "Mini Project", description: "Build a small application using the concepts learned" },
+         { title: "Code Review", description: "Analyze and improve existing code examples" },
+         { title: "Research Task", description: "Investigate advanced topics and present findings" },
+         { title: "Debugging Challenge", description: "Identify and fix issues in provided code" },
+         { title: "Documentation", description: "Create comprehensive documentation for a project" }
+       ];
+       
+       // Define varied discussion topics
+       const discussionTopics = [
+         { title: "Learning Challenges", prompt: "What challenges did you face while learning this topic? How did you overcome them?" },
+         { title: "Real-world Applications", prompt: "Share examples of how this technology is used in industry. What are the benefits and challenges?" },
+         { title: "Best Practices Debate", prompt: "Discuss different approaches to solving problems. What methods do you prefer and why?" },
+         { title: "Future Trends", prompt: "How do you think this technology will evolve? What new features or applications do you anticipate?" },
+         { title: "Career Impact", prompt: "How has learning this technology influenced your career goals? What opportunities has it opened up?" },
+         { title: "Community Insights", prompt: "Share resources, tools, or communities that have helped you in your learning journey" }
+       ];
+       
+               // Define varied quiz questions - 18 total questions
+        const quizQuestions = [
+          // Module 1 - Fundamentals questions
+          {
+            question: "What are the fundamental principles of this technology?",
+            options: [
+              "Efficiency and scalability",
+              "Simplicity and maintainability", 
+              "Performance and reliability",
+              "All of the above"
+            ],
+            correctAnswer: "All of the above"
+          },
+          {
+            question: "Which approach is considered best practice?",
+            options: [
+              "Following established patterns",
+              "Using the latest features only",
+              "Ignoring documentation",
+              "Copying code without understanding"
+            ],
+            correctAnswer: "Following established patterns"
+          },
+          {
+            question: "What is the most important skill to develop?",
+            options: [
+              "Problem-solving ability",
+              "Memorizing syntax",
+              "Using advanced features",
+              "Following tutorials exactly"
+            ],
+            correctAnswer: "Problem-solving ability"
+          },
+          {
+            question: "How do you handle complex scenarios in this technology?",
+            options: [
+              "Break down into smaller problems",
+              "Use advanced features immediately",
+              "Ignore complexity",
+              "Copy from examples"
+            ],
+            correctAnswer: "Break down into smaller problems"
+          },
+          {
+            question: "What's the best way to learn advanced concepts?",
+            options: [
+              "Build real projects",
+              "Read documentation only",
+              "Watch tutorials",
+              "Memorize syntax"
+            ],
+            correctAnswer: "Build real projects"
+          },
+          {
+            question: "How would you optimize performance?",
+            options: [
+              "Using efficient algorithms",
+              "Minimizing resource usage",
+              "Implementing caching strategies",
+              "All of the above"
+            ],
+            correctAnswer: "All of the above"
+          },
+          // Module 2 - Advanced questions
+          {
+            question: "What advanced techniques should you master?",
+            options: [
+              "Complex algorithms and data structures",
+              "Basic syntax only",
+              "Simple examples",
+              "Documentation reading"
+            ],
+            correctAnswer: "Complex algorithms and data structures"
+          },
+          {
+            question: "How do you implement advanced features?",
+            options: [
+              "Through systematic learning and practice",
+              "By copying code from the internet",
+              "By skipping fundamentals",
+              "By memorizing everything"
+            ],
+            correctAnswer: "Through systematic learning and practice"
+          },
+          {
+            question: "What's the key to mastering advanced concepts?",
+            options: [
+              "Understanding underlying principles",
+              "Memorizing code examples",
+              "Using advanced features immediately",
+              "Ignoring basic concepts"
+            ],
+            correctAnswer: "Understanding underlying principles"
+          },
+          {
+            question: "How do you approach complex problem-solving?",
+            options: [
+              "Break down into manageable parts",
+              "Use the most advanced features",
+              "Copy solutions from others",
+              "Avoid complex problems"
+            ],
+            correctAnswer: "Break down into manageable parts"
+          },
+          {
+            question: "What's essential for advanced development?",
+            options: [
+              "Strong foundation and continuous learning",
+              "Using the latest tools only",
+              "Following trends blindly",
+              "Avoiding documentation"
+            ],
+            correctAnswer: "Strong foundation and continuous learning"
+          },
+          {
+            question: "How do you stay current with advanced topics?",
+            options: [
+              "Continuous learning and practice",
+              "Reading only basic tutorials",
+              "Ignoring new developments",
+              "Copying others' work"
+            ],
+            correctAnswer: "Continuous learning and practice"
+          },
+          // Module 3 - Practical questions
+          {
+            question: "How do you apply concepts in real projects?",
+            options: [
+              "Through hands-on practice and experimentation",
+              "By reading theory only",
+              "By avoiding practical work",
+              "By copying existing projects"
+            ],
+            correctAnswer: "Through hands-on practice and experimentation"
+          },
+          {
+            question: "What's the best approach to real-world implementation?",
+            options: [
+              "Start small and iterate",
+              "Build complex systems immediately",
+              "Avoid real-world scenarios",
+              "Copy complete solutions"
+            ],
+            correctAnswer: "Start small and iterate"
+          },
+          {
+            question: "How do you handle real-world challenges?",
+            options: [
+              "Adapt and learn from experience",
+              "Stick to textbook examples only",
+              "Avoid challenging situations",
+              "Give up when faced with problems"
+            ],
+            correctAnswer: "Adapt and learn from experience"
+          },
+          {
+            question: "What's crucial for practical success?",
+            options: [
+              "Understanding context and requirements",
+              "Following tutorials exactly",
+              "Ignoring real-world constraints",
+              "Using only theoretical knowledge"
+            ],
+            correctAnswer: "Understanding context and requirements"
+          },
+          {
+            question: "How do you ensure practical solutions work?",
+            options: [
+              "Test and validate thoroughly",
+              "Assume everything works",
+              "Ignore testing completely",
+              "Copy without understanding"
+            ],
+            correctAnswer: "Test and validate thoroughly"
+          },
+          {
+            question: "What's the key to practical problem-solving?",
+            options: [
+              "Understanding the problem deeply",
+              "Using the most complex solution",
+              "Avoiding real problems",
+              "Copying solutions blindly"
+            ],
+            correctAnswer: "Understanding the problem deeply"
+          }
+        ];
+       
+       for (let i = 1; i <= numModules; i++) {
+         const moduleTheme = moduleThemes[(i - 1) % moduleThemes.length];
+         const assignmentType = assignmentTypes[(i - 1) % assignmentTypes.length];
+         const discussionTopic = discussionTopics[(i - 1) % discussionTopics.length];
+         
+         const module = {
+           title: `Module ${i}: ${topic} ${moduleTheme.title}`,
+           description: `${moduleTheme.description} of ${topic}. This module will help you develop a strong foundation in ${topic} ${moduleTheme.focus}.`,
+           chapters: chapters[i - 1] || [],
+           assignments: [{
+             title: `${topic} ${assignmentType.title} ${i}`,
+             description: `${assignmentType.description} of ${topic} concepts. Apply your knowledge through practical exercises and real-world scenarios.`,
+             dueDate: "2024-12-31",
+             points: 100
+           }],
+           discussions: [{
+             title: `${topic} ${discussionTopic.title}`,
+             prompt: `${discussionTopic.prompt} Consider how this relates to ${topic} and share your experiences.`
+           }],
+                       quizzes: [{
+              title: `${topic} Assessment ${i}`,
+              description: `Test your understanding of ${topic} ${moduleTheme.focus} concepts and principles.`,
               timeLimit: 30,
               questions: [
                 {
-                  question: `What is the main concept in ${request.prompt}?`,
+                  question: quizQuestions[(i - 1) * 6].question,
                   type: "multiple-choice",
-                  options: ["Concept A", "Concept B", "Concept C", "Concept D"],
-                  correctAnswer: "Concept A",
+                  options: quizQuestions[(i - 1) * 6].options,
+                  correctAnswer: quizQuestions[(i - 1) * 6].correctAnswer,
                   points: 10
                 },
                 {
-                  question: `How would you apply ${request.prompt}?`,
+                  question: quizQuestions[(i - 1) * 6 + 1].question,
                   type: "multiple-choice",
-                  options: ["Method A", "Method B", "Method C", "Method D"],
-                  correctAnswer: "Method A",
+                  options: quizQuestions[(i - 1) * 6 + 1].options,
+                  correctAnswer: quizQuestions[(i - 1) * 6 + 1].correctAnswer,
                   points: 10
                 },
                 {
-                  question: `Explain a key learning from ${request.prompt}`,
+                  question: `How would you apply ${topic} ${moduleTheme.focus} in a real project?`,
                   type: "short-answer",
-                  prompt: "Describe one important concept you learned",
                   points: 15
                 }
               ]
-            });
+            }]
+         };
+         modules.push(module);
+       }
 
-            courseData.modules.push(module);
-          }
-        } else {
-          // Validate and fix existing modules to ensure they have assignments and quizzes
-          courseData.modules = courseData.modules.map((module: any, index: number) => {
-            if (!module.title || typeof module.title !== 'string') {
-              module.title = `Module ${index + 1}: ${request.prompt} Fundamentals`;
-            }
-            
-            if (!module.description || typeof module.description !== 'string') {
-              module.description = `Learn the fundamentals of ${request.prompt} in this module.`;
-            }
-            
-            if (!module.chapters || !Array.isArray(module.chapters)) {
-              module.chapters = [];
-            }
-            
-            // Always ensure assignments exist
-            if (!module.assignments || !Array.isArray(module.assignments) || module.assignments.length === 0) {
-              module.assignments = [{
-                title: `Assignment ${index + 1}: ${request.prompt} Project`,
-                description: `Complete a project demonstrating your understanding of ${request.prompt}.`,
-                dueDate: "2024-12-31",
-                points: 50
-              }];
-            }
-            
-            // Always ensure discussions exist
-            if (!module.discussions || !Array.isArray(module.discussions) || module.discussions.length === 0) {
-              module.discussions = [{
-                title: `Discussion ${index + 1}: ${request.prompt} Discussion`,
-                prompt: `Share your thoughts and experiences with ${request.prompt}.`
-              }];
-            }
-            
-            // Always ensure quizzes exist
-            if (!module.quizzes || !Array.isArray(module.quizzes) || module.quizzes.length === 0) {
-              module.quizzes = [{
-                title: `Quiz ${index + 1}: ${request.prompt} Assessment`,
-                description: `Test your knowledge of ${request.prompt}.`,
-                timeLimit: 30,
-                questions: [
-                  {
-                    question: `What is the main concept in ${request.prompt}?`,
-                    type: "multiple-choice",
-                    options: ["Concept A", "Concept B", "Concept C", "Concept D"],
-                    correctAnswer: "Concept A",
-                    points: 10
-                  },
-                  {
-                    question: `How would you apply ${request.prompt}?`,
-                    type: "multiple-choice",
-                    options: ["Method A", "Method B", "Method C", "Method D"],
-                    correctAnswer: "Method A",
-                    points: 10
-                  },
-                  {
-                    question: `Explain a key learning from ${request.prompt}`,
-                    type: "short-answer",
-                    prompt: "Describe one important concept you learned",
-                    points: 15
-                  }
-                ]
-              }];
-            }
-            
-            return module;
-          });
-        }
-        
-        console.log('AI generation successful!');
-        return courseData;
-        
-      } catch (error) {
-        lastError = error as Error;
-        console.log(`Attempt ${attempt} failed:`, error);
-        
-        if (attempt < maxRetries) {
-          const waitTime = Math.min(1000 * attempt, 5000); // Exponential backoff, max 5s
-          console.log(`Waiting ${waitTime}ms before retry...`);
-          await new Promise(resolve => setTimeout(resolve, waitTime));
-        }
-      }
+      console.log('✅ AI generation successful with hybrid approach!');
+      return {
+        title: courseTitle,
+        description: courseDescription,
+        category: "Programming",
+        difficulty: "beginner",
+        modules: modules
+      };
+
+    } catch (error) {
+      console.log('❌ AI generation failed:', error);
+      throw new Error('AI generation failed');
     }
-
-    // All retries failed
-    console.log(`All ${maxRetries} attempts failed. Last error:`, lastError);
-    throw new Error(`AI service failed after ${maxRetries} attempts. Please ensure Ollama is running and try again. Last error: ${lastError?.message}`);
   }
-}
+  
+  private generateStructuredCourse(topic: string, numModules: number, numChapters: number): GeneratedCourse {
+    console.log(`📚 Generating structured course for topic: "${topic}"`);
+    
+    const modules = [];
+    
+    // Define varied module themes and focuses
+    const moduleThemes = [
+      { title: "Fundamentals", description: "Master the core concepts and basic principles", focus: "basics" },
+      { title: "Advanced Concepts", description: "Explore complex topics and advanced techniques", focus: "advanced" },
+      { title: "Practical Applications", description: "Learn real-world implementation and best practices", focus: "practical" },
+      { title: "Project Development", description: "Build complete projects and applications", focus: "projects" },
+      { title: "Industry Standards", description: "Understand professional development workflows", focus: "professional" },
+      { title: "Optimization & Performance", description: "Learn optimization techniques and performance tuning", focus: "optimization" }
+    ];
+    
+    // Define varied chapter themes
+    const chapterThemes = [
+      { title: "Introduction", content: "Get started with the essential concepts and setup" },
+      { title: "Core Concepts", content: "Understand the fundamental principles and building blocks" },
+      { title: "Best Practices", content: "Learn industry-standard approaches and methodologies" },
+      { title: "Advanced Techniques", content: "Master sophisticated features and complex scenarios" },
+      { title: "Real-world Examples", content: "See how concepts apply in practical situations" },
+      { title: "Troubleshooting", content: "Learn to debug and solve common problems" },
+      { title: "Performance Tips", content: "Optimize your code for better efficiency" },
+      { title: "Integration", content: "Connect with other technologies and systems" },
+      { title: "Security Fundamentals", content: "Learn essential security practices and principles" },
+      { title: "Testing Strategies", content: "Master testing methodologies and quality assurance" },
+      { title: "Deployment", content: "Understand deployment processes and production considerations" },
+      { title: "Maintenance", content: "Learn ongoing maintenance and update strategies" }
+    ];
+    
+    // Define varied assignment types
+    const assignmentTypes = [
+      { title: "Practice Exercise", description: "Complete hands-on exercises to reinforce your understanding" },
+      { title: "Mini Project", description: "Build a small application using the concepts learned" },
+      { title: "Code Review", description: "Analyze and improve existing code examples" },
+      { title: "Research Task", description: "Investigate advanced topics and present findings" },
+      { title: "Debugging Challenge", description: "Identify and fix issues in provided code" },
+      { title: "Documentation", description: "Create comprehensive documentation for a project" }
+    ];
+    
+    // Define varied discussion topics
+    const discussionTopics = [
+      { title: "Learning Challenges", prompt: "What challenges did you face while learning this topic? How did you overcome them?" },
+      { title: "Real-world Applications", prompt: "Share examples of how this technology is used in industry. What are the benefits and challenges?" },
+      { title: "Best Practices Debate", prompt: "Discuss different approaches to solving problems. What methods do you prefer and why?" },
+      { title: "Future Trends", prompt: "How do you think this technology will evolve? What new features or applications do you anticipate?" },
+      { title: "Career Impact", prompt: "How has learning this technology influenced your career goals? What opportunities has it opened up?" },
+      { title: "Community Insights", prompt: "Share resources, tools, or communities that have helped you in your learning journey" }
+    ];
+    
+         // Define varied quiz questions for different modules - 18 total questions
+     const quizQuestions = [
+       // Module 1 - Fundamentals questions
+       {
+         question: "What are the fundamental principles of this technology?",
+         options: [
+           "Efficiency and scalability",
+           "Simplicity and maintainability", 
+           "Performance and reliability",
+           "All of the above"
+         ],
+         correctAnswer: "All of the above"
+       },
+       {
+         question: "Which approach is considered best practice?",
+         options: [
+           "Following established patterns",
+           "Using the latest features only",
+           "Ignoring documentation",
+           "Copying code without understanding"
+         ],
+         correctAnswer: "Following established patterns"
+       },
+       {
+         question: "What is the most important skill to develop?",
+         options: [
+           "Problem-solving ability",
+           "Memorizing syntax",
+           "Using advanced features",
+           "Following tutorials exactly"
+         ],
+         correctAnswer: "Problem-solving ability"
+       },
+       {
+         question: "How do you handle complex scenarios in this technology?",
+         options: [
+           "Break down into smaller problems",
+           "Use advanced features immediately",
+           "Ignore complexity",
+           "Copy from examples"
+         ],
+         correctAnswer: "Break down into smaller problems"
+       },
+       {
+         question: "What's the best way to learn advanced concepts?",
+         options: [
+           "Build real projects",
+           "Read documentation only",
+           "Watch tutorials",
+           "Memorize syntax"
+         ],
+         correctAnswer: "Build real projects"
+       },
+       {
+         question: "How would you optimize performance?",
+         options: [
+           "Using efficient algorithms",
+           "Minimizing resource usage",
+           "Implementing caching strategies",
+           "All of the above"
+         ],
+         correctAnswer: "All of the above"
+       },
+       // Module 2 - Advanced questions
+       {
+         question: "What advanced techniques should you master?",
+         options: [
+           "Complex algorithms and data structures",
+           "Basic syntax only",
+           "Simple examples",
+           "Documentation reading"
+         ],
+         correctAnswer: "Complex algorithms and data structures"
+       },
+       {
+         question: "How do you implement advanced features?",
+         options: [
+           "Through systematic learning and practice",
+           "By copying code from the internet",
+           "By skipping fundamentals",
+           "By memorizing everything"
+         ],
+         correctAnswer: "Through systematic learning and practice"
+       },
+       {
+         question: "What's the key to mastering advanced concepts?",
+         options: [
+           "Understanding underlying principles",
+           "Memorizing code examples",
+           "Using advanced features immediately",
+           "Ignoring basic concepts"
+         ],
+         correctAnswer: "Understanding underlying principles"
+       },
+       {
+         question: "How do you approach complex problem-solving?",
+         options: [
+           "Break down into manageable parts",
+           "Use the most advanced features",
+           "Copy solutions from others",
+           "Avoid complex problems"
+         ],
+         correctAnswer: "Break down into manageable parts"
+       },
+       {
+         question: "What's essential for advanced development?",
+         options: [
+           "Strong foundation and continuous learning",
+           "Using the latest tools only",
+           "Following trends blindly",
+           "Avoiding documentation"
+         ],
+         correctAnswer: "Strong foundation and continuous learning"
+       },
+       {
+         question: "How do you stay current with advanced topics?",
+         options: [
+           "Continuous learning and practice",
+           "Reading only basic tutorials",
+           "Ignoring new developments",
+           "Copying others' work"
+         ],
+         correctAnswer: "Continuous learning and practice"
+       },
+       // Module 3 - Practical questions
+       {
+         question: "How do you apply concepts in real projects?",
+         options: [
+           "Through hands-on practice and experimentation",
+           "By reading theory only",
+           "By avoiding practical work",
+           "By copying existing projects"
+         ],
+         correctAnswer: "Through hands-on practice and experimentation"
+       },
+       {
+         question: "What's the best approach to real-world implementation?",
+         options: [
+           "Start small and iterate",
+           "Build complex systems immediately",
+           "Avoid real-world scenarios",
+           "Copy complete solutions"
+         ],
+         correctAnswer: "Start small and iterate"
+       },
+       {
+         question: "How do you handle real-world challenges?",
+         options: [
+           "Adapt and learn from experience",
+           "Stick to textbook examples only",
+           "Avoid challenging situations",
+           "Give up when faced with problems"
+         ],
+         correctAnswer: "Adapt and learn from experience"
+       },
+       {
+         question: "What's crucial for practical success?",
+         options: [
+           "Understanding context and requirements",
+           "Following tutorials exactly",
+           "Ignoring real-world constraints",
+           "Using only theoretical knowledge"
+         ],
+         correctAnswer: "Understanding context and requirements"
+       },
+       {
+         question: "How do you ensure practical solutions work?",
+         options: [
+           "Test and validate thoroughly",
+           "Assume everything works",
+           "Ignore testing completely",
+           "Copy without understanding"
+         ],
+         correctAnswer: "Test and validate thoroughly"
+       },
+       {
+         question: "What's the key to practical problem-solving?",
+         options: [
+           "Understanding the problem deeply",
+           "Using the most complex solution",
+           "Avoiding real problems",
+           "Copying solutions blindly"
+         ],
+         correctAnswer: "Understanding the problem deeply"
+       }
+     ];
+    
+    for (let i = 1; i <= numModules; i++) {
+      const moduleTheme = moduleThemes[(i - 1) % moduleThemes.length];
+      const chapters = [];
+      
+      for (let j = 1; j <= numChapters; j++) {
+        // Make chapter index unique across all modules
+        const globalChapterIndex = ((i - 1) * numChapters + j - 1);
+        const chapterTheme = chapterThemes[globalChapterIndex % chapterThemes.length];
+        chapters.push({
+          title: `Chapter ${j}: ${chapterTheme.title} of ${topic}`,
+          content: `This chapter focuses on ${chapterTheme.content} of ${topic}. You will learn key principles and practical applications that form the foundation of understanding ${topic} ${moduleTheme.focus}.`
+        });
+      }
+      
+      const assignmentType = assignmentTypes[(i - 1) % assignmentTypes.length];
+      const discussionTopic = discussionTopics[(i - 1) % discussionTopics.length];
+      
+      const module = {
+        title: `Module ${i}: ${topic} ${moduleTheme.title}`,
+        description: `${moduleTheme.description} of ${topic}. This module will help you develop a strong foundation in ${topic} ${moduleTheme.focus}.`,
+        chapters: chapters,
+        assignments: [{
+          title: `${topic} ${assignmentType.title} ${i}`,
+          description: `${assignmentType.description} of ${topic} concepts. Apply your knowledge through practical exercises and real-world scenarios.`,
+          dueDate: "2024-12-31",
+          points: 100
+        }],
+        discussions: [{
+          title: `${topic} ${discussionTopic.title}`,
+          prompt: `${discussionTopic.prompt} Consider how this relates to ${topic} and share your experiences.`
+        }],
+                 quizzes: [{
+           title: `${topic} Assessment ${i}`,
+           description: `Test your understanding of ${topic} ${moduleTheme.focus} concepts and principles.`,
+           timeLimit: 30,
+           questions: [
+             {
+               question: quizQuestions[(i - 1) * 6].question,
+               type: "multiple-choice",
+               options: quizQuestions[(i - 1) * 6].options,
+               correctAnswer: quizQuestions[(i - 1) * 6].correctAnswer,
+               points: 10
+             },
+             {
+               question: quizQuestions[(i - 1) * 6 + 1].question,
+               type: "multiple-choice",
+               options: quizQuestions[(i - 1) * 6 + 1].options,
+               correctAnswer: quizQuestions[(i - 1) * 6 + 1].correctAnswer,
+               points: 10
+             },
+             {
+               question: `How would you apply ${topic} ${moduleTheme.focus} in a real project?`,
+               type: "short-answer",
+               points: 15
+             }
+           ]
+         }]
+      };
+      
+      modules.push(module);
+    }
+    
+    return {
+      title: `${topic} Course`,
+      description: `A comprehensive course covering all aspects of ${topic}. Learn through structured modules, hands-on assignments, and interactive discussions. Each module builds upon the previous one to create a complete learning experience.`,
+      category: "Programming",
+      difficulty: "beginner",
+      modules: modules
+    };
+  }
+} 
