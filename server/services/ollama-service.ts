@@ -199,7 +199,7 @@ export class OllamaService {
     // Try AI generation first, but with a shorter timeout
     let aiCourseData = null;
     try {
-      aiCourseData = await this.tryAIGeneration(topic, numModules, numChapters, model);
+      aiCourseData = await this.tryAIGeneration(request.prompt, topic, numModules, numChapters, model);
       console.log('✅ AI generation successful!');
     } catch (error) {
       console.log('❌ AI generation failed:', error);
@@ -212,11 +212,11 @@ export class OllamaService {
     return courseData;
   }
   
-  private async tryAIGeneration(topic: string, numModules: number, numChapters: number, model: string): Promise<GeneratedCourse> {
+  private async tryAIGeneration(originalPrompt: string, topic: string, numModules: number, numChapters: number, model: string): Promise<GeneratedCourse | null> {
     console.log(`🤖 Attempting AI generation for topic: "${topic}"`);
     
     // Step 1: Generate course title and description with AI using the actual prompt
-    const titlePrompt = `Based on this course request: "${request.prompt}"
+    const titlePrompt = `Based on this course request: "${originalPrompt}"
     
     Generate a compelling course title and description that matches the user's request.
     Return ONLY a JSON object with this exact structure:
@@ -240,23 +240,27 @@ export class OllamaService {
             top_p: 0.9
           }
         }),
-        signal: AbortSignal.timeout(30000)
+        signal: AbortSignal.timeout(60000) // Increased timeout to 60 seconds
       });
 
+      console.log(`Title generation response status: ${titleResponse.status}`);
       if (!titleResponse.ok) {
-        throw new Error(`Title generation failed: ${titleResponse.status}`);
+        console.error(`Title generation failed: ${titleResponse.status}`);
+        return null; // Return null on failure
       }
 
       const titleData = await titleResponse.json();
+      console.log("Raw title AI response:", JSON.stringify(titleData, null, 2));
       let courseTitle, courseDescription;
       
       try {
         const titleResult = JSON.parse(titleData.response);
+        console.log("Parsed title AI response:", JSON.stringify(titleResult, null, 2));
         courseTitle = titleResult.title || `${topic} Course`;
         courseDescription = titleResult.description || `A comprehensive course covering all aspects of ${topic}.`;
-      } catch {
-        courseTitle = `${topic} Course`;
-        courseDescription = `A comprehensive course covering all aspects of ${topic}.`;
+      } catch (parseError) {
+        console.error("Error parsing title AI response:", parseError);
+        return null; // Return null on parsing failure
       }
 
       // Step 2: Generate chapter content with AI
@@ -264,10 +268,9 @@ export class OllamaService {
       for (let moduleIndex = 1; moduleIndex <= numModules; moduleIndex++) {
         const moduleChapters = [];
         for (let chapterIndex = 1; chapterIndex <= numChapters; chapterIndex++) {
-          const chapterPrompt = `Based on this course request: "${request.prompt}"
-          
-          Write a detailed chapter for chapter ${chapterIndex} of module ${moduleIndex} that specifically addresses the user's request.
-          Focus on practical, educational content that matches what the user asked for.
+          const chapterPrompt = `For a course on "${originalPrompt}", write a detailed chapter ${chapterIndex} for module ${moduleIndex}.
+          Ensure this chapter's content is distinct and builds upon previous concepts, avoiding repetition.
+          Focus on practical, educational content relevant to the overall course request.
           Return ONLY the chapter content as plain text (no JSON).`;
           
           try {
@@ -284,17 +287,20 @@ export class OllamaService {
                   top_p: 0.9
                 }
               }),
-              signal: AbortSignal.timeout(30000)
+              signal: AbortSignal.timeout(120000) // Increased timeout to 120 seconds
             });
 
+            console.log(`Chapter ${chapterIndex} generation response status: ${chapterResponse.status}`);
             if (chapterResponse.ok) {
               const chapterData = await chapterResponse.json();
+              console.log(`Raw chapter ${chapterIndex} AI response:`, JSON.stringify(chapterData, null, 2));
               const chapterContent = chapterData.response.trim();
               moduleChapters.push({
                 title: `Chapter ${chapterIndex}: ${topic} - Part ${chapterIndex}`,
                 content: chapterContent || `This chapter covers essential concepts of ${topic}. You will learn key principles and practical applications.`
               });
             } else {
+              console.error(`Chapter ${chapterIndex} generation failed: ${chapterResponse.statusText}, using fallback`);
               // Fallback chapter content with unique themes
               const chapterThemes = [
                 { title: "Introduction", content: "Get started with the essential concepts and setup" },
@@ -313,7 +319,7 @@ export class OllamaService {
               });
             }
           } catch (error) {
-            console.log(`Chapter ${chapterIndex} generation failed, using fallback`);
+            console.error(`Chapter ${chapterIndex} generation failed, using fallback:`, error);
             const chapterThemes = [
               { title: "Introduction", content: "Get started with the essential concepts and setup" },
               { title: "Core Concepts", content: "Understand the fundamental principles and building blocks" },
@@ -614,7 +620,7 @@ export class OllamaService {
 
     } catch (error) {
       console.log('❌ AI generation failed:', error);
-      throw new Error('AI generation failed');
+      return null; // Return null on failure
     }
   }
   
