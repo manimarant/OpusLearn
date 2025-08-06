@@ -176,6 +176,11 @@ export default function CoursePreview() {
     window.print();
   };
 
+  const getRandomNoteSource = () => {
+    const sources = ["SME", "Faculty", "Instructional Designer"];
+    return sources[Math.floor(Math.random() * sources.length)];
+  };
+
   return (
     <div className="min-h-screen bg-white">
       {/* Header with Back and Print Buttons */}
@@ -246,10 +251,11 @@ export default function CoursePreview() {
               </ul>
             </div>
             <div>
-              <h3 className="font-semibold mb-2">Instructor</h3>
-              <div className="text-slate-600">
-                <p className="font-medium">{course.instructor?.firstName} {course.instructor?.lastName}</p>
-                <p>{course.instructor?.email}</p>
+              <h3 className="font-semibold mb-2">{getRandomNoteSource()} Notes</h3>
+              <div className="text-slate-600 border-l-2 border-blue-500 pl-4">
+                <p className="italic">"Let's make sure the intro is super engaging. Maybe add a real-world example right at the beginning."</p>
+                <p className="italic mt-2">"The content for module 2 seems a bit dry. Can we add some interactive elements or a short video?"</p>
+                <p className="italic mt-2">"I think we need a quick quiz after module 3 to check for understanding. Just a few multiple-choice questions."</p>
               </div>
             </div>
           </div>
@@ -271,24 +277,42 @@ export default function CoursePreview() {
           <div className="space-y-8">
             {modules?.map((module: any) => (
               <div key={module.id} className="border-b pb-6">
-                <h3 className="text-xl font-semibold mb-4">{module.title}</h3>
-                {module.description && (
-                  <p className="text-slate-600 mb-4">{module.description}</p>
-                )}
-                <div className="space-y-4">
-                  {chapters
-                    ?.filter((chapter: any) => chapter.moduleId === module.id)
-                    .map((chapter: any) => (
-                      <div key={chapter.id} className="pl-6">
-                        <h4 className="font-medium">{chapter.title}</h4>
-                        {chapter.content && (
-                          <div className="prose prose-sm text-slate-700 mt-2" dangerouslySetInnerHTML={{ __html: chapter.content }} />
-                        )}
-                        {chapter.duration && (
-                          <p className="text-xs text-slate-500 mt-1">Duration: {chapter.duration} minutes</p>
-                        )}
-                      </div>
-                    ))}
+                <div className="grid grid-cols-3 gap-6">
+                  <div className="col-span-2">
+                    <h3 className="text-xl font-semibold mb-4">{module.title}</h3>
+                    {module.description && (
+                      <p className="text-slate-600 mb-4">{module.description}</p>
+                    )}
+                    <div className="space-y-4">
+                      {chapters
+                        ?.filter((chapter: any) => chapter.moduleId === module.id)
+                        .map((chapter: any, index: number) => (
+                          <div key={chapter.id} className="pl-6">
+                            <h4 className="font-medium">{chapter.title}</h4>
+                            {chapter.content && (
+                              <div className="prose prose-sm text-slate-700 mt-2" dangerouslySetInnerHTML={{ __html: chapter.content }} />
+                            )}
+                            {index === 0 && (
+                              <div className="mt-2">
+                                <video width="100%" controls>
+                                  <source src="https://www.w3schools.com/html/mov_bbb.mp4" type="video/mp4" />
+                                  Your browser does not support the video tag.
+                                </video>
+                              </div>
+                            )}
+                            {chapter.duration && (
+                              <p className="text-xs text-slate-500 mt-1">Duration: {chapter.duration} minutes</p>
+                            )}
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                  <div>
+                    <h3 className="font-semibold mb-2">{getRandomNoteSource()} Notes</h3>
+                    <div className="text-slate-600 border-l-2 border-blue-500 pl-4">
+                      <p className="italic text-xs">"This chapter is crucial. Make sure to emphasize the key takeaways."</p>
+                    </div>
+                  </div>
                 </div>
               </div>
             ))}
@@ -351,21 +375,31 @@ export default function CoursePreview() {
           <div className="space-y-6">
             {quizzes?.map((quiz: any) => (
               <div key={quiz.id} className="border-b pb-6">
-                <h3 className="text-xl font-semibold mb-2">{quiz.title}</h3>
-                <p className="text-slate-600 mb-4">{quiz.description}</p>
-                <div className="bg-slate-50 p-4 rounded">
-                  <div className="grid grid-cols-3 gap-4 text-sm">
-                    <div>
-                      <p className="font-medium">Time Limit</p>
-                      <p>{quiz.timeLimit} minutes</p>
+                <div className="grid grid-cols-3 gap-6">
+                  <div className="col-span-2">
+                    <h3 className="text-xl font-semibold mb-2">{quiz.title}</h3>
+                    <p className="text-slate-600 mb-4">{quiz.description}</p>
+                    <div className="bg-slate-50 p-4 rounded">
+                      <div className="grid grid-cols-3 gap-4 text-sm">
+                        <div>
+                          <p className="font-medium">Time Limit</p>
+                          <p>{quiz.timeLimit} minutes</p>
+                        </div>
+                        <div>
+                          <p className="font-medium">Passing Score</p>
+                          <p>{quiz.passingScore}%</p>
+                        </div>
+                        <div>
+                          <p className="font-medium">Attempts Allowed</p>
+                          <p>{quiz.attempts}</p>
+                        </div>
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-medium">Passing Score</p>
-                      <p>{quiz.passingScore}%</p>
-                    </div>
-                    <div>
-                      <p className="font-medium">Attempts Allowed</p>
-                      <p>{quiz.attempts}</p>
+                  </div>
+                  <div>
+                    <h3 className="font-semibold mb-2">{getRandomNoteSource()} Notes</h3>
+                    <div className="text-slate-600 border-l-2 border-blue-500 pl-4">
+                      <p className="italic text-xs">"The quiz questions should be challenging but fair. Let's review them one more time before publishing."</p>
                     </div>
                   </div>
                 </div>

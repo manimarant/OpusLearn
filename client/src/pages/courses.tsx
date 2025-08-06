@@ -274,98 +274,7 @@ export default function Courses() {
                   }
                 </p>
               </div>
-              {isInstructor && (
-                <div className="flex space-x-3">
-                  <Button 
-                    onClick={() => setIsAICourseGeneratorOpen(true)}
-                    className="bg-purple-600 hover:bg-purple-700 transition-colors"
-                  >
-                    <Sparkles className="h-4 w-4 mr-2" />
-                    AI Generate Course
-                  </Button>
-                  <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-                    <DialogTrigger asChild>
-                      <Button className="bg-blue-600 hover:bg-blue-700 transition-colors">
-                        <Plus className="h-4 w-4 mr-2" />
-                        Create Course
-                      </Button>
-                    </DialogTrigger>
-                  <DialogContent className="sm:max-w-[425px]">
-                    <DialogHeader>
-                      <DialogTitle>Create New Course</DialogTitle>
-                      <DialogDescription>
-                        Set up your course structure and initial content.
-                      </DialogDescription>
-                    </DialogHeader>
-                    <div className="grid gap-4 py-4">
-                      <div className="grid gap-2">
-                        <Label htmlFor="title">Course Title</Label>
-                        <Input
-                          id="title"
-                          value={newCourse.title}
-                          onChange={(e) => setNewCourse({ ...newCourse, title: e.target.value })}
-                          placeholder="Enter course title"
-                        />
-                      </div>
-                      <div className="grid gap-2">
-                        <Label htmlFor="description">Description</Label>
-                        <Textarea
-                          id="description"
-                          value={newCourse.description}
-                          onChange={(e) => setNewCourse({ ...newCourse, description: e.target.value })}
-                          placeholder="Describe your course..."
-                          rows={3}
-                        />
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="grid gap-2">
-                          <Label htmlFor="category">Category</Label>
-                          <Select
-                            value={newCourse.category}
-                            onValueChange={(value) => setNewCourse({ ...newCourse, category: value })}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select category" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="web-development">Web Development</SelectItem>
-                              <SelectItem value="data-science">Data Science</SelectItem>
-                              <SelectItem value="design">Design</SelectItem>
-                              <SelectItem value="business">Business</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="grid gap-2">
-                          <Label htmlFor="difficulty">Difficulty</Label>
-                          <Select
-                            value={newCourse.difficulty}
-                            onValueChange={(value) => setNewCourse({ ...newCourse, difficulty: value })}
-                          >
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="beginner">Beginner</SelectItem>
-                              <SelectItem value="intermediate">Intermediate</SelectItem>
-                              <SelectItem value="advanced">Advanced</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-                    </div>
-                    <DialogFooter>
-                      <Button 
-                        type="submit" 
-                        onClick={handleCreateCourse}
-                        disabled={createCourseMutation.isPending}
-                      >
-                        {createCourseMutation.isPending ? "Creating..." : "Create Course"}
-                      </Button>
-                    </DialogFooter>
-                  </DialogContent>
-                </Dialog>
-              </div>
-            )}
+              
             </div>
           </div>
 
@@ -424,10 +333,6 @@ export default function Courses() {
               filteredCourses.map((course: any) => (
                 <div key={course.id} className="relative group">
                   <CourseCard course={course} />
-                  {/* Debug info - remove this later */}
-                  <div className="absolute top-2 left-2 text-xs bg-black text-white p-1 rounded opacity-75">
-                    {isInstructor ? 'I' : 'S'} | {course.instructorId} | {user?.id}
-                  </div>
                   {isInstructor && course.instructorId === user?.id && (
                     <Button
                       variant="destructive"

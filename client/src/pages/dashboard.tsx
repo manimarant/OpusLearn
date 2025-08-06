@@ -69,9 +69,8 @@ export default function Dashboard() {
           {/* Page Header */}
           <div className="mb-8 animate-slide-up">
             <div className="flex items-center space-x-3 mb-4">
-              <div className="w-2 h-2 bg-primary rounded-full"></div>
               <h2 className="text-3xl font-bold text-foreground">
-                {isInstructor ? "Instructor Dashboard" : "Student Dashboard"}
+                {isInstructor ? "Dashboard" : "Student Dashboard"}
               </h2>
             </div>
             <p className="text-lg text-muted-foreground max-w-2xl">

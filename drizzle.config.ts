@@ -11,4 +11,6 @@ export default defineConfig({
   dbCredentials: {
     url: process.env.DATABASE_URL || "postgresql://localhost:5432/placeholder",
   },
+  verbose: true,
+  strict: false,
 });

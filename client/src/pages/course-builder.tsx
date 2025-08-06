@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useLocation } from "wouter";
+import { useLocation, useRoute } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
@@ -47,7 +47,8 @@ interface Chapter {
 export default function CourseBuilder() {
   const [location, setLocation] = useLocation();
   const queryClient = useQueryClient();
-  const courseId = location.split("/").pop();
+  const [match, params] = useRoute("/course-builder/:id");
+  const courseId = params?.id;
 
   // State
   const [selectedModule, setSelectedModule] = useState<Module | null>(null);
@@ -70,7 +71,8 @@ export default function CourseBuilder() {
     queryFn: async () => {
       const response = await apiRequest("GET", "/api/courses");
       return response.json();
-    }
+    },
+    refetchOnMount: true, // Refetch data when component mounts
   });
 
   const { data: course } = useQuery({
@@ -462,14 +464,14 @@ export default function CourseBuilder() {
       }
 
       // Invalidate queries to refresh data
-      queryClient.invalidateQueries({ queryKey: ["/api/courses"] });
-      
-      // Navigate back to course list to show the newly created course
-      setLocation("/course-builder");
+      await queryClient.invalidateQueries({ queryKey: ["/api/courses"] });
+
+      // Navigate to the new course builder page
+      setLocation(`/course-builder/${createdCourse.id}`);
       
       toast({
         title: "Course Generated Successfully",
-        description: "Your AI-generated course has been created with all modules, chapters, assignments, quizzes, and discussions. You can now see it in your course list.",
+        description: "Your AI-generated course has been created. You are now on the course builder page.",
       });
       
     } catch (error) {
@@ -521,7 +523,8 @@ export default function CourseBuilder() {
                   courses.map((course: Course) => (
                 <Card 
                   key={course.id} 
-                  className="hover:shadow-lg transition-shadow"
+                  className="hover:shadow-lg transition-shadow cursor-pointer"
+                  onClick={() => setLocation(`/course-builder/${course.id}`)}
                 >
                   <CardContent className="p-6">
                     <div className="flex items-start justify-between mb-4">
@@ -537,13 +540,6 @@ export default function CourseBuilder() {
                         <span className="mx-2">•</span>
                         <span>{course.difficulty}</span>
                       </div>
-                      <Button
-                        onClick={() => setLocation(`/course-builder/${course.id}`)}
-                        size="sm"
-                        variant="outline"
-                      >
-                        View Course
-                      </Button>
                     </div>
                   </CardContent>
                 </Card>
@@ -716,7 +712,7 @@ export default function CourseBuilder() {
                             </Button>
                           </div>
                           <div className="space-y-3">
-                            {chapters.map((chapter: Chapter) => (
+                            {chapters.map((chapter: Chapter, index: number) => (
                               <div
                                 key={chapter.id}
                                 className={`p-3 rounded-lg cursor-pointer transition-colors ${
@@ -728,6 +724,14 @@ export default function CourseBuilder() {
                               >
                                 <h3 className="font-medium">{chapter.title}</h3>
                                 <p className="text-sm text-gray-600">{chapter.content.substring(0, 100)}...</p>
+                                {index === 0 && (
+                                  <div className="mt-2">
+                                    <video width="100%" controls>
+                                      <source src="https://www.w3schools.com/html/mov_bbb.mp4" type="video/mp4" />
+                                      Your browser does not support the video tag.
+                                    </video>
+                                  </div>
+                                )}
                               </div>
                             ))}
                           </div>

@@ -45,27 +45,124 @@ export class OllamaService {
   private defaultModel = 'codellama:7b';
 
   private extractSimpleTopic(prompt: string): string {
-    // Extract the main topic using regex
-    const match = prompt.match(/course\s+(on|about|for)\s+([^,\s]+(?:\s+[^,\s]+)*)/i);
-    if (match) {
-      let topic = match[2].toLowerCase();
-      // Clean up common words
-      topic = topic.replace(/\b(beginners?|intermediate|advanced|programming|development|basics|fundamentals)\b/gi, '').trim();
-      // Take the first word as the main topic
-      const words = topic.split(/\s+/).filter(word => word.length > 2);
-      return words[0] || 'Programming';
+    console.log('🔍 Extracting topic from prompt:', prompt);
+    
+    // First, try to extract from common patterns - FIXED to capture what comes AFTER "for"
+    const patterns = [
+      /course\s+(on|about|for)\s+([^,\s]+(?:\s+[^,\s]+)*)/i,
+      /create\s+(a\s+)?course\s+(on|about|for)\s+([^,\s]+(?:\s+[^,\s]+)*)/i,
+      /generate\s+(a\s+)?course\s+(on|about|for)\s+([^,\s]+(?:\s+[^,\s]+)*)/i,
+      /design\s+(a\s+)?course\s+(on|about|for)\s+([^,\s]+(?:\s+[^,\s]+)*)/i
+    ];
+    
+    console.log('🔍 Trying simple patterns first...');
+    
+    // Also try simpler patterns that capture the actual topic
+    const simplePatterns = [
+      /(javascript|python|java|react|node|blockchain|ai|machine|data|web|mobile|cloud|database|sql|html|css|php|ruby|go|rust|swift|kotlin|typescript|angular|vue|django|flask|express|mongodb|mysql|postgresql|redis|docker|kubernetes|aws|azure|gcp)/i
+    ];
+    
+    console.log('🔍 Simple patterns to try:', simplePatterns.map(p => p.source));
+    
+    // Try simple patterns first
+    for (const pattern of simplePatterns) {
+      console.log('🔍 Testing pattern:', pattern.source);
+      const match = prompt.match(pattern);
+      console.log('🔍 Pattern match result:', match);
+      if (match) {
+        const extractedTopic = match[1];
+        console.log('✅ Found tech word via simple pattern:', extractedTopic);
+        return extractedTopic.charAt(0).toUpperCase() + extractedTopic.slice(1);
+      }
+    }
+    
+    console.log('🔍 Trying complex patterns...');
+    for (const pattern of patterns) {
+      const match = prompt.match(pattern);
+      if (match) {
+        console.log('📝 Complex pattern matched:', match[0]);
+        console.log('📝 Match groups:', match);
+        
+        // The regex captures: group 1 = preposition, group 2 = topic
+        // But our regex is wrong - it's capturing "for" as the topic
+        // Let me fix this by looking at the actual match structure
+        
+        if (match.length >= 3) {
+          const preposition = match[1]; // on/about/for
+          const topic = match[2]; // the actual topic
+          console.log('📝 Preposition:', preposition);
+          console.log('📝 Topic from regex:', topic);
+          
+          // If we got a preposition as the topic, extract from after the match
+          if (['on', 'about', 'for'].includes(topic.toLowerCase())) {
+            const afterMatch = prompt.substring(match.index! + match[0].length).trim();
+            console.log('📝 After match:', afterMatch);
+            
+            // Extract the first meaningful word after the match
+            const meaningfulWords = afterMatch.toLowerCase().split(/\s+/).filter(word => 
+              word.length > 2 && 
+              !['with', 'and', 'the', 'for', 'in', 'to', 'of', 'a', 'an', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'can', 'course', 'create', 'generate', 'design', 'make', 'build', 'develop', 'learn', 'study', 'teach', 'about', 'on', 'for', 'beginners', 'intermediate', 'advanced', 'programming', 'development', 'basics', 'fundamentals'].includes(word)
+            );
+            
+            if (meaningfulWords.length > 0) {
+              const extractedTopic = meaningfulWords[0];
+              console.log('✅ Extracted topic after match:', extractedTopic);
+              return extractedTopic.charAt(0).toUpperCase() + extractedTopic.slice(1);
+            }
+          } else {
+            // We got a real topic, clean it up
+            const cleanTopic = topic.toLowerCase().replace(/\b(beginners?|intermediate|advanced|programming|development|basics|fundamentals|with|and|the|for|in|to|of)\b/gi, '').trim();
+            const words = cleanTopic.split(/\s+/).filter(word => word.length > 2);
+            if (words.length > 0) {
+              const extractedTopic = words[0];
+              console.log('✅ Extracted topic from regex:', extractedTopic);
+              return extractedTopic.charAt(0).toUpperCase() + extractedTopic.slice(1);
+            }
+          }
+        }
+      }
     }
     
     // Fallback: try to find any word that looks like a programming language or technology
     const techWords = ['javascript', 'python', 'java', 'react', 'node', 'blockchain', 'ai', 'machine', 'data', 'web', 'mobile', 'cloud', 'database', 'sql', 'html', 'css', 'php', 'ruby', 'go', 'rust', 'swift', 'kotlin', 'typescript', 'angular', 'vue', 'django', 'flask', 'express', 'mongodb', 'mysql', 'postgresql', 'redis', 'docker', 'kubernetes', 'aws', 'azure', 'gcp'];
     
+    console.log('🔍 Checking individual words for tech terms...');
     const words = prompt.toLowerCase().split(/\s+/);
+    console.log('🔍 All words in prompt:', words);
+    
     for (const word of words) {
+      console.log('🔍 Checking word:', word, 'against tech words');
       if (techWords.includes(word)) {
+        console.log('✅ Found tech word:', word);
         return word.charAt(0).toUpperCase() + word.slice(1);
       }
     }
     
+    // Last resort: try to extract any meaningful word
+    const meaningfulWords = prompt.toLowerCase().split(/\s+/).filter(word => 
+      word.length > 3 && 
+      !['with', 'and', 'the', 'for', 'in', 'to', 'of', 'a', 'an', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'can', 'course', 'create', 'generate', 'design', 'make', 'build', 'develop', 'learn', 'study', 'teach', 'about', 'on', 'for', 'beginners', 'intermediate', 'advanced', 'programming', 'development', 'basics', 'fundamentals'].includes(word)
+    );
+    
+    if (meaningfulWords.length > 0) {
+      const fallbackTopic = meaningfulWords[0];
+      console.log('🔄 Using fallback topic:', fallbackTopic);
+      return fallbackTopic.charAt(0).toUpperCase() + fallbackTopic.slice(1);
+    }
+    
+    // If still no meaningful word found, try to extract from the prompt more aggressively
+    const allWords = prompt.toLowerCase().split(/\s+/);
+    console.log('🔍 All words in prompt:', allWords);
+    
+    for (const word of allWords) {
+      if (word.length > 2 && !['for', 'the', 'and', 'with', 'in', 'to', 'of', 'a', 'an'].includes(word)) {
+        console.log('🔄 Using aggressive fallback topic:', word);
+        return word.charAt(0).toUpperCase() + word.slice(1);
+      }
+    }
+    
+    console.log('⚠️ No topic found, using default: Programming');
+    console.log('⚠️ This means the topic extraction failed completely');
     return 'Programming';
   }
 
@@ -86,10 +183,14 @@ export class OllamaService {
     const chapterMatch = request.prompt.match(/(\d+)\s*chapters?/i);
     const numModules = moduleMatch ? parseInt(moduleMatch[1]) : 2;
     const numChapters = chapterMatch ? parseInt(chapterMatch[1]) : 2;
-    const topic = this.extractSimpleTopic(request.prompt);
     
     console.log('=== GENERATION DEBUG ===');
     console.log('Original prompt:', request.prompt);  
+    console.log('Prompt length:', request.prompt.length);
+    console.log('Prompt words:', request.prompt.split(' '));
+    
+    const topic = this.extractSimpleTopic(request.prompt);
+    
     console.log('Extracted topic:', topic);
     console.log('Expected modules:', numModules);
     console.log('Expected chapters:', numChapters);
@@ -106,7 +207,7 @@ export class OllamaService {
     }
     
     // Use AI data if available, otherwise generate structured fallback
-    const courseData = aiCourseData || this.generateStructuredCourse(topic, numModules, numChapters);
+    const courseData = aiCourseData || this.generateStructuredCourse(request.prompt, topic, numModules, numChapters);
     
     return courseData;
   }
@@ -114,8 +215,10 @@ export class OllamaService {
   private async tryAIGeneration(topic: string, numModules: number, numChapters: number, model: string): Promise<GeneratedCourse> {
     console.log(`🤖 Attempting AI generation for topic: "${topic}"`);
     
-    // Step 1: Generate course title and description with AI
-    const titlePrompt = `Generate a compelling course title and description for a course about "${topic}". 
+    // Step 1: Generate course title and description with AI using the actual prompt
+    const titlePrompt = `Based on this course request: "${request.prompt}"
+    
+    Generate a compelling course title and description that matches the user's request.
     Return ONLY a JSON object with this exact structure:
     {
       "title": "Course Title Here",
@@ -161,8 +264,11 @@ export class OllamaService {
       for (let moduleIndex = 1; moduleIndex <= numModules; moduleIndex++) {
         const moduleChapters = [];
         for (let chapterIndex = 1; chapterIndex <= numChapters; chapterIndex++) {
-          const chapterPrompt = `Write a detailed chapter about "${topic}" for chapter ${chapterIndex} of module ${moduleIndex}. 
-          Focus on practical, educational content. Return ONLY the chapter content as plain text (no JSON).`;
+          const chapterPrompt = `Based on this course request: "${request.prompt}"
+          
+          Write a detailed chapter for chapter ${chapterIndex} of module ${moduleIndex} that specifically addresses the user's request.
+          Focus on practical, educational content that matches what the user asked for.
+          Return ONLY the chapter content as plain text (no JSON).`;
           
           try {
             const chapterResponse = await fetch(`${this.baseUrl}/api/generate`, {
@@ -512,8 +618,9 @@ export class OllamaService {
     }
   }
   
-  private generateStructuredCourse(topic: string, numModules: number, numChapters: number): GeneratedCourse {
-    console.log(`📚 Generating structured course for topic: "${topic}"`);
+  private generateStructuredCourse(originalPrompt: string, topic: string, numModules: number, numChapters: number): GeneratedCourse {
+    console.log(`📚 Generating structured course for prompt: "${originalPrompt}"`);
+    console.log(`📚 Extracted topic: "${topic}"`);
     
     const modules = [];
     
@@ -760,7 +867,7 @@ export class OllamaService {
         const chapterTheme = chapterThemes[globalChapterIndex % chapterThemes.length];
         chapters.push({
           title: `Chapter ${j}: ${chapterTheme.title} of ${topic}`,
-          content: `This chapter focuses on ${chapterTheme.content} of ${topic}. You will learn key principles and practical applications that form the foundation of understanding ${topic} ${moduleTheme.focus}.`
+          content: `This chapter focuses on ${chapterTheme.content} of ${topic}. Based on your request for "${originalPrompt}", you will learn key principles and practical applications that form the foundation of understanding ${topic} ${moduleTheme.focus}.`
         });
       }
       
@@ -812,9 +919,20 @@ export class OllamaService {
       modules.push(module);
     }
     
+    // Create a more specific title and description based on the original prompt
+    const title = originalPrompt.toLowerCase().includes('javascript') ? 'JavaScript Programming Course' :
+                  originalPrompt.toLowerCase().includes('python') ? 'Python Programming Course' :
+                  originalPrompt.toLowerCase().includes('react') ? 'React Development Course' :
+                  originalPrompt.toLowerCase().includes('web') ? 'Web Development Course' :
+                  originalPrompt.toLowerCase().includes('ai') || originalPrompt.toLowerCase().includes('machine') ? 'AI and Machine Learning Course' :
+                  originalPrompt.toLowerCase().includes('data') ? 'Data Science Course' :
+                  `${topic} Course`;
+    
+    const description = `A comprehensive course based on your request: "${originalPrompt}". Learn through structured modules, hands-on assignments, and interactive discussions. Each module builds upon the previous one to create a complete learning experience tailored to your specific needs.`;
+    
     return {
-      title: `${topic} Course`,
-      description: `A comprehensive course covering all aspects of ${topic}. Learn through structured modules, hands-on assignments, and interactive discussions. Each module builds upon the previous one to create a complete learning experience.`,
+      title: title,
+      description: description,
       category: "Programming",
       difficulty: "beginner",
       modules: modules

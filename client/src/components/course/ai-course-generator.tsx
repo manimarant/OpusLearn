@@ -99,8 +99,12 @@ export function AICourseGenerator({ onGenerate, onClose }: AICourseGeneratorProp
   // Auto-switch to preview when course is generated
   useEffect(() => {
     console.log("useEffect triggered - generatedCourse:", generatedCourse?.title, "activeTab:", activeTab);
+    console.log("Generated course object:", generatedCourse);
     if (generatedCourse && activeTab === "generation") {
       console.log("Auto-switching to preview tab");
+      setActiveTab("preview");
+    } else if (generatedCourse && activeTab !== "preview") {
+      console.log("Course exists but tab is not generation or preview, switching to preview");
       setActiveTab("preview");
     }
   }, [generatedCourse, activeTab]);
@@ -176,8 +180,10 @@ export function AICourseGenerator({ onGenerate, onClose }: AICourseGeneratorProp
              const data = await response.json();
        console.log("=== CLIENT-SIDE AI RESPONSE ===");
        console.log("Response status:", response.ok);
+       console.log("Full response data:", data);
        console.log("Course title:", data.course?.title);
        console.log("Modules count:", data.course?.modules?.length);
+       console.log("Course object:", data.course);
        console.log("=== END CLIENT-SIDE AI RESPONSE ===");
 
        if (!response.ok) {
@@ -191,7 +197,9 @@ export function AICourseGenerator({ onGenerate, onClose }: AICourseGeneratorProp
             modules: cleanedCourse.modules?.length,
             hasData: !!cleanedCourse
           });
+          console.log("About to set generated course state with:", cleanedCourse);
           setGeneratedCourse(cleanedCourse);
+          console.log("setGeneratedCourse called");
          
         toast({
           title: "Course Generated Successfully",
@@ -214,7 +222,7 @@ export function AICourseGenerator({ onGenerate, onClose }: AICourseGeneratorProp
   const handleCreateCourse = () => {
     if (generatedCourse) {
       onGenerate(generatedCourse);
-      onClose();
+      onClose(); // Close the modal
       toast({
         title: "Course Creation Started",
         description: "Your AI-generated course is being created. You'll see it in your course list shortly.",
@@ -245,17 +253,37 @@ export function AICourseGenerator({ onGenerate, onClose }: AICourseGeneratorProp
           </Button>
         </div>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col flex-1 min-h-0">
-          <TabsList className="grid w-full grid-cols-3 flex-shrink-0">
-            <TabsTrigger value="setup" disabled={isGenerating}>Setup</TabsTrigger>
-            <TabsTrigger value="generation" disabled={!coursePrompt.trim()}>Generation</TabsTrigger>
-                         <TabsTrigger value="preview" disabled={!generatedCourse}>
-               Preview {generatedCourse ? '(Ready)' : '(Empty)'}
-             </TabsTrigger>
-          </TabsList>
+        {/* SIMPLE TAB BUTTONS */}
+        <div className="flex border-b">
+          <button 
+            onClick={() => setActiveTab("setup")}
+            className={`flex-1 py-3 px-4 text-sm font-medium ${activeTab === "setup" ? "bg-blue-50 text-blue-600 border-b-2 border-blue-600" : "text-gray-500 hover:text-gray-700"}`}
+            disabled={isGenerating}
+          >
+            Setup
+          </button>
+          <button 
+            onClick={() => setActiveTab("generation")}
+            className={`flex-1 py-3 px-4 text-sm font-medium ${activeTab === "generation" ? "bg-blue-50 text-blue-600 border-b-2 border-blue-600" : "text-gray-500 hover:text-gray-700"}`}
+            disabled={!coursePrompt.trim()}
+          >
+            Generation
+          </button>
+          <button 
+            onClick={() => setActiveTab("preview")}
+            className={`flex-1 py-3 px-4 text-sm font-medium ${activeTab === "preview" ? "bg-blue-50 text-blue-600 border-b-2 border-blue-600" : "text-gray-500 hover:text-gray-700"}`}
+            disabled={!generatedCourse}
+          >
+            Preview {generatedCourse ? '(Ready)' : '(Empty)'}
+          </button>
+        </div>
 
-          <div className="flex-1 min-h-0 overflow-hidden">
-            <TabsContent value="setup" className="h-full overflow-y-auto p-6">
+        
+
+        {/* CONTENT AREA */}
+        <div className="flex-1 min-h-0 overflow-hidden">
+          {activeTab === "setup" && (
+            <div className="h-full overflow-y-auto p-6">
               <div className="space-y-6">
                 <div>
                   <Label htmlFor="prompt-template">Quick Start Templates</Label>
@@ -339,9 +367,11 @@ export function AICourseGenerator({ onGenerate, onClose }: AICourseGeneratorProp
                   )}
                 </Button>
               </div>
-            </TabsContent>
+            </div>
+          )}
 
-            <TabsContent value="generation" className="h-full flex items-center justify-center p-6">
+          {activeTab === "generation" && (
+            <div className="h-full flex items-center justify-center p-6">
               <div className="flex flex-col items-center justify-center py-12">
                 <Loader2 className="h-12 w-12 animate-spin text-blue-600 mb-4" />
                 <h3 className="text-lg font-semibold mb-2">Generating Your Course</h3>
@@ -353,157 +383,178 @@ export function AICourseGenerator({ onGenerate, onClose }: AICourseGeneratorProp
                   <span>Using {selectedModel} for AI generation</span>
                 </div>
               </div>
-            </TabsContent>
+            </div>
+          )}
 
-                        {activeTab === "preview" && (
-              <div className="h-full p-6 overflow-y-auto">
-                {/* Force render test */}
-                <div style={{backgroundColor: 'red', color: 'white', padding: '20px', margin: '20px'}}>
-                  <h1>PREVIEW TAB TEST</h1>
-                  <p>If you can see this red box, the preview tab is rendering.</p>
-                  <p>Active Tab: {activeTab}</p>
-                  <p>Generated Course: {generatedCourse ? 'EXISTS' : 'NULL'}</p>
-                </div>
-                
-                 {generatedCourse ? (
-                <div className="space-y-6">
-                  {/* Course Header */}
-                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-lg border">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <h3 className="text-2xl font-bold text-gray-900 mb-2">{generatedCourse.title}</h3>
-                        <p className="text-gray-700 text-lg leading-relaxed">{generatedCourse.description}</p>
-                      </div>
-                      <div className="flex space-x-2 ml-4">
-                        <Badge variant="secondary" className="text-sm px-3 py-1">{generatedCourse.category}</Badge>
-                        <Badge variant="outline" className="text-sm px-3 py-1">{generatedCourse.difficulty}</Badge>
-                      </div>
-                    </div>
-                  </div>
+                     {activeTab === "preview" && (
+             <div className="h-full overflow-y-auto p-6">
+               {generatedCourse ? (
+                 <div className="space-y-6">
+                   {/* Course Header */}
+                   <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-6 border border-blue-200">
+                     <div className="flex items-start justify-between">
+                       <div className="flex-1">
+                         <h1 className="text-2xl font-bold text-gray-900 mb-2">{generatedCourse.title}</h1>
+                         <p className="text-gray-600 mb-4">{generatedCourse.description}</p>
+                         <div className="flex items-center space-x-4">
+                           <Badge variant="secondary" className="bg-blue-100 text-blue-800">
+                             {generatedCourse.category}
+                           </Badge>
+                           <Badge variant="outline" className="capitalize">
+                             {generatedCourse.difficulty}
+                           </Badge>
+                           <div className="flex items-center space-x-2 text-sm text-gray-500">
+                             <BookOpen className="h-4 w-4" />
+                             <span>{generatedCourse.modules.length} modules</span>
+                           </div>
+                         </div>
+                       </div>
+                     </div>
+                   </div>
 
-                  {/* Course Statistics */}
-                  <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                    {Object.entries(getContentStats(generatedCourse)).map(([key, value]) => (
-                      <Card key={key} className="text-center hover:shadow-md transition-shadow">
-                        <CardContent className="p-4">
-                          <div className="text-3xl font-bold text-blue-600 mb-1">{value}</div>
-                          <div className="text-sm text-gray-600 capitalize font-medium">
-                            {key.replace(/([A-Z])/g, ' $1').trim()}
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
+                   {/* Course Statistics */}
+                   {(() => {
+                     const stats = getContentStats(generatedCourse);
+                     return (
+                       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                         <Card>
+                           <CardContent className="p-4 text-center">
+                             <div className="text-2xl font-bold text-blue-600">{stats.totalModules}</div>
+                             <div className="text-sm text-gray-600">Modules</div>
+                           </CardContent>
+                         </Card>
+                         <Card>
+                           <CardContent className="p-4 text-center">
+                             <div className="text-2xl font-bold text-green-600">{stats.totalChapters}</div>
+                             <div className="text-sm text-gray-600">Chapters</div>
+                           </CardContent>
+                         </Card>
+                         <Card>
+                           <CardContent className="p-4 text-center">
+                             <div className="text-2xl font-bold text-purple-600">{stats.totalAssignments}</div>
+                             <div className="text-sm text-gray-600">Assignments</div>
+                           </CardContent>
+                         </Card>
+                         <Card>
+                           <CardContent className="p-4 text-center">
+                             <div className="text-2xl font-bold text-orange-600">{stats.totalQuizzes}</div>
+                             <div className="text-sm text-gray-600">Quizzes</div>
+                           </CardContent>
+                         </Card>
+                         <Card>
+                           <CardContent className="p-4 text-center">
+                             <div className="text-2xl font-bold text-pink-600">{stats.totalDiscussions}</div>
+                             <div className="text-sm text-gray-600">Discussions</div>
+                           </CardContent>
+                         </Card>
+                       </div>
+                     );
+                   })()}
 
-                  <div className="space-y-6">
-                    <div className="flex items-center space-x-2">
-                      <BookOpen className="h-5 w-5 text-blue-600" />
-                      <h4 className="text-xl font-semibold text-gray-900">Course Structure</h4>
-                    </div>
-                    {generatedCourse.modules.map((module, moduleIndex) => (
-                      <Card key={moduleIndex} className="hover:shadow-lg transition-shadow">
-                        <CardHeader className="bg-gradient-to-r from-gray-50 to-blue-50">
-                          <CardTitle className="flex items-center space-x-2 text-lg">
-                            <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-bold">
-                              {moduleIndex + 1}
-                            </div>
-                            <span>{module.title}</span>
-                          </CardTitle>
-                          <CardDescription className="text-gray-700">{module.description}</CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-6 p-6">
-                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                            <div className="space-y-4">
-                              <h5 className="font-semibold text-gray-900 flex items-center space-x-2">
-                                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                                <span>Chapters ({module.chapters.length})</span>
-                              </h5>
-                              <ul className="space-y-2">
-                                {module.chapters.map((chapter, chapterIndex) => (
-                                  <li key={chapterIndex} className="flex items-center space-x-3 p-2 rounded hover:bg-gray-50">
-                                    <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0"></div>
-                                    <span className="text-sm font-medium">{chapter.title}</span>
-                                  </li>
-                                ))}
-                              </ul>
-                            </div>
-                            
-                            <div className="space-y-4">
-                              {module.assignments && module.assignments.length > 0 && (
-                                <div>
-                                  <h5 className="font-semibold text-gray-900 flex items-center space-x-2 mb-3">
-                                    <FileText className="h-4 w-4 text-green-600" />
-                                    <span>Assignments ({module.assignments.length})</span>
-                                  </h5>
-                                  <ul className="space-y-2">
-                                    {module.assignments.map((assignment, assignmentIndex) => (
-                                      <li key={assignmentIndex} className="flex items-center justify-between p-2 rounded hover:bg-gray-50">
-                                        <span className="text-sm font-medium">{assignment.title}</span>
-                                        <Badge variant="outline" className="text-xs">{assignment.points} pts</Badge>
-                                      </li>
-                                    ))}
-                                  </ul>
-                                </div>
-                              )}
-
-                              {module.quizzes && module.quizzes.length > 0 && (
-                                <div>
-                                  <h5 className="font-semibold text-gray-900 flex items-center space-x-2 mb-3">
-                                    <Calendar className="h-4 w-4 text-purple-600" />
-                                    <span>Quizzes ({module.quizzes.length})</span>
-                                  </h5>
-                                  <ul className="space-y-2">
-                                    {module.quizzes.map((quiz, quizIndex) => (
-                                      <li key={quizIndex} className="flex items-center justify-between p-2 rounded hover:bg-gray-50">
-                                        <span className="text-sm font-medium">{quiz.title}</span>
-                                        <Badge variant="outline" className="text-xs">
-                                          {quiz.timeLimit ? `${quiz.timeLimit}m` : 'Quiz'}
-                                        </Badge>
-                                      </li>
-                                    ))}
-                                  </ul>
-                                </div>
-                              )}
-
-                              {module.discussions && module.discussions.length > 0 && (
-                                <div>
-                                  <h5 className="font-semibold text-gray-900 flex items-center space-x-2 mb-3">
-                                    <MessageSquare className="h-4 w-4 text-orange-600" />
-                                    <span>Discussions ({module.discussions.length})</span>
-                                  </h5>
-                                  <ul className="space-y-2">
-                                    {module.discussions.map((discussion, discussionIndex) => (
-                                      <li key={discussionIndex} className="p-2 rounded hover:bg-gray-50">
-                                        <span className="text-sm font-medium">{discussion.title}</span>
-                                      </li>
-                                    ))}
-                                  </ul>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
+                   {/* Course Modules */}
+                   <div className="space-y-4">
+                     <h2 className="text-xl font-semibold text-gray-900">Course Modules</h2>
+                     {generatedCourse.modules.map((module, moduleIndex) => (
+                       <Card key={moduleIndex} className="border-l-4 border-l-blue-500">
+                         <CardHeader>
+                           <CardTitle className="flex items-center space-x-2">
+                             <BookOpen className="h-5 w-5 text-blue-600" />
+                             <span>Module {moduleIndex + 1}: {module.title}</span>
+                           </CardTitle>
+                           <CardDescription>{module.description}</CardDescription>
+                         </CardHeader>
+                         <CardContent>
+                           <div className="space-y-4">
+                             {/* Chapters */}
+                             {module.chapters.length > 0 && (
+                               <div>
+                                 <h4 className="font-medium text-gray-900 mb-2 flex items-center space-x-2">
+                                   <FileText className="h-4 w-4 text-gray-600" />
+                                   <span>Chapters ({module.chapters.length})</span>
+                                 </h4>
+                                 <div className="space-y-2">
+                                   {module.chapters.map((chapter, chapterIndex) => (
+                                     <div key={chapterIndex} className="flex items-center space-x-2 text-sm text-gray-600">
+                                       <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
+                                       <span>{chapter.title}</span>
+                                     </div>
+                                   ))}
                                  </div>
+                               </div>
+                             )}
+
+                             {/* Assignments */}
+                             {module.assignments && module.assignments.length > 0 && (
+                               <div>
+                                 <h4 className="font-medium text-gray-900 mb-2 flex items-center space-x-2">
+                                   <Calendar className="h-4 w-4 text-gray-600" />
+                                   <span>Assignments ({module.assignments.length})</span>
+                                 </h4>
+                                 <div className="space-y-2">
+                                   {module.assignments.map((assignment, assignmentIndex) => (
+                                     <div key={assignmentIndex} className="flex items-center justify-between text-sm">
+                                       <span className="text-gray-600">{assignment.title}</span>
+                                       <Badge variant="outline">{assignment.points} pts</Badge>
+                                     </div>
+                                   ))}
+                                 </div>
+                               </div>
+                             )}
+
+                             {/* Quizzes */}
+                             {module.quizzes && module.quizzes.length > 0 && (
+                               <div>
+                                 <h4 className="font-medium text-gray-900 mb-2 flex items-center space-x-2">
+                                   <MessageSquare className="h-4 w-4 text-gray-600" />
+                                   <span>Quizzes ({module.quizzes.length})</span>
+                                 </h4>
+                                 <div className="space-y-2">
+                                   {module.quizzes.map((quiz, quizIndex) => (
+                                     <div key={quizIndex} className="flex items-center justify-between text-sm">
+                                       <span className="text-gray-600">{quiz.title}</span>
+                                       {quiz.timeLimit && (
+                                         <Badge variant="outline">{quiz.timeLimit} min</Badge>
+                                       )}
+                                     </div>
+                                   ))}
+                                 </div>
+                               </div>
+                             )}
+
+                             {/* Discussions */}
+                             {module.discussions && module.discussions.length > 0 && (
+                               <div>
+                                 <h4 className="font-medium text-gray-900 mb-2 flex items-center space-x-2">
+                                   <MessageSquare className="h-4 w-4 text-gray-600" />
+                                   <span>Discussions ({module.discussions.length})</span>
+                                 </h4>
+                                 <div className="space-y-2">
+                                   {module.discussions.map((discussion, discussionIndex) => (
+                                     <div key={discussionIndex} className="text-sm text-gray-600">
+                                       {discussion.title}
+                                     </div>
+                                   ))}
+                                 </div>
+                               </div>
+                             )}
+                           </div>
+                         </CardContent>
+                       </Card>
+                     ))}
+                   </div>
+                 </div>
                ) : (
-                 <div className="flex flex-col items-center justify-center py-12">
-                   <div className="text-center">
-                     <h3 className="text-lg font-semibold mb-2">No Course Generated</h3>
-                     <p className="text-gray-600 mb-4">
-                       No course content is available. Please generate a course first.
-                     </p>
-                     <Button onClick={() => setActiveTab("setup")}>
-                       Go to Setup
-                     </Button>
+                 <div className="flex items-center justify-center h-full">
+                   <div className="text-center text-gray-500">
+                     <BookOpen className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+                     <h3 className="text-lg font-medium">No Course Generated</h3>
+                     <p className="text-sm">Generate a course to see the preview here.</p>
                    </div>
                  </div>
                )}
-               </div>
-             )}
-          </div>
-        </Tabs>
+             </div>
+           )}
+        </div>
         
         {/* Footer buttons for preview tab */}
         {activeTab === "preview" && (

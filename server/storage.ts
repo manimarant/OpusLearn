@@ -159,8 +159,7 @@ export class DatabaseStorage implements IStorage {
           instructor: users,
         })
         .from(courses)
-        .leftJoin(users, eq(courses.instructorId, users.id))
-        .where(eq(courses.status, "published"));
+        .leftJoin(users, eq(courses.instructorId, users.id));
     }
     
     console.log('SQL Query:', query.toSQL());

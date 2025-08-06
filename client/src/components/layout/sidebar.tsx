@@ -28,10 +28,10 @@ export default function Sidebar() {
 
   const navigationItems = [
     {
-      href: "/",
+      href: "/dashboard",
       icon: LayoutDashboard,
       label: "Dashboard",
-      active: location === "/",
+      active: location === "/dashboard",
     },
     {
       href: "/courses",

@@ -1,0 +1,1 @@
+Write-Output "Yes" | npm run db:push 
