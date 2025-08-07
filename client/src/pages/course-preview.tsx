@@ -227,189 +227,255 @@ export default function CoursePreview() {
           <h2 className="text-2xl font-bold text-slate-800 mb-4">Table of Contents</h2>
           <ol className="list-decimal list-inside space-y-2">
             <li>Course Overview</li>
-            <li>Modules and Chapters</li>
-            <li>Assignments</li>
-            <li>Discussions</li>
-            <li>Quizzes</li>
+            <li>Learning Architecture
+              <ul className="list-disc list-inside ml-6 mt-2 space-y-1 text-sm text-slate-600">
+                <li>Learning Units (Chapters)</li>
+                <li>Performance Assessments (Assignments)</li>
+                <li>Knowledge Checks (Quizzes)</li>
+                <li>Collaborative Activities (Discussions)</li>
+              </ul>
+            </li>
           </ol>
         </div>
 
         {/* Course Overview */}
         <section className="mb-12">
           <h2 className="text-2xl font-bold text-slate-800 mb-6">1. Course Overview</h2>
-          <div className="grid grid-cols-2 gap-6 mb-8">
-            <div>
-              <h3 className="font-semibold mb-2">Course Information</h3>
-              <ul className="space-y-2 text-slate-600">
-                <li><span className="font-medium">Category:</span> {course.category}</li>
-                <li><span className="font-medium">Difficulty Level:</span> {course.difficulty}</li>
-                <li><span className="font-medium">Status:</span> {course.status}</li>
-                <li><span className="font-medium">Total Modules:</span> {modules?.length || 0}</li>
-                <li><span className="font-medium">Total Chapters:</span> {chapters?.length || 0}</li>
-                <li><span className="font-medium">Total Assignments:</span> {assignments?.length || 0}</li>
-                <li><span className="font-medium">Total Quizzes:</span> {quizzes?.length || 0}</li>
-              </ul>
-            </div>
-            <div>
-              <h3 className="font-semibold mb-2">{getRandomNoteSource()} Notes</h3>
-              <div className="text-slate-600 border-l-2 border-blue-500 pl-4">
-                <p className="italic">"Let's make sure the intro is super engaging. Maybe add a real-world example right at the beginning."</p>
-                <p className="italic mt-2">"The content for module 2 seems a bit dry. Can we add some interactive elements or a short video?"</p>
-                <p className="italic mt-2">"I think we need a quick quiz after module 3 to check for understanding. Just a few multiple-choice questions."</p>
-              </div>
-            </div>
+          
+          {/* Course Description */}
+          <div className="mb-8">
+            <h3 className="text-lg font-semibold mb-4">Course Description</h3>
+            <p className="text-slate-700 leading-relaxed">
+              {course.description || "This comprehensive course is designed to provide learners with essential knowledge and practical skills in the subject matter. Through structured modules and hands-on activities, participants will develop competencies aligned with industry standards and best practices."}
+            </p>
           </div>
 
+          {/* Learning Outcomes */}
           <div>
-            <h3 className="text-xl font-semibold mb-4">What you'll learn</h3>
+            <h3 className="text-xl font-semibold mb-4">Learning Outcomes</h3>
             <ul className="list-disc list-inside space-y-2 text-slate-600">
-              <li>Understanding core concepts and fundamentals</li>
-              <li>Practical hands-on exercises and projects</li>
-              <li>Real-world application and best practices</li>
-              <li>Advanced techniques and optimization</li>
+              <li>Master foundational concepts and theoretical frameworks</li>
+              <li>Apply knowledge through practical exercises and real-world scenarios</li>
+              <li>Develop competency in industry-standard practices and methodologies</li>
+              <li>Implement advanced strategies and optimization techniques</li>
             </ul>
           </div>
         </section>
 
-        {/* Modules and Chapters */}
+        {/* Learning Architecture */}
         <section className="mb-12">
-          <h2 className="text-2xl font-bold text-slate-800 mb-6">2. Modules and Chapters</h2>
-          <div className="space-y-8">
-            {modules?.map((module: any) => (
-              <div key={module.id} className="border-b pb-6">
-                <div className="grid grid-cols-3 gap-6">
-                  <div className="col-span-2">
-                    <h3 className="text-xl font-semibold mb-4">{module.title}</h3>
-                    {module.description && (
-                      <p className="text-slate-600 mb-4">{module.description}</p>
-                    )}
-                    <div className="space-y-4">
-                      {chapters
-                        ?.filter((chapter: any) => chapter.moduleId === module.id)
-                        .map((chapter: any, index: number) => (
-                          <div key={chapter.id} className="pl-6">
-                            <h4 className="font-medium">{chapter.title}</h4>
-                            {chapter.content && (
-                              <div className="prose prose-sm text-slate-700 mt-2" dangerouslySetInnerHTML={{ __html: chapter.content }} />
-                            )}
-                            {index === 0 && (
-                              <div className="mt-2">
-                                <video width="100%" controls>
-                                  <source src="https://www.w3schools.com/html/mov_bbb.mp4" type="video/mp4" />
-                                  Your browser does not support the video tag.
-                                </video>
-                              </div>
-                            )}
-                            {chapter.duration && (
-                              <p className="text-xs text-slate-500 mt-1">Duration: {chapter.duration} minutes</p>
-                            )}
-                          </div>
-                        ))}
+          <h2 className="text-2xl font-bold text-slate-800 mb-6">2. Learning Architecture</h2>
+          <div className="space-y-10">
+            {modules?.map((module: any, moduleIndex: number) => {
+              // Distribute assignments, discussions, and quizzes across modules
+              const moduleAssignments = assignments?.filter((_, index) => index % modules.length === moduleIndex) || [];
+              const moduleDiscussions = discussions?.filter((_, index) => index % modules.length === moduleIndex) || [];
+              const moduleQuizzes = quizzes?.filter((_, index) => index % modules.length === moduleIndex) || [];
+              const moduleChapters = chapters?.filter((chapter: any) => chapter.moduleId === module.id) || [];
+
+              // Generate random stakeholder notes
+              const stakeholderNotes = [
+                { type: "SME", note: "Ensure technical accuracy of all content examples", show: Math.random() > 0.7 },
+                { type: "Instructional Designer", note: "Consider adding interactive elements to increase engagement", show: Math.random() > 0.6 },
+                { type: "Project Manager", note: "Timeline for this module: 2 weeks development + 1 week review", show: Math.random() > 0.8 },
+                { type: "SME", note: "Real-world case studies needed for practical application", show: Math.random() > 0.7 },
+                { type: "Instructional Designer", note: "Align assessments with Bloom's taxonomy levels", show: Math.random() > 0.6 },
+                { type: "Project Manager", note: "Resource requirements: 3 videos, 5 documents, 2 simulations", show: Math.random() > 0.8 }
+              ];
+
+              const moduleNote = stakeholderNotes.find(note => note.show && moduleIndex % 3 === 0);
+
+              return (
+                <div key={module.id} className="ml-4 relative">
+                  {/* Module Header */}
+                  <div className="mb-6 flex">
+                    <div className="flex-1">
+                      <h3 className="text-xl font-bold text-slate-900 mb-2">{module.title}</h3>
+                      {module.description && (
+                        <p className="text-slate-600 ml-2">{module.description}</p>
+                      )}
                     </div>
-                  </div>
-                  <div>
-                    <h3 className="font-semibold mb-2">{getRandomNoteSource()} Notes</h3>
-                    <div className="text-slate-600 border-l-2 border-blue-500 pl-4">
-                      <p className="italic text-xs">"This chapter is crucial. Make sure to emphasize the key takeaways."</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-            {!modules?.length && (
-              <p className="text-slate-500 italic">No modules available.</p>
-            )}
-          </div>
-        </section>
-
-        {/* Assignments */}
-        <section className="mb-12">
-          <h2 className="text-2xl font-bold text-slate-800 mb-6">3. Assignments</h2>
-          <div className="space-y-6">
-            {assignments?.map((assignment: any) => (
-              <div key={assignment.id} className="border-b pb-6">
-                <h3 className="text-xl font-semibold mb-2">{assignment.title}</h3>
-                <p className="text-slate-600 mb-4">{assignment.description}</p>
-                <div className="bg-slate-50 p-4 rounded">
-                  <h4 className="font-medium mb-2">Instructions:</h4>
-                  <div 
-                    className="prose max-w-none text-slate-600"
-                    dangerouslySetInnerHTML={{ __html: assignment.instructions }} 
-                  />
-                </div>
-                <div className="mt-4 text-sm text-slate-500">
-                  <p>Due Date: {new Date(assignment.dueDate).toLocaleDateString()}</p>
-                  <p>Maximum Points: {assignment.maxPoints}</p>
-                </div>
-              </div>
-            ))}
-            {!assignments?.length && (
-              <p className="text-slate-500 italic">No assignments available.</p>
-            )}
-          </div>
-        </section>
-
-        {/* Discussions */}
-        <section className="mb-12">
-          <h2 className="text-2xl font-bold text-slate-800 mb-6">4. Discussions</h2>
-          <div className="space-y-6">
-            {discussions?.map((discussion: any) => (
-              <div key={discussion.id} className="border-b pb-6">
-                <h3 className="text-xl font-semibold mb-2">{discussion.title}</h3>
-                <p className="text-slate-600">{discussion.content}</p>
-                <div className="mt-2 text-sm text-slate-500">
-                  <p>Started by: {discussion.user?.firstName} {discussion.user?.lastName}</p>
-                  <p>Date: {new Date(discussion.createdAt).toLocaleDateString()}</p>
-                </div>
-              </div>
-            ))}
-            {!discussions?.length && (
-              <p className="text-slate-500 italic">No discussions available.</p>
-            )}
-          </div>
-        </section>
-
-        {/* Quizzes */}
-        <section className="mb-12">
-          <h2 className="text-2xl font-bold text-slate-800 mb-6">5. Quizzes</h2>
-          <div className="space-y-6">
-            {quizzes?.map((quiz: any) => (
-              <div key={quiz.id} className="border-b pb-6">
-                <div className="grid grid-cols-3 gap-6">
-                  <div className="col-span-2">
-                    <h3 className="text-xl font-semibold mb-2">{quiz.title}</h3>
-                    <p className="text-slate-600 mb-4">{quiz.description}</p>
-                    <div className="bg-slate-50 p-4 rounded">
-                      <div className="grid grid-cols-3 gap-4 text-sm">
-                        <div>
-                          <p className="font-medium">Time Limit</p>
-                          <p>{quiz.timeLimit} minutes</p>
-                        </div>
-                        <div>
-                          <p className="font-medium">Passing Score</p>
-                          <p>{quiz.passingScore}%</p>
-                        </div>
-                        <div>
-                          <p className="font-medium">Attempts Allowed</p>
-                          <p>{quiz.attempts}</p>
+                    {moduleNote && (
+                      <div className="w-80 ml-8 mt-4 mb-4">
+                        <div className="pl-3 border-l-2 border-slate-300 text-xs italic text-slate-500 inline-block">
+                          <span className="font-medium">Note from {moduleNote.type}:</span> {moduleNote.note}
                         </div>
                       </div>
-                    </div>
+                    )}
                   </div>
-                  <div>
-                    <h3 className="font-semibold mb-2">{getRandomNoteSource()} Notes</h3>
-                    <div className="text-slate-600 border-l-2 border-blue-500 pl-4">
-                      <p className="italic text-xs">"The quiz questions should be challenging but fair. Let's review them one more time before publishing."</p>
-                    </div>
+
+                  <div className="ml-4">
+                    {/* Learning Units (Chapters) */}
+                    {moduleChapters.length > 0 && (
+                      <div className="mb-8">
+                        <h4 className="text-lg font-medium text-slate-800 mb-4">
+                          Learning Units ({moduleChapters.length})
+                        </h4>
+                        <div className="ml-6 space-y-4">
+                          {moduleChapters.map((chapter: any, index: number) => {
+                            const showChapterNote = index === 0 && Math.random() > 0.6;
+                            return (
+                              <div key={chapter.id} className="ml-2 flex">
+                                <div className="flex-1">
+                                  <div className="mb-2">
+                                    <h5 className="font-medium text-slate-800">{chapter.title}</h5>
+                                    {chapter.duration && (
+                                      <span className="text-xs text-slate-500 ml-4">
+                                        {chapter.duration} min
+                                      </span>
+                                    )}
+                                  </div>
+                                  {chapter.content && (
+                                    <div className="prose prose-sm text-slate-600 max-w-none ml-4" dangerouslySetInnerHTML={{ __html: chapter.content }} />
+                                  )}
+                                </div>
+                                {showChapterNote && (
+                                  <div className="w-80 ml-8 mt-3 mb-3">
+                                    <div className="pl-3 border-l-2 border-slate-300 text-xs italic text-slate-500 inline-block">
+                                      <span className="font-medium">Note from Instructional Designer:</span> Include knowledge check questions after this unit
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Performance Assessments (Assignments) */}
+                    {moduleAssignments.length > 0 && (
+                      <div className="mb-8">
+                        <h4 className="text-lg font-medium text-slate-800 mb-4">
+                          Performance Assessments ({moduleAssignments.length})
+                        </h4>
+                        <div className="ml-6 space-y-6">
+                          {moduleAssignments.map((assignment: any, assignmentIndex: number) => {
+                            const showAssignmentNote = assignmentIndex === 0 && Math.random() > 0.5;
+                            return (
+                              <div key={assignment.id} className="ml-2 flex">
+                                <div className="flex-1">
+                                  <h5 className="font-medium text-slate-800 mb-2">{assignment.title}</h5>
+                                  <p className="text-slate-600 mb-3 ml-4">{assignment.description}</p>
+                                  {assignment.instructions && (
+                                    <div className="ml-4 mb-3">
+                                      <h6 className="font-medium text-slate-700 mb-2 text-sm">Instructions:</h6>
+                                      <div 
+                                        className="prose prose-sm text-slate-600 max-w-none ml-2"
+                                        dangerouslySetInnerHTML={{ __html: assignment.instructions }} 
+                                      />
+                                    </div>
+                                  )}
+                                  <div className="text-sm text-slate-500 ml-4 space-y-1">
+                                    <p>Due: {new Date(assignment.dueDate).toLocaleDateString()}</p>
+                                    <p className="text-slate-600">
+                                      {assignment.maxPoints} points
+                                    </p>
+                                  </div>
+                                </div>
+                                {showAssignmentNote && (
+                                  <div className="w-80 ml-8 mt-3 mb-3">
+                                    <div className="pl-3 border-l-2 border-slate-300 text-xs italic text-slate-500 inline-block">
+                                      <span className="font-medium">Note from SME:</span> Consider providing rubric with detailed scoring criteria
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Knowledge Checks (Quizzes) */}
+                    {moduleQuizzes.length > 0 && (
+                      <div className="mb-8">
+                        <h4 className="text-lg font-medium text-slate-800 mb-4">
+                          Knowledge Checks ({moduleQuizzes.length})
+                        </h4>
+                        <div className="ml-6 space-y-4">
+                          {moduleQuizzes.map((quiz: any, quizIndex: number) => {
+                            const showQuizNote = quizIndex === 0 && Math.random() > 0.7;
+                            return (
+                              <div key={quiz.id} className="ml-2 flex">
+                                <div className="flex-1">
+                                  <h5 className="font-medium text-slate-800 mb-2">{quiz.title}</h5>
+                                  <p className="text-slate-600 mb-3 ml-4">{quiz.description}</p>
+                                  <div className="ml-4">
+                                    <div className="grid grid-cols-3 gap-6 text-sm">
+                                      <div>
+                                        <p className="font-medium text-slate-700">Time Limit</p>
+                                        <p className="text-slate-600">{quiz.timeLimit} minutes</p>
+                                      </div>
+                                      <div>
+                                        <p className="font-medium text-slate-700">Passing Score</p>
+                                        <p className="text-slate-600">{quiz.passingScore || 70}%</p>
+                                      </div>
+                                      <div>
+                                        <p className="font-medium text-slate-700">Attempts</p>
+                                        <p className="text-slate-600">{quiz.attempts || 'Unlimited'}</p>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                                {showQuizNote && (
+                                  <div className="w-80 ml-8 mt-3 mb-3">
+                                    <div className="pl-3 border-l-2 border-slate-300 text-xs italic text-slate-500 inline-block">
+                                      <span className="font-medium">Note from Project Manager:</span> Review quiz questions during SME validation phase
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Collaborative Activities (Discussions) */}
+                    {moduleDiscussions.length > 0 && (
+                      <div className="mb-6">
+                        <h4 className="text-lg font-medium text-slate-800 mb-4">
+                          Collaborative Activities ({moduleDiscussions.length})
+                        </h4>
+                        <div className="ml-6 space-y-4">
+                          {moduleDiscussions.map((discussion: any, discussionIndex: number) => {
+                            const showDiscussionNote = discussionIndex === 0 && Math.random() > 0.4;
+                            return (
+                              <div key={discussion.id} className="ml-2 flex">
+                                <div className="flex-1">
+                                  <h5 className="font-medium text-slate-800 mb-2">{discussion.title}</h5>
+                                  <p className="text-slate-600 mb-3 ml-4">{discussion.content}</p>
+                                  <div className="text-sm text-slate-500 ml-4">
+                                    <p>Discussion initiated: {new Date(discussion.createdAt).toLocaleDateString()}</p>
+                                  </div>
+                                </div>
+                                {showDiscussionNote && (
+                                  <div className="w-80 ml-8 mt-3 mb-3">
+                                    <div className="pl-3 border-l-2 border-slate-300 text-xs italic text-slate-500 inline-block">
+                                      <span className="font-medium">Note from Instructional Designer:</span> Consider adding discussion prompts to guide meaningful peer interaction
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
+              );
+            })}
+            {!modules?.length && (
+              <div className="text-center py-12">
+                <p className="text-slate-500 italic text-lg">No learning modules available.</p>
               </div>
-            ))}
-            {!quizzes?.length && (
-              <p className="text-slate-500 italic">No quizzes available.</p>
             )}
           </div>
         </section>
+
+
       </div>
     </div>
   );

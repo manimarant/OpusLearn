@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/useAuth";
@@ -16,7 +16,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FileText, Plus, Calendar, Clock, Users, CheckCircle, XCircle, Upload, Download, Eye, Award } from "lucide-react";
+import { FileText, Plus, Calendar, Clock, Users, CheckCircle, XCircle, Upload, Download, Eye, Award, Pencil, Trash2 } from "lucide-react";
 import RubricBuilder from "@/components/rubric/rubric-builder";
 import RubricEvaluator from "@/components/rubric/rubric-evaluator";
 import RubricDetail from "@/components/rubric/rubric-detail";
@@ -76,6 +76,8 @@ export default function Assignments() {
   const [selectedAssignment, setSelectedAssignment] = useState<Assignment | null>(null);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isSubmissionDialogOpen, setIsSubmissionDialogOpen] = useState(false);
+  const [editingAssignment, setEditingAssignment] = useState<Assignment | null>(null);
+  const [isEditAssignmentDialogOpen, setIsEditAssignmentDialogOpen] = useState(false);
   const [newAssignment, setNewAssignment] = useState({
     title: "",
     description: "",
@@ -97,6 +99,10 @@ export default function Assignments() {
 
   const { data: assignments } = useQuery<Assignment[]>({
     queryKey: assignmentsQueryKey(selectedCourse),
+    queryFn: async () => {
+      const response = await apiRequest("GET", `/api/courses/${selectedCourse}/assignments`);
+      return response.json();
+    },
     enabled: !!selectedCourse,
   });
 
@@ -157,6 +163,50 @@ export default function Assignments() {
     },
   });
 
+  const updateAssignmentMutation = useMutation({
+    mutationFn: async (assignmentData: any) => {
+      const response = await apiRequest("PUT", `/api/assignments/${assignmentData.id}`, assignmentData);
+      return response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: assignmentsQueryKey(data.courseId.toString()) });
+      setIsEditAssignmentDialogOpen(false);
+      toast({
+        title: "Assignment Updated",
+        description: "Assignment has been updated successfully.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error?.message || "Failed to update assignment",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteAssignmentMutation = useMutation({
+    mutationFn: async (assignmentId: number) => {
+      const response = await apiRequest("DELETE", `/api/assignments/${assignmentId}`);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: assignmentsQueryKey(selectedCourse) });
+      setSelectedAssignment(null);
+      toast({
+        title: "Assignment Deleted",
+        description: "Assignment has been deleted successfully.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error?.message || "Failed to delete assignment",
+        variant: "destructive",
+      });
+    },
+  });
+
   const createSubmissionMutation = useMutation({
     mutationFn: async (submissionData: any) => {
       if (!selectedAssignment) return;
@@ -185,12 +235,10 @@ export default function Assignments() {
       return;
     }
 
-    // Convert the date string to an ISO string for the server
     const dueDate = newAssignment.dueDate 
-      ? new Date(newAssignment.dueDate).toISOString() // Convert to ISO string for Zod datetime validation
+      ? new Date(newAssignment.dueDate).toISOString()
       : null;
 
-    // Prepare assignment data according to the schema
     const assignmentData = {
       title: newAssignment.title,
       description: newAssignment.description || null,
@@ -199,17 +247,39 @@ export default function Assignments() {
       maxPoints: parseInt(String(newAssignment.maxPoints)) || 100,
       courseId: parseInt(newAssignment.courseId),
     };
-
-    console.log('Creating assignment with data:', {
-      assignmentData,
-      newAssignment,
-      dueDate,
-      courseId: newAssignment.courseId,
-      rawDate: newAssignment.dueDate,
-      isoDate: dueDate
-    });
     
     createAssignmentMutation.mutate(assignmentData);
+  };
+
+  const handleEditAssignment = (assignment: Assignment) => {
+    setEditingAssignment({
+      ...assignment,
+      dueDate: assignment.dueDate ? new Date(assignment.dueDate).toISOString().slice(0, 16) : "", // Format for datetime-local input
+      courseId: assignment.courseId.toString(),
+    });
+    setIsEditAssignmentDialogOpen(true);
+  };
+
+  const handleUpdateAssignment = () => {
+    if (editingAssignment) {
+      const dueDate = editingAssignment.dueDate 
+        ? new Date(editingAssignment.dueDate).toISOString()
+        : null;
+
+      const assignmentData = {
+        ...editingAssignment,
+        dueDate,
+        maxPoints: parseInt(String(editingAssignment.maxPoints)) || 100,
+        courseId: parseInt(editingAssignment.courseId),
+      };
+      updateAssignmentMutation.mutate(assignmentData);
+    }
+  };
+
+  const handleDeleteAssignment = (assignmentId: number) => {
+    if (window.confirm("Are you sure you want to delete this assignment?")) {
+      deleteAssignmentMutation.mutate(assignmentId);
+    }
   };
 
   const handleCreateSubmission = () => {
@@ -358,20 +428,111 @@ export default function Assignments() {
             </div>
           </div>
 
+          {/* Edit Assignment Dialog */}
+          <Dialog open={isEditAssignmentDialogOpen} onOpenChange={setIsEditAssignmentDialogOpen}>
+            <DialogContent className="sm:max-w-[600px]">
+              <DialogHeader>
+                <DialogTitle>Edit Assignment</DialogTitle>
+                <DialogDescription>
+                  Update the details of your assignment.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="edit-title">Assignment Title</Label>
+                  <Input
+                    id="edit-title"
+                    value={editingAssignment?.title}
+                    onChange={(e) => setEditingAssignment({ ...editingAssignment!, title: e.target.value })}
+                    placeholder="Enter assignment title"
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="edit-description">Description</Label>
+                  <Textarea
+                    id="edit-description"
+                    value={editingAssignment?.description}
+                    onChange={(e) => setEditingAssignment({ ...editingAssignment!, description: e.target.value })}
+                    placeholder="Brief assignment description"
+                    rows={3}
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="edit-instructions">Instructions</Label>
+                  <Textarea
+                    id="edit-instructions"
+                    value={editingAssignment?.instructions}
+                    onChange={(e) => setEditingAssignment({ ...editingAssignment!, instructions: e.target.value })}
+                    placeholder="Detailed assignment instructions"
+                    rows={4}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="edit-dueDate">Due Date</Label>
+                    <Input
+                      id="edit-dueDate"
+                      type="datetime-local"
+                      value={editingAssignment?.dueDate}
+                      onChange={(e) => setEditingAssignment({ ...editingAssignment!, dueDate: e.target.value })}
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="edit-maxPoints">Max Points</Label>
+                    <Input
+                      id="edit-maxPoints"
+                      type="number"
+                      value={editingAssignment?.maxPoints}
+                      onChange={(e) => setEditingAssignment({ ...editingAssignment!, maxPoints: parseInt(e.target.value) || 100 })}
+                      placeholder="100"
+                    />
+                  </div>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button
+                  onClick={handleUpdateAssignment}
+                  disabled={updateAssignmentMutation.isPending}
+                >
+                  {updateAssignmentMutation.isPending ? "Saving..." : "Save Changes"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
           {/* Course Filter */}
-          <div className="mb-6">
-            <Select value={selectedCourse} onValueChange={setSelectedCourse}>
-              <SelectTrigger className="w-[250px]">
-                <SelectValue placeholder="Select Course" />
-              </SelectTrigger>
-              <SelectContent>
-                {courses?.map((course: Course) => (
-                  <SelectItem key={course.id} value={course.id.toString()}>
-                    {course.title}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="mb-8">
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center space-x-4">
+                  <Label htmlFor="course-filter" className="text-sm font-medium text-slate-700">
+                    Select Course:
+                  </Label>
+                  <Select value={selectedCourse} onValueChange={setSelectedCourse}>
+                    <SelectTrigger className="w-[300px]" id="course-filter">
+                      <SelectValue placeholder="Choose a course to view assignments" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {courses?.map((course: Course) => (
+                        <SelectItem key={course.id} value={course.id.toString()}>
+                          {course.title}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {assignments && selectedCourse && (
+                    <Badge variant="secondary">
+                      {assignments.length} assignment{assignments.length !== 1 ? 's' : ''}
+                    </Badge>
+                  )}
+                </div>
+                {!selectedCourse && (
+                  <p className="text-sm text-slate-500 mt-2">
+                    Please select a course from the dropdown above to view its assignments.
+                  </p>
+                )}
+              </CardContent>
+            </Card>
           </div>
 
           {selectedCourse ? (
@@ -380,7 +541,7 @@ export default function Assignments() {
               <div className="lg:col-span-2">
                 <div className="space-y-4">
                   {assignments && assignments.length > 0 ? (
-                    assignments.map((assignment: Assignment) => (
+                  assignments.map((assignment: Assignment) => (
                       <Card 
                         key={assignment.id} 
                         className={`cursor-pointer transition-colors hover:border-slate-300 ${
@@ -409,13 +570,25 @@ export default function Assignments() {
                                 </div>
                               </div>
                             </div>
-                            <div className="text-right">
-                              <div className="text-2xl font-bold text-slate-800">
-                                {/* Mock submission count for instructors */}
-                                {isInstructor ? "12" : "85%"}
-                              </div>
-                              <div className="text-xs text-slate-500">
-                                {isInstructor ? "submissions" : "avg score"}
+                            <div className="flex items-center space-x-2">
+                              {isInstructor && (
+                                <>
+                                  <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleEditAssignment(assignment); }}>
+                                    <Pencil className="h-4 w-4" />
+                                  </Button>
+                                  <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleDeleteAssignment(assignment.id); }}>
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </>
+                              )}
+                              <div className="text-right">
+                                <div className="text-2xl font-bold text-slate-800">
+                                  {/* Mock submission count for instructors */}
+                                  {isInstructor ? "12" : "85%"}
+                                </div>
+                                <div className="text-xs text-slate-500">
+                                  {isInstructor ? "submissions" : "avg score"}
+                                </div>
                               </div>
                             </div>
                           </div>
@@ -427,7 +600,10 @@ export default function Assignments() {
                       <CardContent className="p-12 text-center">
                         <FileText className="h-12 w-12 text-slate-300 mx-auto mb-4" />
                         <p className="text-slate-500">
-                          No assignments in this course yet.
+                          {selectedCourse 
+                            ? "No assignments in this course yet." 
+                            : "No assignments found across all courses."
+                          }
                         </p>
                         {isInstructor && (
                           <Button 
@@ -550,68 +726,56 @@ export default function Assignments() {
                               )}
                             </div>
                           </TabsContent>
-                          <TabsContent value="grading" className="space-y-3">
-                            <div className="space-y-4">
-                              <div className="flex items-center justify-between">
+                          <TabsContent value="grading" className="space-y-4">
+                            {/* Create Rubric Section */}
+                            <div className="p-4 bg-slate-50 rounded-lg">
+                              <div className="flex items-center justify-between mb-2">
                                 <h4 className="font-medium text-slate-800">Rubric Management</h4>
-                                <RubricBuilder
-                                  type="assignment"
-                                  assignmentId={selectedAssignment.id}
-                                  onRubricCreated={(rubric) => {
-                                    toast({
-                                      title: "Rubric Created",
-                                      description: "Rubric has been created for this assignment.",
-                                    });
-                                  }}
-                                />
                               </div>
-                              
+                              <p className="text-sm text-slate-600 mb-4">Create and manage rubrics for grading this assignment.</p>
+                              <RubricBuilder
+                                type="assignment"
+                                assignmentId={selectedAssignment.id}
+                                onRubricCreated={(rubric) => {
+                                  toast({
+                                    title: "Rubric Created",
+                                    description: "Rubric has been created for this assignment.",
+                                  });
+                                }}
+                              />
+                            </div>
+                            
+                            {/* Available Rubrics */}
+                            <div className="space-y-3">
+                              <h5 className="text-sm font-medium text-slate-700">Available Rubrics</h5>
                               <div className="space-y-3">
-                                <h5 className="text-sm font-medium text-slate-700">Available Rubrics</h5>
-                                <div className="space-y-2">
-                                  {rubrics && rubrics.length > 0 ? (
-                                    rubrics.map((rubric) => (
-                                      <div key={rubric.id} className="p-4 border border-slate-200 rounded-lg bg-white hover:shadow-sm transition-shadow">
-                                        <div className="flex flex-col gap-4">
-                                          <div className="flex items-start justify-between">
-                                            <div className="flex-1 min-w-0">
-                                              <div className="flex items-center space-x-2 mb-3">
-                                                <Award className="h-4 w-4 text-blue-600 flex-shrink-0" />
-                                                <h4 className="font-semibold text-slate-800 truncate">{rubric.title}</h4>
-                                              </div>
-                                              {rubric.description && rubric.description !== rubric.title && (
-                                                <p className="text-sm text-slate-600 mb-3 leading-relaxed">{rubric.description}</p>
-                                              )}
-                                              <div className="flex flex-wrap items-center gap-4 text-xs text-slate-500">
-                                                <span className="flex items-center space-x-1 flex-shrink-0">
-                                                  <span className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0"></span>
-                                                  <span>Max Points: {rubric.maxPoints}</span>
-                                                </span>
-                                                <span className="flex items-center space-x-1 flex-shrink-0">
-                                                  <span className="w-2 h-2 bg-green-500 rounded-full flex-shrink-0"></span>
-                                                  <span>Type: {rubric.type}</span>
-                                                </span>
-                                              </div>
-                                            </div>
-                                          </div>
-                                          <div className="flex items-center justify-end space-x-2 pt-2 border-t border-slate-100">
-                                            <RubricDetail rubricId={rubric.id} />
-                                            <Button size="sm" variant="outline" className="border-blue-200 text-blue-700 hover:bg-blue-50 whitespace-nowrap">
-                                              <Award className="h-3 w-3 mr-1" />
-                                              Use for Grading
-                                            </Button>
-                                          </div>
-                                        </div>
+                                {rubrics && rubrics.length > 0 ? (
+                                  rubrics.map((rubric) => (
+                                    <div key={rubric.id} className="p-3 border border-slate-200 rounded-lg bg-white">
+                                      <div className="flex items-center space-x-2 mb-2">
+                                        <Award className="h-4 w-4 text-blue-600" />
+                                        <h4 className="font-medium text-slate-800">{rubric.title}</h4>
                                       </div>
-                                    ))
-                                  ) : (
-                                    <div className="p-6 border border-slate-200 rounded-lg text-center bg-slate-50">
-                                      <Award className="h-8 w-8 text-slate-300 mx-auto mb-3" />
-                                      <p className="text-sm font-medium text-slate-600 mb-1">No rubrics created yet</p>
-                                      <p className="text-xs text-slate-500">Create a rubric to start grading submissions for this assignment.</p>
+                                      <div className="flex items-center justify-between text-xs text-slate-500 mb-3">
+                                        <span>Max Points: {rubric.maxPoints}</span>
+                                        <span>Type: {rubric.type}</span>
+                                      </div>
+                                      <div className="flex items-center justify-between">
+                                        <RubricDetail rubricId={rubric.id} />
+                                        <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white">
+                                          <Award className="h-3 w-3 mr-1" />
+                                          Use for Grading
+                                        </Button>
+                                      </div>
                                     </div>
-                                  )}
-                                </div>
+                                  ))
+                                ) : (
+                                  <div className="p-6 border-2 border-dashed border-slate-200 rounded-lg text-center">
+                                    <Award className="h-8 w-8 text-slate-300 mx-auto mb-2" />
+                                    <p className="text-sm text-slate-500">No rubrics available</p>
+                                    <p className="text-xs text-slate-400">Create a rubric above to start grading</p>
+                                  </div>
+                                )}
                               </div>
                             </div>
                           </TabsContent>
@@ -694,10 +858,29 @@ export default function Assignments() {
             </div>
           ) : (
             <Card>
-              <CardContent className="p-12 text-center">
-                <p className="text-slate-500">
-                  Select a course to view assignments.
+              <CardContent className="p-16 text-center">
+                <FileText className="h-20 w-20 text-slate-300 mx-auto mb-6" />
+                <h3 className="text-xl font-semibold text-slate-800 mb-2">
+                  Welcome to Assignments
+                </h3>
+                <p className="text-slate-600 mb-6 max-w-md mx-auto">
+                  {isInstructor 
+                    ? "Create and manage assignments for your courses. Select a course above to get started or create your first assignment." 
+                    : "View and submit your assignments here. Select a course above to see available assignments."
+                  }
                 </p>
+                {isInstructor && courses && courses.length > 0 && (
+                  <Button 
+                    className="bg-blue-600 hover:bg-blue-700"
+                    onClick={() => {
+                      setSelectedCourse(courses[0].id.toString());
+                      setIsCreateDialogOpen(true);
+                    }}
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Create Your First Assignment
+                  </Button>
+                )}
               </CardContent>
             </Card>
           )}

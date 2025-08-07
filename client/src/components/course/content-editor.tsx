@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useDebounce } from "@/hooks/use-debounce";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -39,29 +40,49 @@ export default function ContentEditor({ chapter, onSave, isLoading, forceUpdate 
   });
 
   const [isPreview, setIsPreview] = useState(false);
+  const [isAutoSaving, setIsAutoSaving] = useState(false);
 
   useEffect(() => {
     if (chapter) {
-      console.log("=== CONTENT EDITOR UPDATE ===");
-      console.log("ContentEditor updating with chapter:", chapter);
-      console.log("Force update value:", forceUpdate);
-      console.log("Current chapterData:", chapterData);
-      
-      const newChapterData = {
+      setChapterData({
         title: chapter.title || "",
         content: chapter.content || "",
         contentType: chapter.contentType || "text",
         duration: chapter.duration || 0,
-      };
-      
-      console.log("New chapterData to set:", newChapterData);
-      setChapterData(newChapterData);
-      console.log("=== CONTENT EDITOR UPDATE END ===");
+      });
     }
   }, [chapter, forceUpdate]);
 
+  const debouncedChapterData = useDebounce(chapterData, 1000); // Debounce for 1 second
+
+  useEffect(() => {
+    if (chapter && (
+        debouncedChapterData.title !== chapter.title ||
+        debouncedChapterData.content !== chapter.content ||
+        debouncedChapterData.contentType !== chapter.contentType ||
+        debouncedChapterData.duration !== chapter.duration
+    )) {
+      // Include the chapter ID and other necessary fields for the update
+      const updatedChapter = {
+        ...debouncedChapterData,
+        id: chapter.id,
+        moduleId: chapter.moduleId,
+        orderIndex: chapter.orderIndex
+      };
+      setIsAutoSaving(true);
+      onSave(updatedChapter);
+      // Reset auto-saving state after a short delay
+      setTimeout(() => setIsAutoSaving(false), 2000);
+    }
+  }, [debouncedChapterData, chapter]);
+
   const handleSave = () => {
-    onSave(chapterData);
+    onSave({
+      ...chapterData,
+      id: chapter.id,
+      moduleId: chapter.moduleId,
+      orderIndex: chapter.orderIndex
+    });
   };
 
   const insertFormatting = (format: string) => {
@@ -182,6 +203,11 @@ export default function ContentEditor({ chapter, onSave, isLoading, forceUpdate 
             <Badge variant="outline">
               {chapterData.contentType}
             </Badge>
+            {isAutoSaving && (
+              <Badge variant="secondary" className="text-green-600">
+                Auto-saving...
+              </Badge>
+            )}
             <Button 
               onClick={handleSave}
               disabled={isLoading}

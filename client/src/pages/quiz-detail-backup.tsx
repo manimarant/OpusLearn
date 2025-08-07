@@ -181,7 +181,7 @@ export default function QuizDetail() {
       return;
     }
 
-    if (newQuestion.type === "multiple_choice" && newQuestion.options.some(opt => !opt.trim())) {
+    if (newQuestion.type === "multiple_choice" && newQuestion.options.some(opt => !opt.trim())) {
       toast({
         title: "Validation Error",
         description: "Please fill in all options for multiple choice questions.",

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/useAuth";
@@ -15,7 +15,8 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { MessageSquare, Plus, Pin, Lock, Reply, Search } from "lucide-react";
+import { MessageSquare, Plus, Pin, Lock, Reply, Search, Pencil, Trash2 } from "lucide-react";
+import { debounce } from "lodash";
 
 interface Course {
   id: number;
@@ -61,6 +62,8 @@ export default function Discussions() {
   const [selectedDiscussion, setSelectedDiscussion] = useState<Discussion | null>(null);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [editingDiscussion, setEditingDiscussion] = useState<Discussion | null>(null);
+  const [isEditDiscussionDialogOpen, setIsEditDiscussionDialogOpen] = useState(false);
   const [newDiscussion, setNewDiscussion] = useState({
     title: "",
     content: "",
@@ -111,6 +114,50 @@ export default function Discussions() {
     },
   });
 
+  const updateDiscussionMutation = useMutation({
+    mutationFn: async (discussionData: any) => {
+      const response = await apiRequest("PUT", `/api/discussions/${discussionData.id}`, discussionData);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/courses", selectedCourse, "discussions"] });
+      setIsEditDiscussionDialogOpen(false);
+      toast({
+        title: "Discussion Updated",
+        description: "Discussion has been updated successfully.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error?.message || "Failed to update discussion",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteDiscussionMutation = useMutation({
+    mutationFn: async (discussionId: number) => {
+      const response = await apiRequest("DELETE", `/api/discussions/${discussionId}`);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/courses", selectedCourse, "discussions"] });
+      setSelectedDiscussion(null);
+      toast({
+        title: "Discussion Deleted",
+        description: "Discussion has been deleted successfully.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error?.message || "Failed to delete discussion",
+        variant: "destructive",
+      });
+    },
+  });
+
   const createReplyMutation = useMutation({
     mutationFn: async (replyData: any) => {
       const response = await apiRequest("POST", `/api/discussions/${selectedDiscussion?.id}/replies`, replyData);
@@ -141,6 +188,23 @@ export default function Discussions() {
       pinned: false,
       locked: false,
     });
+  };
+
+  const handleEditDiscussion = (discussion: Discussion) => {
+    setEditingDiscussion(discussion);
+    setIsEditDiscussionDialogOpen(true);
+  };
+
+  const handleUpdateDiscussion = () => {
+    if (editingDiscussion) {
+      updateDiscussionMutation.mutate(editingDiscussion);
+    }
+  };
+
+  const handleDeleteDiscussion = (discussionId: number) => {
+    if (window.confirm("Are you sure you want to delete this discussion?")) {
+      deleteDiscussionMutation.mutate(discussionId);
+    }
   };
 
   const handleCreateReply = () => {
@@ -262,19 +326,14 @@ export default function Discussions() {
                           {course.title}
                         </SelectItem>
                       ))}
-                    </SelectContent>
+                    
+              </SelectContent>
                   </Select>
-                  <div className="relative flex-1">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 h-4 w-4" />
-                    <Input
-                      placeholder="Search discussions..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-10"
-                    />
-                  </div>
                 </div>
+                    
               </div>
+
+            
 
               {/* Discussions */}
               <div className="space-y-4">
@@ -330,6 +389,16 @@ export default function Discussions() {
                                 </div>
                               </div>
                             </div>
+                            {user?.role === "instructor" && (
+                              <div className="flex items-center space-x-2">
+                                <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleEditDiscussion(discussion); }}>
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                                <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleDeleteDiscussion(discussion.id); }}>
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            )}
                           </div>
                         </CardContent>
                       </Card>
@@ -457,6 +526,72 @@ export default function Discussions() {
           </div>
         </main>
       </div>
+
+      {/* Edit Discussion Dialog */}
+      <Dialog open={isEditDiscussionDialogOpen} onOpenChange={setIsEditDiscussionDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Edit Discussion</DialogTitle>
+            <DialogDescription>
+              Update the discussion details.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="edit-discussion-title">Discussion Title</Label>
+              <Input
+                id="edit-discussion-title"
+                value={editingDiscussion?.title || ""}
+                onChange={(e) => setEditingDiscussion(prev => prev ? {...prev, title: e.target.value} : null)}
+                placeholder="Enter discussion title"
+              />
+            </div>
+            <div>
+              <Label htmlFor="edit-discussion-content">Content</Label>
+              <Textarea
+                id="edit-discussion-content"
+                value={editingDiscussion?.content || ""}
+                onChange={(e) => setEditingDiscussion(prev => prev ? {...prev, content: e.target.value} : null)}
+                placeholder="Enter discussion content"
+                rows={4}
+              />
+            </div>
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="edit-discussion-pinned"
+                  checked={editingDiscussion?.pinned || false}
+                  onChange={(e) => setEditingDiscussion(prev => prev ? {...prev, pinned: e.target.checked} : null)}
+                  className="rounded"
+                />
+                <Label htmlFor="edit-discussion-pinned" className="text-sm">Pin this discussion</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="edit-discussion-locked"
+                  checked={editingDiscussion?.locked || false}
+                  onChange={(e) => setEditingDiscussion(prev => prev ? {...prev, locked: e.target.checked} : null)}
+                  className="rounded"
+                />
+                <Label htmlFor="edit-discussion-locked" className="text-sm">Lock discussion</Label>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditDiscussionDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleUpdateDiscussion}
+              disabled={updateDiscussionMutation.isPending}
+            >
+              {updateDiscussionMutation.isPending ? "Saving..." : "Save Changes"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

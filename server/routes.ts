@@ -272,6 +272,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.put('/api/modules/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const moduleId = parseInt(req.params.id);
+      const userId = getUserId(req);
+
+      // TODO: Add authorization check for module ownership
+      
+      const updates = insertModuleSchema.partial().parse(req.body);
+      const updatedModule = await storage.updateModule(moduleId, updates);
+      res.json(updatedModule);
+    } catch (error) {
+      console.error("Error updating module:", error);
+      res.status(400).json({ message: "Failed to update module" });
+    }
+  });
+
+  app.delete('/api/modules/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const moduleId = parseInt(req.params.id);
+      const userId = getUserId(req);
+
+      // TODO: Add authorization check for module ownership
+
+      await storage.deleteModule(moduleId);
+      res.json({ message: "Module deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting module:", error);
+      res.status(500).json({ message: "Failed to delete module" });
+    }
+  });
+
   app.put('/api/chapters/:id', isAuthenticated, async (req: any, res) => {
     try {
       const chapterId = parseInt(req.params.id);
@@ -282,6 +313,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error updating chapter:", error);
       res.status(400).json({ message: "Failed to update chapter" });
+    }
+  });
+
+  app.delete('/api/chapters/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const chapterId = parseInt(req.params.id);
+      const userId = getUserId(req);
+
+      // TODO: Add authorization check for chapter ownership
+
+      await storage.deleteChapter(chapterId);
+      res.json({ message: "Chapter deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting chapter:", error);
+      res.status(500).json({ message: "Failed to delete chapter" });
     }
   });
 
@@ -357,6 +403,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error creating discussion:", error);
       res.status(400).json({ message: "Failed to create discussion" });
+    }
+  });
+
+  app.put('/api/discussions/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const discussionId = parseInt(req.params.id);
+      const userId = getUserId(req);
+
+      // TODO: Add authorization check for discussion ownership
+
+      const updates = insertDiscussionSchema.partial().parse(req.body);
+      const updatedDiscussion = await storage.updateDiscussion(discussionId, updates);
+      res.json(updatedDiscussion);
+    } catch (error) {
+      console.error("Error updating discussion:", error);
+      res.status(400).json({ message: "Failed to update discussion" });
+    }
+  });
+
+  app.delete('/api/discussions/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const discussionId = parseInt(req.params.id);
+      const userId = getUserId(req);
+
+      // TODO: Add authorization check for discussion ownership
+
+      await storage.deleteDiscussion(discussionId);
+      res.json({ message: "Discussion deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting discussion:", error);
+      res.status(500).json({ message: "Failed to delete discussion" });
     }
   });
 
@@ -472,6 +549,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
         message: "Failed to create assignment", 
         errors: error?.errors || error?.message || String(error)
       });
+    }
+  });
+
+  app.put('/api/assignments/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const assignmentId = parseInt(req.params.id);
+      const userId = getUserId(req);
+
+      // TODO: Add authorization check for assignment ownership
+      
+      const updates = insertAssignmentSchema.partial().parse(req.body);
+      const updatedAssignment = await storage.updateAssignment(assignmentId, updates);
+      res.json(updatedAssignment);
+    } catch (error) {
+      console.error("Error updating assignment:", error);
+      res.status(400).json({ message: "Failed to update assignment" });
+    }
+  });
+
+  app.delete('/api/assignments/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const assignmentId = parseInt(req.params.id);
+      const userId = getUserId(req);
+
+      // TODO: Add authorization check for assignment ownership
+
+      await storage.deleteAssignment(assignmentId);
+      res.json({ message: "Assignment deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting assignment:", error);
+      res.status(500).json({ message: "Failed to delete assignment" });
     }
   });
 
@@ -612,6 +720,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching quiz:", error);
       res.status(404).json({ message: "Quiz not found" });
+    }
+  });
+
+  app.delete('/api/quizzes/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const quizId = parseInt(req.params.id);
+      const userId = getUserId(req);
+
+      // TODO: Add authorization check for quiz ownership
+
+      await storage.deleteQuiz(quizId);
+      res.json({ message: "Quiz deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting quiz:", error);
+      res.status(500).json({ message: "Failed to delete quiz" });
     }
   });
 

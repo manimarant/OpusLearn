@@ -15,7 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { Plus, Timer, Award, CheckCircle, XCircle } from "lucide-react";
+import { Plus, Timer, Award, CheckCircle, XCircle, Trash2, Pencil } from "lucide-react";
 import RubricBuilder from "@/components/rubric/rubric-builder";
 import RubricEvaluator from "@/components/rubric/rubric-evaluator";
 
@@ -107,6 +107,35 @@ export default function Quizzes() {
       });
     },
   });
+
+  const deleteQuizMutation = useMutation({
+    mutationFn: async (quizId: number) => {
+      const response = await apiRequest("DELETE", `/api/quizzes/${quizId}`);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/courses", selectedCourse, "quizzes"] });
+      toast({
+        title: "Quiz Deleted",
+        description: "Quiz has been deleted successfully.",
+      });
+    },
+    onError: (error: any) => {
+      console.error('Quiz deletion error:', error);
+      toast({
+        title: "Error",
+        description: error?.message || "Failed to delete quiz",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleDeleteQuiz = (quizId: number, event: React.MouseEvent) => {
+    event.stopPropagation(); // Prevent card click
+    if (window.confirm("Are you sure you want to delete this quiz?")) {
+      deleteQuizMutation.mutate(quizId);
+    }
+  };
 
   const handleCreateQuiz = () => {
     if (!newQuiz.title || !newQuiz.description || !newQuiz.courseId) {
@@ -285,7 +314,7 @@ export default function Quizzes() {
                   >
                     <CardContent className="p-6">
                       <div className="flex items-start justify-between mb-4">
-                        <div>
+                        <div className="flex-1">
                           <div className="flex items-center space-x-3 mb-2">
                             <h3 className="font-semibold text-slate-800">{quiz.title}</h3>
                             {getStatusBadge(quiz)}
@@ -303,6 +332,26 @@ export default function Quizzes() {
                               <span>{quiz.passingScore}% to pass</span>
                             </div>
                           </div>
+                        </div>
+                        <div className="flex gap-1">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setLocation(`/quizzes/${quiz.id}`);
+                            }}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={(e) => handleDeleteQuiz(quiz.id, e)}
+                            className="text-red-600 hover:text-red-700"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                         </div>
                       </div>
                     </CardContent>

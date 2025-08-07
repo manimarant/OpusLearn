@@ -9,7 +9,7 @@ import CourseCard from "@/components/course/course-card";
 import ProgressChart from "@/components/progress/progress-chart";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { BookOpen, Users, TrendingUp, Star, MessageSquare, FileText, Award, Sparkles, Zap, Target, Clock } from "lucide-react";
+import { BookOpen, Users, TrendingUp, Star, MessageSquare, FileText, Award, Sparkles, Zap, Target, Clock, Plus } from "lucide-react";
 
 export default function Dashboard() {
   const { toast } = useToast();
@@ -248,40 +248,94 @@ export default function Dashboard() {
 
           {/* Main Content Grid */}
           <div className="grid grid-cols-1 xl:grid-cols-4 gap-8 mb-8">
-            {/* Recent Courses */}
+            {/* Recent Activity & Quick Access */}
             <div className="xl:col-span-3">
-              <Card className="saas-card animate-slide-up">
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                      <BookOpen className="h-5 w-5 text-primary" />
-                      <CardTitle className="text-xl">
-                        {isInstructor ? "Recent Courses" : "My Courses"}
-                      </CardTitle>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Recent Courses */}
+                <Card className="saas-card animate-slide-up">
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <BookOpen className="h-5 w-5 text-primary" />
+                        <CardTitle className="text-lg">Recent Activity</CardTitle>
+                      </div>
+                      <Button variant="ghost" size="sm" className="saas-button-ghost" onClick={() => window.location.href = '/courses'}>
+                        View All →
+                      </Button>
                     </div>
-                    <Button variant="ghost" size="sm" className="saas-button-ghost">
-                      View All →
-                    </Button>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {courses?.slice(0, 3).map((course: any) => (
-                      <CourseCard key={course.id} course={course} />
-                    )) || (
-                      <div className="col-span-full text-center py-12">
-                        <BookOpen className="h-12 w-12 text-muted-foreground/50 mx-auto mb-4" />
-                        <p className="text-muted-foreground">
-                          {isInstructor ? "No courses created yet" : "No courses enrolled yet"}
-                        </p>
-                        <Button className="mt-4 saas-button-primary">
-                          {isInstructor ? "Create Your First Course" : "Browse Courses"}
+                  </CardHeader>
+                  <CardContent>
+                    {courses?.slice(0, 2).map((course: any) => (
+                      <div key={course.id} className="flex items-center space-x-4 p-3 rounded-lg hover:bg-muted/50 transition-colors mb-3 last:mb-0">
+                        <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+                          <BookOpen className="h-6 w-6 text-white" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-medium text-foreground truncate">{course.title}</h4>
+                          <p className="text-sm text-muted-foreground">
+                            {isInstructor ? `${course.status} • Updated ${new Date(course.updatedAt).toLocaleDateString()}` : 'Continue learning'}
+                          </p>
+                        </div>
+                        <Button variant="ghost" size="sm" onClick={() => window.location.href = isInstructor ? `/course-builder/${course.id}` : `/courses/${course.id}`}>
+                          {isInstructor ? 'Edit' : 'Continue'}
                         </Button>
                       </div>
+                    )) || (
+                      <div className="text-center py-8">
+                        <BookOpen className="h-8 w-8 text-muted-foreground/50 mx-auto mb-2" />
+                        <p className="text-sm text-muted-foreground">
+                          {isInstructor ? "No courses created yet" : "No courses enrolled yet"}
+                        </p>
+                      </div>
                     )}
-                  </div>
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
+
+                {/* Quick Actions */}
+                <Card className="saas-card animate-slide-up">
+                  <CardHeader>
+                    <div className="flex items-center space-x-3">
+                      <Sparkles className="h-5 w-5 text-primary" />
+                      <CardTitle className="text-lg">Quick Actions</CardTitle>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 gap-3">
+                      {isInstructor ? (
+                        <>
+                          <Button className="w-full justify-start saas-button-primary" onClick={() => window.location.href = '/course-builder/'}>
+                            <Plus className="h-4 w-4 mr-3" />
+                            Create New Course
+                          </Button>
+                          <Button variant="outline" className="w-full justify-start saas-button-secondary" onClick={() => window.location.href = '/courses'}>
+                            <BookOpen className="h-4 w-4 mr-3" />
+                            Manage Courses
+                          </Button>
+                          <Button variant="outline" className="w-full justify-start saas-button-secondary" onClick={() => window.location.href = '/assignments'}>
+                            <FileText className="h-4 w-4 mr-3" />
+                            View Assignments
+                          </Button>
+                        </>
+                      ) : (
+                        <>
+                          <Button className="w-full justify-start saas-button-primary" onClick={() => window.location.href = '/courses'}>
+                            <BookOpen className="h-4 w-4 mr-3" />
+                            Browse Courses
+                          </Button>
+                          <Button variant="outline" className="w-full justify-start saas-button-secondary" onClick={() => window.location.href = '/assignments'}>
+                            <FileText className="h-4 w-4 mr-3" />
+                            My Assignments
+                          </Button>
+                          <Button variant="outline" className="w-full justify-start saas-button-secondary" onClick={() => window.location.href = '/discussions'}>
+                            <MessageSquare className="h-4 w-4 mr-3" />
+                            Join Discussions
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
             </div>
 
             {/* Right Sidebar */}

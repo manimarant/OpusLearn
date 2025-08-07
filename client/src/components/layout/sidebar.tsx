@@ -14,7 +14,10 @@ import {
   FileText,
   Award,
   Sparkles,
-  Zap
+  Zap,
+  ChevronDown,
+  ChevronRight,
+  Layers
 } from "lucide-react";
 
 type Role = 'student' | 'instructor' | 'admin';
@@ -23,8 +26,15 @@ export default function Sidebar() {
   const [location] = useLocation();
   const { user } = useAuth();
   const [userRole, setUserRole] = useState<Role>(user?.role || "student");
+  const [isCreateContentExpanded, setIsCreateContentExpanded] = useState(false);
 
   const isInstructor = userRole === "instructor";
+
+  // Check if any of the create content pages are active
+  const isCreateContentActive = location.startsWith("/course-builder") || 
+    location === "/discussions" || 
+    location === "/assignments" || 
+    location === "/quizzes";
 
   const navigationItems = [
     {
@@ -39,12 +49,16 @@ export default function Sidebar() {
       label: "My Courses",
       active: location === "/courses",
     },
-    ...(isInstructor ? [{
-      href: "/course-builder/",
-      icon: Plus,
-      label: "Create Content",
-      active: location.startsWith("/course-builder"),
-    }] : []),
+    {
+      href: "/settings",
+      icon: Settings,
+      label: "Settings",
+      active: location === "/settings",
+    },
+  ];
+
+  // Create Content sub-items for instructors
+  const createContentItems = [
     {
       href: "/discussions",
       icon: MessageSquare,
@@ -54,7 +68,7 @@ export default function Sidebar() {
     {
       href: "/assignments",
       icon: FileText,
-      label: "Assignments",
+      label: "Assignments", 
       active: location === "/assignments",
     },
     {
@@ -64,30 +78,20 @@ export default function Sidebar() {
       active: location === "/quizzes",
     },
     {
-      href: "/settings",
-      icon: Settings,
-      label: "Settings",
-      active: location === "/settings",
+      href: "/course-builder/",
+      icon: Layers,
+      label: "Modules",
+      active: location.startsWith("/course-builder"),
     },
   ];
 
   const quickActions = [
     ...(isInstructor ? [
       {
-        href: "/course-builder/",
-        icon: Plus,
-        label: "New Course",
+        href: "/courses",
+        icon: Sparkles,
+        label: "AI Course Generator",
         badge: "AI-Powered",
-      },
-      {
-        href: "/assignments",
-        icon: FileText,
-        label: "Assignments",
-      },
-      {
-        href: "/quizzes",
-        icon: Award,
-        label: "Quizzes",
       },
     ] : [
       {
@@ -162,6 +166,50 @@ export default function Sidebar() {
               </button>
             </Link>
           ))}
+          
+          {/* Create Content Section for Instructors */}
+          {isInstructor && (
+            <div className="space-y-1">
+              <button
+                onClick={() => setIsCreateContentExpanded(!isCreateContentExpanded)}
+                className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 ${
+                  isCreateContentActive
+                    ? "bg-primary/5 text-primary shadow-sm"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                }`}
+              >
+                <div className="flex items-center space-x-3">
+                  <Plus className="w-5 h-5" />
+                  <span>Create Content</span>
+                </div>
+                {isCreateContentExpanded ? (
+                  <ChevronDown className="w-4 h-4" />
+                ) : (
+                  <ChevronRight className="w-4 h-4" />
+                )}
+              </button>
+              
+              {/* Collapsible sub-items */}
+              {isCreateContentExpanded && (
+                <div className="ml-6 space-y-1 border-l border-border/30 pl-4">
+                  {createContentItems.map((item) => (
+                    <Link key={item.href} href={item.href}>
+                      <button
+                        className={`w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-sm transition-all duration-200 ${
+                          item.active
+                            ? "bg-primary/5 text-primary"
+                            : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
+                        }`}
+                      >
+                        <item.icon className="w-4 h-4" />
+                        <span>{item.label}</span>
+                      </button>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </nav>
         
         {/* Quick Actions */}

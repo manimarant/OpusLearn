@@ -145,16 +145,15 @@ export default function CourseCard({ course }: CourseCardProps) {
           {/* Course Metadata */}
           <div className="flex items-center space-x-4 text-sm text-slate-500 mb-4">
             <div className="flex items-center space-x-1">
-              <Users className="h-4 w-4" />
-              <span>{mockStudentCount} students</span>
-            </div>
-            <div className="flex items-center space-x-1">
               <Clock className="h-4 w-4" />
               <span>{mockDuration}h duration</span>
             </div>
             <div className="flex items-center space-x-1">
               <BookOpen className="h-4 w-4" />
               <span>{course.category}</span>
+            </div>
+            <div className="flex items-center space-x-1">
+              <span className="capitalize">{course.difficulty}</span>
             </div>
           </div>
 

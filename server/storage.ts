@@ -69,12 +69,16 @@ export interface IStorage {
   // Discussion operations
   getCourseDiscussions(courseId: number): Promise<any[]>;
   createDiscussion(discussion: any): Promise<Discussion>;
+  updateDiscussion(id: number, updates: any): Promise<Discussion>;
+  deleteDiscussion(id: number): Promise<void>;
   getDiscussionReplies(discussionId: number): Promise<any[]>;
   createDiscussionReply(reply: any): Promise<DiscussionReply>;
   
   // Assignment operations
   getCourseAssignments(courseId: number): Promise<Assignment[]>;
   createAssignment(assignment: any): Promise<Assignment>;
+  updateAssignment(id: number, updates: any): Promise<Assignment>;
+  deleteAssignment(id: number): Promise<void>;
   getAssignmentSubmissions(assignmentId: number): Promise<any[]>;
   createSubmission(submission: any): Promise<Submission>;
   
@@ -86,6 +90,13 @@ export interface IStorage {
   getUserNotifications(userId: string): Promise<Notification[]>;
   createNotification(notification: any): Promise<Notification>;
   markNotificationRead(id: number): Promise<void>;
+  
+  // Quiz operations
+  getCourseQuizzes(courseId: number): Promise<Quiz[]>;
+  createQuiz(quiz: any): Promise<Quiz>;
+  updateQuiz(id: number, updates: any): Promise<Quiz>;
+  deleteQuiz(id: number): Promise<void>;
+  getQuiz(id: number): Promise<Quiz>;
   
   // Rubric operations
   getRubrics(type?: string, assignmentId?: string, quizId?: string): Promise<Rubric[]>;
@@ -362,6 +373,22 @@ export class DatabaseStorage implements IStorage {
     return discussion;
   }
 
+  async updateDiscussion(id: number, updates: any): Promise<Discussion> {
+    const [discussion] = await db
+      .update(discussions)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(discussions.id, id))
+      .returning();
+    return discussion;
+  }
+
+  async deleteDiscussion(id: number): Promise<void> {
+    // Delete related replies first
+    await db.delete(discussionReplies).where(eq(discussionReplies.discussionId, id));
+    // Delete the discussion
+    await db.delete(discussions).where(eq(discussions.id, id));
+  }
+
   async getDiscussionReplies(discussionId: number): Promise<any[]> {
     return db
       .select({
@@ -401,6 +428,22 @@ export class DatabaseStorage implements IStorage {
     const [assignment] = await db.insert(assignments).values(assignmentData).returning();
     console.log('Created assignment:', assignment);
     return assignment;
+  }
+
+  async updateAssignment(id: number, updates: any): Promise<Assignment> {
+    const [assignment] = await db
+      .update(assignments)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(assignments.id, id))
+      .returning();
+    return assignment;
+  }
+
+  async deleteAssignment(id: number): Promise<void> {
+    // Delete related submissions first
+    await db.delete(submissions).where(eq(submissions.assignmentId, id));
+    // Delete the assignment
+    await db.delete(assignments).where(eq(assignments.id, id));
   }
 
   async getAssignmentSubmissions(assignmentId: number): Promise<any[]> {
@@ -503,6 +546,24 @@ export class DatabaseStorage implements IStorage {
     const [quiz] = await db.insert(quizzes).values(quizData).returning();
     console.log('Created quiz:', quiz);
     return quiz;
+  }
+
+  async updateQuiz(id: number, updates: any): Promise<Quiz> {
+    const [quiz] = await db
+      .update(quizzes)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(quizzes.id, id))
+      .returning();
+    return quiz;
+  }
+
+  async deleteQuiz(id: number): Promise<void> {
+    // Delete related quiz questions first
+    await db.delete(quizQuestions).where(eq(quizQuestions.quizId, id));
+    // Delete related quiz attempts
+    await db.delete(quizAttempts).where(eq(quizAttempts.quizId, id));
+    // Delete the quiz
+    await db.delete(quizzes).where(eq(quizzes.id, id));
   }
 
   async getQuizQuestions(quizId: number): Promise<QuizQuestion[]> {

@@ -72,6 +72,34 @@ export default function CourseDetail() {
     },
   });
 
+  const { data: modules } = useQuery({
+    queryKey: ["/api/courses", id, "modules"],
+    queryFn: async () => {
+      const response = await fetch(`/api/courses/${id}/modules`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch modules');
+      }
+      return response.json();
+    },
+  });
+
+  const { data: chapters } = useQuery({
+    queryKey: ["/api/courses", id, "chapters"],
+    queryFn: async () => {
+      if (!modules || modules.length === 0) return [];
+      const allChapters = [];
+      for (const module of modules) {
+        const response = await fetch(`/api/modules/${module.id}/chapters`);
+        if (response.ok) {
+          const moduleChapters = await response.json();
+          allChapters.push(...moduleChapters);
+        }
+      }
+      return allChapters;
+    },
+    enabled: !!modules && modules.length > 0,
+  });
+
   const { data: quizzes } = useQuery({
     queryKey: ["/api/courses", id, "quizzes"],
     queryFn: async () => {
@@ -299,34 +327,34 @@ export default function CourseDetail() {
                     <CardContent>
                       <div className="grid grid-cols-3 gap-4 mb-6">
                         <div className="flex items-center space-x-2">
-                          <Users className="h-5 w-5 text-slate-500" />
+                          <BookOpen className="h-5 w-5 text-slate-500" />
                           <div>
-                            <p className="text-sm font-medium">Students</p>
-                            <p className="text-2xl font-bold">150</p>
+                            <p className="text-sm font-medium">Learning Modules</p>
+                            <p className="text-2xl font-bold">{modules?.length || 0}</p>
                           </div>
                         </div>
                         <div className="flex items-center space-x-2">
                           <Clock className="h-5 w-5 text-slate-500" />
                           <div>
-                            <p className="text-sm font-medium">Duration</p>
-                            <p className="text-2xl font-bold">12h</p>
+                            <p className="text-sm font-medium">Estimated Time</p>
+                            <p className="text-2xl font-bold">{chapters?.length ? Math.ceil(chapters.length * 0.5) : 8}h</p>
                           </div>
                         </div>
                         <div className="flex items-center space-x-2">
                           <BookOpen className="h-5 w-5 text-slate-500" />
                           <div>
-                            <p className="text-sm font-medium">Chapters</p>
-                            <p className="text-2xl font-bold">24</p>
+                            <p className="text-sm font-medium">Content Units</p>
+                            <p className="text-2xl font-bold">{chapters?.length || 0}</p>
                           </div>
                         </div>
                       </div>
                       <div className="space-y-4">
-                        <h3 className="text-lg font-semibold">What you'll learn</h3>
+                        <h3 className="text-lg font-semibold">Learning Outcomes</h3>
                         <ul className="list-disc list-inside space-y-2 text-slate-600">
-                          <li>Understanding core concepts and fundamentals</li>
-                          <li>Practical hands-on exercises and projects</li>
-                          <li>Real-world application and best practices</li>
-                          <li>Advanced techniques and optimization</li>
+                          <li>Master foundational concepts and theoretical frameworks</li>
+                          <li>Apply knowledge through practical exercises and real-world scenarios</li>
+                          <li>Develop competency in industry-standard practices and methodologies</li>
+                          <li>Implement advanced strategies and optimization techniques</li>
                         </ul>
                       </div>
                     </CardContent>
