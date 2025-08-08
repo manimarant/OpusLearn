@@ -10,9 +10,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { BookOpen, Users, Clock, Edit, MessageSquare, FileText, Eye, Share2 } from "lucide-react";
+import { BookOpen, Users, Clock, Edit, MessageSquare, FileText, Eye, Share2, Package } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { ExportDialog } from "@/components/course/export-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -33,6 +34,7 @@ export default function CourseDetail() {
   
 
   const [isPublishDialogOpen, setIsPublishDialogOpen] = useState(false);
+  const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
   const [publishDetails, setPublishDetails] = useState({
     platform: "",
     apiKey: "",
@@ -225,6 +227,13 @@ export default function CourseDetail() {
                     <Button onClick={() => window.location.href = `/course-builder/${course.id}`}>
                       <Edit className="h-4 w-4 mr-2" />
                       Edit Course
+                    </Button>
+                    <Button 
+                      variant="secondary"
+                      onClick={() => setIsExportDialogOpen(true)}
+                    >
+                      <Package className="h-4 w-4 mr-2" />
+                      Export Package
                     </Button>
                     <Dialog open={isPublishDialogOpen} onOpenChange={setIsPublishDialogOpen}>
                       <DialogTrigger asChild>
@@ -518,6 +527,16 @@ export default function CourseDetail() {
           </div>
         </main>
       </div>
+
+      {/* Export Dialog */}
+      {course && (
+        <ExportDialog
+          courseId={course.id.toString()}
+          courseName={course.title}
+          open={isExportDialogOpen}
+          onOpenChange={setIsExportDialogOpen}
+        />
+      )}
     </div>
   );
 } 

@@ -892,14 +892,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Instructor not found" });
       }
 
-      const { platform, apiKey, courseId: externalCourseId } = req.body;
+      const { platform, apiUrl, apiKey, courseId: externalCourseId } = req.body;
+
+      if (!platform || !apiUrl || !apiKey) {
+        return res.status(400).json({ message: "Platform, API URL, and API key are required" });
+      }
 
       // Fetch all course content
-      const [discussions, assignments, quizzes] = await Promise.all([
+      const [modules, discussions, assignments, quizzes] = await Promise.all([
+        storage.getCourseModules(courseId),
         storage.getCourseDiscussions(courseId),
         storage.getCourseAssignments(courseId),
         storage.getCourseQuizzes(courseId),
       ]);
+
+      // Get chapters for each module
+      const modulesWithChapters = await Promise.all(
+        modules.map(async (module) => ({
+          ...module,
+          chapters: await storage.getModuleChapters(module.id),
+        }))
+      );
 
       // Fetch quiz questions
       const quizzesWithQuestions = await Promise.all(
@@ -909,72 +922,238 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }))
       );
 
-      // Format course data for external LMS
-      const courseData = {
-        title: course.title,
-        description: course.description,
-        category: course.category,
-        difficulty: course.difficulty,
-        instructor: {
-          id: instructor.id,
-          name: `${instructor.firstName} ${instructor.lastName}`,
-          email: instructor.email,
-        },
-        discussions: discussions.map(d => ({
-          title: d.title,
-          content: d.content,
-          pinned: d.pinned,
-          locked: d.locked,
-          author: {
-            name: `${d.user?.firstName} ${d.user?.lastName}`,
-            email: d.user?.email,
+      // Format course data for LMS service
+      const lmsCourseData = {
+        course: {
+          ...course,
+          instructor: {
+            id: instructor.id,
+            name: `${instructor.firstName} ${instructor.lastName}`,
+            email: instructor.email,
           },
-          createdAt: d.createdAt,
-        })),
-        assignments: assignments.map(a => ({
-          title: a.title,
-          description: a.description,
-          instructions: a.instructions,
-          dueDate: a.dueDate,
-          maxPoints: a.maxPoints,
-          status: a.status,
-        })),
-        quizzes: quizzesWithQuestions.map(q => ({
-          title: q.title,
-          description: q.description,
-          timeLimit: q.timeLimit,
-          attempts: q.attempts,
-          passingScore: q.passingScore,
-          questions: q.questions.map(question => ({
-            question: question.question,
-            type: question.type,
-            options: question.options,
-            correctAnswer: question.correctAnswer,
-            points: question.points,
-          })),
+        },
+        modules: modulesWithChapters,
+        assignments,
+        quizzes: quizzesWithQuestions,
+        discussions: discussions.map(d => ({
+          ...d,
+          user: d.user ? {
+            firstName: d.user.firstName || '',
+            lastName: d.user.lastName || '',
+            email: d.user.email || '',
+          } : undefined,
         })),
       };
 
-      // TODO: Implement actual LMS integration
-      // This is a mock implementation
-      console.log(`Publishing course to ${platform}:`, {
-        courseData,
-        apiKey: '***',
-        externalCourseId,
-      });
-
-      // Mock successful publish
-      await new Promise(resolve => setTimeout(resolve, 2000));
-
-      res.json({ 
-        message: "Course published successfully",
+      // Use LMS service to publish course
+      const { lmsService } = await import('./services/lms-service');
+      const publishRequest = {
         platform,
-        externalCourseId: externalCourseId || "new-course-123",
-      });
+        apiUrl,
+        apiKey,
+        externalCourseId,
+      };
+
+      const result = await lmsService.publishCourse(lmsCourseData, publishRequest);
+
+      if (result.success) {
+        res.json({
+          message: result.message,
+          platform,
+          externalCourseId: result.externalCourseId,
+        });
+      } else {
+        res.status(400).json({
+          message: result.message,
+          errors: result.errors,
+        });
+      }
     } catch (error: any) {
       console.error("Error publishing course:", error);
       res.status(500).json({ 
         message: "Failed to publish course", 
+        error: error.message 
+      });
+    }
+  });
+
+  // Get LMS platforms info
+  app.get('/api/lms/platforms', async (req: any, res) => {
+    try {
+      const { lmsService } = await import('./services/lms-service');
+      const platforms = lmsService.getSupportedPlatforms().map(platform => ({
+        id: platform,
+        ...lmsService.getPlatformInfo(platform),
+      }));
+      res.json(platforms);
+    } catch (error: any) {
+      console.error("Error fetching LMS platforms:", error);
+      res.status(500).json({ 
+        message: "Failed to fetch LMS platforms", 
+        error: error.message 
+      });
+    }
+  });
+
+  // Validate LMS connection
+  app.post('/api/lms/validate', isAuthenticated, async (req: any, res) => {
+    try {
+      const { platform, apiUrl, apiKey } = req.body;
+
+      if (!platform || !apiUrl || !apiKey) {
+        return res.status(400).json({ message: "Platform, API URL, and API key are required" });
+      }
+
+      const { lmsService } = await import('./services/lms-service');
+      const isValid = await lmsService.validateConnection(platform, { apiUrl, apiKey });
+
+      res.json({ valid: isValid });
+    } catch (error: any) {
+      console.error("Error validating LMS connection:", error);
+      res.status(500).json({ 
+        message: "Failed to validate LMS connection", 
+        error: error.message 
+      });
+    }
+  });
+
+  // Get supported export formats
+  app.get('/api/export/formats', async (req: any, res) => {
+    try {
+      const { exportService } = await import('./services/elearning-export/export-service');
+      const formats = exportService.getSupportedFormats();
+      res.json(formats);
+    } catch (error: any) {
+      console.error("Error fetching export formats:", error);
+      res.status(500).json({ 
+        message: "Failed to fetch export formats", 
+        error: error.message 
+      });
+    }
+  });
+
+  // Export course as SCORM/xAPI package
+  app.post('/api/courses/:id/export', isAuthenticated, async (req: any, res) => {
+    try {
+      const courseId = parseInt(req.params.id);
+      const userId = getUserId(req);
+      
+      // Verify course ownership
+      const course = await storage.getCourse(courseId);
+      if (!course || course.instructorId !== userId) {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+
+      const { format, options = {} } = req.body;
+
+      if (!format) {
+        return res.status(400).json({ message: "Export format is required" });
+      }
+
+      // Get instructor details
+      const instructor = await storage.getUser(course.instructorId);
+      if (!instructor) {
+        return res.status(404).json({ message: "Instructor not found" });
+      }
+
+      // Fetch all course content
+      const [modules, discussions, assignments, quizzes] = await Promise.all([
+        storage.getCourseModules(courseId),
+        storage.getCourseDiscussions(courseId),
+        storage.getCourseAssignments(courseId),
+        storage.getCourseQuizzes(courseId),
+      ]);
+
+      // Get chapters for each module
+      const modulesWithChapters = await Promise.all(
+        modules.map(async (module) => ({
+          ...module,
+          chapters: await storage.getModuleChapters(module.id),
+        }))
+      );
+
+      // Fetch quiz questions
+      const quizzesWithQuestions = await Promise.all(
+        quizzes.map(async (quiz) => ({
+          ...quiz,
+          questions: await storage.getQuizQuestions(quiz.id),
+        }))
+      );
+
+      // Format course data for export service
+      const exportCourseData = {
+        course: {
+          ...course,
+          instructor: {
+            id: instructor.id,
+            name: `${instructor.firstName} ${instructor.lastName}`,
+            email: instructor.email,
+          },
+        },
+        modules: modulesWithChapters,
+        assignments,
+        quizzes: quizzesWithQuestions,
+        discussions: discussions.map(d => ({
+          ...d,
+          user: d.user ? {
+            firstName: d.user.firstName || '',
+            lastName: d.user.lastName || '',
+            email: d.user.email || '',
+          } : undefined,
+        })),
+      };
+
+      // Use export service to create package
+      const { exportService } = await import('./services/elearning-export/export-service');
+      const exportRequest = {
+        format,
+        options: {
+          ...options,
+          title: course.title,
+          organization: options.organization || 'OpusLearn',
+          language: options.language || 'en',
+        },
+      };
+
+      const result = await exportService.exportCourse(exportCourseData, exportRequest);
+
+      if (result.success && result.packagePath) {
+        // Set headers for file download
+        res.setHeader('Content-Type', 'application/zip');
+        res.setHeader('Content-Disposition', `attachment; filename="${result.filename}"`);
+        res.setHeader('Content-Length', result.size || 0);
+
+        // Stream the file
+        const fs = await import('fs');
+        const fileStream = fs.createReadStream(result.packagePath);
+        
+        fileStream.pipe(res);
+        
+        // Clean up file after sending
+        fileStream.on('end', async () => {
+          try {
+            await fs.promises.unlink(result.packagePath!);
+          } catch (error) {
+            console.warn('Failed to clean up export file:', error);
+          }
+        });
+
+        fileStream.on('error', (error) => {
+          console.error('Error streaming export file:', error);
+          if (!res.headersSent) {
+            res.status(500).json({ message: 'Failed to download package' });
+          }
+        });
+      } else {
+        res.status(400).json({
+          message: result.message,
+          errors: result.errors,
+        });
+      }
+    } catch (error: any) {
+      console.error("Error exporting course:", error);
+      res.status(500).json({ 
+        message: "Failed to export course", 
         error: error.message 
       });
     }

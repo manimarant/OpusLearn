@@ -4,15 +4,16 @@ import { useAuth } from "@/hooks/useAuth";
 import Header from "@/components/layout/header";
 import Sidebar from "@/components/layout/sidebar";
 import { Button } from "@/components/ui/button";
-import { Printer, ArrowLeft } from "lucide-react";
-import { useEffect } from "react";
+import { Printer, ArrowLeft, Upload } from "lucide-react";
+import { useEffect, useState } from "react";
+import { PublishDialog } from "@/components/course/publish-dialog";
 import "./course-preview.css";
 
 export default function CoursePreview() {
   const { id } = useParams();
   const { user, isAuthenticated } = useAuth();
   const [location, setLocation] = useLocation();
-  
+  const [isPublishDialogOpen, setIsPublishDialogOpen] = useState(false);
 
   
 
@@ -200,10 +201,22 @@ export default function CoursePreview() {
             </Button>
             <h1 className="text-xl font-semibold text-slate-800">Course Preview</h1>
           </div>
-          <Button onClick={handlePrint}>
-            <Printer className="h-4 w-4 mr-2" />
-            Print Course Content
-          </Button>
+          <div className="flex items-center space-x-3">
+            {/* Show publish button only if user is authenticated and owns the course */}
+            {isAuthenticated && user && course && course.instructorId === user.id && (
+              <Button 
+                variant="secondary"
+                onClick={() => setIsPublishDialogOpen(true)}
+              >
+                <Upload className="h-4 w-4 mr-2" />
+                Publish to LMS
+              </Button>
+            )}
+            <Button onClick={handlePrint}>
+              <Printer className="h-4 w-4 mr-2" />
+              Print Course Content
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -477,6 +490,15 @@ export default function CoursePreview() {
 
 
       </div>
+
+      {/* Publish Dialog */}
+      {id && (
+        <PublishDialog
+          courseId={id}
+          open={isPublishDialogOpen}
+          onOpenChange={setIsPublishDialogOpen}
+        />
+      )}
     </div>
   );
 } 
