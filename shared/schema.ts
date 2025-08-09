@@ -71,6 +71,8 @@ export const chapters = pgTable("chapters", {
   moduleId: integer("module_id").notNull(),
   title: text("title").notNull(),
   content: text("content"), // Rich text content
+  // New: structured block content for block-based editor (Articulate-style)
+  contentJson: jsonb("content_json"),
   contentType: varchar("content_type").notNull().default("text"), // text, video, interactive
   duration: integer("duration"), // in minutes
   orderIndex: integer("order_index").notNull(),
