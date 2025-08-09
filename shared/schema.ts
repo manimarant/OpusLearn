@@ -74,6 +74,11 @@ export const chapters = pgTable("chapters", {
   contentType: varchar("content_type").notNull().default("text"), // text, video, interactive
   duration: integer("duration"), // in minutes
   orderIndex: integer("order_index").notNull(),
+  videoUrl: text("video_url"), // Generated video URL
+  videoThumbnailUrl: text("video_thumbnail_url"), // Video thumbnail URL
+  videoJobId: text("video_job_id"), // AI video generation job ID
+  videoStatus: varchar("video_status").default("none"), // none, generating, completed, failed
+  videoProvider: varchar("video_provider"), // runway, pika, mock
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -320,6 +325,34 @@ export const discussionRepliesRelations = relations(discussionReplies, ({ one })
   discussion: one(discussions, {
     fields: [discussionReplies.discussionId],
     references: [discussions.id],
+  }),
+}));
+
+// Rubric relations
+export const rubricsRelations = relations(rubrics, ({ many }) => ({
+  criteria: many(rubricCriteria),
+  levels: many(rubricLevels),
+  evaluations: many(rubricEvaluations),
+}));
+
+export const rubricCriteriaRelations = relations(rubricCriteria, ({ one }) => ({
+  rubric: one(rubrics, {
+    fields: [rubricCriteria.rubricId],
+    references: [rubrics.id],
+  }),
+}));
+
+export const rubricLevelsRelations = relations(rubricLevels, ({ one }) => ({
+  rubric: one(rubrics, {
+    fields: [rubricLevels.rubricId],
+    references: [rubrics.id],
+  }),
+}));
+
+export const rubricEvaluationsRelations = relations(rubricEvaluations, ({ one }) => ({
+  rubric: one(rubrics, {
+    fields: [rubricEvaluations.rubricId],
+    references: [rubrics.id],
   }),
 }));
 

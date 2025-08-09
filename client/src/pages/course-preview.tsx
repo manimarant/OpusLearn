@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Printer, ArrowLeft, Upload } from "lucide-react";
 import { useEffect, useState } from "react";
 import { PublishDialog } from "@/components/course/publish-dialog";
+
 import "./course-preview.css";
 
 export default function CoursePreview() {
@@ -317,29 +318,30 @@ export default function CoursePreview() {
                     )}
                   </div>
 
-                  <div className="ml-4">
+                  <div className="ml-2">
                     {/* Learning Units (Chapters) */}
                     {moduleChapters.length > 0 && (
                       <div className="mb-8">
-                        <h4 className="text-lg font-medium text-slate-800 mb-4">
+                        <h4 className="text-lg font-semibold text-slate-800 mb-6">
                           Learning Units ({moduleChapters.length})
                         </h4>
-                        <div className="ml-6 space-y-4">
+                        <div className="space-y-6">
                           {moduleChapters.map((chapter: any, index: number) => {
                             const showChapterNote = index === 0 && Math.random() > 0.6;
                             return (
-                              <div key={chapter.id} className="ml-2 flex">
+                              <div key={chapter.id} className="flex">
                                 <div className="flex-1">
-                                  <div className="mb-2">
-                                    <h5 className="font-medium text-slate-800">{chapter.title}</h5>
+                                  <div className="mb-3">
+                                    <h5 className="font-medium text-slate-900 text-base leading-tight">{chapter.title}</h5>
                                     {chapter.duration && (
-                                      <span className="text-xs text-slate-500 ml-4">
-                                        {chapter.duration} min
+                                      <span className="text-sm text-slate-500 mt-1 block">
+                                        Duration: {chapter.duration} minutes
                                       </span>
                                     )}
                                   </div>
                                   {chapter.content && (
-                                    <div className="prose prose-sm text-slate-600 max-w-none ml-4" dangerouslySetInnerHTML={{ __html: chapter.content }} />
+                                    <div className="prose prose-sm text-slate-700 max-w-none leading-relaxed pl-4 border-l border-slate-200" 
+                                         dangerouslySetInnerHTML={{ __html: chapter.content }} />
                                   )}
                                 </div>
                                 {showChapterNote && (
@@ -359,31 +361,31 @@ export default function CoursePreview() {
                     {/* Performance Assessments (Assignments) */}
                     {moduleAssignments.length > 0 && (
                       <div className="mb-8">
-                        <h4 className="text-lg font-medium text-slate-800 mb-4">
+                        <h4 className="text-lg font-semibold text-slate-800 mb-6">
                           Performance Assessments ({moduleAssignments.length})
                         </h4>
-                        <div className="ml-6 space-y-6">
+                        <div className="space-y-6">
                           {moduleAssignments.map((assignment: any, assignmentIndex: number) => {
                             const showAssignmentNote = assignmentIndex === 0 && Math.random() > 0.5;
                             return (
-                              <div key={assignment.id} className="ml-2 flex">
+                              <div key={assignment.id} className="flex">
                                 <div className="flex-1">
-                                  <h5 className="font-medium text-slate-800 mb-2">{assignment.title}</h5>
-                                  <p className="text-slate-600 mb-3 ml-4">{assignment.description}</p>
+                                  <h5 className="font-medium text-slate-900 text-base leading-tight mb-3">{assignment.title}</h5>
+                                  <p className="text-slate-700 mb-4 leading-relaxed pl-4 border-l border-slate-200">{assignment.description}</p>
                                   {assignment.instructions && (
-                                    <div className="ml-4 mb-3">
+                                    <div className="mb-4">
                                       <h6 className="font-medium text-slate-700 mb-2 text-sm">Instructions:</h6>
                                       <div 
-                                        className="prose prose-sm text-slate-600 max-w-none ml-2"
+                                        className="prose prose-sm text-slate-600 max-w-none pl-4 border-l border-slate-200"
                                         dangerouslySetInnerHTML={{ __html: assignment.instructions }} 
                                       />
                                     </div>
                                   )}
-                                  <div className="text-sm text-slate-500 ml-4 space-y-1">
-                                    <p>Due: {new Date(assignment.dueDate).toLocaleDateString()}</p>
-                                    <p className="text-slate-600">
+                                  <div className="flex gap-6 text-sm text-slate-500">
+                                    <span>Due: {new Date(assignment.dueDate).toLocaleDateString()}</span>
+                                    <span className="text-slate-600 font-medium">
                                       {assignment.maxPoints} points
-                                    </p>
+                                    </span>
                                   </div>
                                 </div>
                                 {showAssignmentNote && (

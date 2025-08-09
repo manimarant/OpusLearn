@@ -16,8 +16,9 @@ import { Plus, Eye, Upload, BookOpen, Sparkles, Pencil, Trash2, Search, Filter, 
 import Header from "@/components/layout/header";
 import Sidebar from "@/components/layout/sidebar";
 import ContentEditor from "@/components/course/content-editor";
-import AIAssistant from "@/components/course/ai-assistant";
+
 import { AICourseGenerator } from "@/components/course/ai-course-generator";
+
 import CourseCard from "@/components/course/course-card";
 
 interface Course {
@@ -44,6 +45,11 @@ interface Chapter {
   contentType: string;
   duration: number;
   orderIndex: number;
+  videoUrl?: string;
+  videoThumbnailUrl?: string;
+  videoJobId?: string;
+  videoStatus?: string;
+  videoProvider?: string;
 }
 
 
@@ -63,7 +69,7 @@ export default function CourseBuilder() {
   const [isEditChapterDialogOpen, setIsEditChapterDialogOpen] = useState(false);
   const [isCourseDialogOpen, setIsCourseDialogOpen] = useState(false);
   const [isAICourseGeneratorOpen, setIsAICourseGeneratorOpen] = useState(false);
-  const [isAIAssistantOpen, setIsAIAssistantOpen] = useState(false);
+
   const [selectedModule, setSelectedModule] = useState<Module | null>(null);
   const [selectedChapter, setSelectedChapter] = useState<Chapter | null>(null);
 
@@ -124,15 +130,21 @@ export default function CourseBuilder() {
   } = useQuery({
     queryKey: ["/api/chapters", selectedModule?.id],
     queryFn: async () => {
-      if (!selectedModule) return [];
       console.log("Fetching chapters for module:", selectedModule.id);
       const response = await apiRequest("GET", `/api/modules/${selectedModule.id}/chapters`);
-      const data = await response.json();
-      console.log("Chapters data:", data);
-      return data;
+      return response.json();
     },
-    enabled: !!selectedModule
+    enabled: !!selectedModule?.id,
   });
+
+  // Keep selectedChapter in sync with refreshed chapters (e.g., after AI video generation)
+  useEffect(() => {
+    if (!selectedChapter || !chapters || chapters.length === 0) return;
+    const refreshed = chapters.find((ch: any) => ch.id === selectedChapter.id);
+    if (refreshed) {
+      setSelectedChapter(refreshed);
+    }
+  }, [chapters]);
 
   // Auto-select first module when modules are loaded
   useEffect(() => {
@@ -829,13 +841,7 @@ export default function CourseBuilder() {
                       <Pencil className="h-4 w-4 mr-2" />
                       Edit Course
                     </Button>
-                    <Button
-                      variant="outline"
-                      onClick={() => setIsAIAssistantOpen(true)}
-                    >
-                      <Sparkles className="h-4 w-4 mr-2" />
-                      AI Assistant
-                    </Button>
+
 
                   </div>
                 </div>
@@ -937,7 +943,7 @@ export default function CourseBuilder() {
                                 size="sm"
                                 variant="outline"
                                 onClick={() => handleDeleteModule(selectedModule.id)}
-                                className="text-red-600 hover:text-red-700"
+                                className="border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-800"
                               >
                                 <Trash2 className="h-4 w-4" />
                               </Button>
@@ -1019,7 +1025,7 @@ export default function CourseBuilder() {
                                         e.stopPropagation();
                                         handleDeleteChapter(chapter.id);
                                       }}
-                                      className="text-red-600 hover:text-red-700"
+                                      className="border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-800"
                                     >
                                       <Trash2 className="h-4 w-4" />
                                     </Button>
@@ -1051,22 +1057,38 @@ export default function CourseBuilder() {
                           <CardContent className="p-6">
                             <div className="flex items-center justify-between mb-4">
                               <h3 className="text-lg font-semibold">Chapter Content</h3>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => setIsAIAssistantOpen(true)}
-                              >
-                                <Sparkles className="h-4 w-4 mr-2" />
-                                AI Help
-                              </Button>
+
                             </div>
                             <ContentEditor
                               chapter={selectedChapter}
                               onSave={handleSaveChapter}
+                              onVideoGenerated={() => {
+                                // Refresh chapters data when video is generated
+                                if (selectedModule?.id) {
+                                  queryClient.invalidateQueries({
+                                    queryKey: ["/api/chapters", selectedModule.id]
+                                  });
+                                }
+                                
+                                // Also refresh the specific chapter data
+                                setTimeout(() => {
+                                  if (selectedChapter?.id) {
+                                    // Refetch the updated chapter data
+                                    fetch(`/api/chapters/${selectedChapter.id}`)
+                                      .then(res => res.json())
+                                      .then(updatedChapter => {
+                                        setSelectedChapter(updatedChapter);
+                                      })
+                                      .catch(console.error);
+                                  }
+                                }, 1000); // Wait a bit for the backend to update
+                              }}
                             />
                           </CardContent>
                         </Card>
                       )}
+
+
 
                       {/* Course Overview */}
                       <Card>
@@ -1286,15 +1308,7 @@ export default function CourseBuilder() {
 
 
 
-              {/* AI Assistant Panel */}
-              {isAIAssistantOpen && (
-                <AIAssistant
-                  onGenerate={handleAIGenerateContent}
-                  onGenerateModule={handleAIGenerateModule}
-                  onGenerateChapter={handleAIGenerateChapter}
-                  onClose={() => setIsAIAssistantOpen(false)}
-                />
-              )}
+
             </main>
             )}
           </div>

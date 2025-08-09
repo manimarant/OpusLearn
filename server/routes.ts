@@ -20,6 +20,7 @@ import {
   type Quiz
 } from "@shared/schema";
 import { OllamaService } from "./services/ollama-service";
+// AI video generation service removed
 
 // Helper function to get user ID (works in both development and production)
 function getUserId(req: any): string {
@@ -32,6 +33,8 @@ function getUserId(req: any): string {
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
   await setupAuth(app);
+
+  // Removed /videos static serving (AI video removed)
 
   // Auth routes
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
@@ -303,6 +306,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get('/api/chapters/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const chapterId = parseInt(req.params.id);
+      const chapter = await storage.getChapter(chapterId);
+      
+      if (!chapter) {
+        return res.status(404).json({ message: "Chapter not found" });
+      }
+      
+      res.json(chapter);
+    } catch (error) {
+      console.error("Error fetching chapter:", error);
+      res.status(500).json({ message: "Failed to fetch chapter" });
+    }
+  });
+
   app.put('/api/chapters/:id', isAuthenticated, async (req: any, res) => {
     try {
       const chapterId = parseInt(req.params.id);
@@ -330,6 +349,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to delete chapter" });
     }
   });
+
+  // Video generation routes removed
 
   // Enrollment routes
   app.post('/api/courses/:id/enroll', isAuthenticated, async (req: any, res) => {

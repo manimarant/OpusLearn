@@ -77,13 +77,13 @@ export default function CourseCard({ course }: CourseCardProps) {
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty) {
       case "beginner":
-        return "bg-green-100 text-green-700";
+        return "border-gray-200 text-gray-600 bg-gray-50/50";
       case "intermediate":
-        return "bg-yellow-100 text-yellow-700";
+        return "border-gray-300 text-gray-700 bg-gray-100/50";
       case "advanced":
-        return "bg-red-100 text-red-700";
+        return "border-gray-400 text-gray-800 bg-gray-200/50";
       default:
-        return "bg-gray-100 text-gray-700";
+        return "border-gray-200 text-gray-600 bg-gray-50/50";
     }
   };
 
@@ -93,19 +93,23 @@ export default function CourseCard({ course }: CourseCardProps) {
   const mockDuration = Math.floor(Math.random() * 20) + 5;
 
   return (
-    <Card className="saas-card saas-card-hover group overflow-hidden cursor-pointer h-full flex flex-col" onClick={handleCardClick}>
+    <Card className="group border-0 shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer h-full bg-white/50 backdrop-blur-sm hover:bg-white/80" onClick={handleCardClick}>
       <CardContent className="p-0 flex flex-col h-full">
-        {/* Course Thumbnail */}
-        <div className="relative h-48 bg-gradient-to-br from-blue-500 to-purple-600">
-          <div className="absolute inset-0 bg-black/20"></div>
-          <div className="absolute top-4 left-4 right-4 flex justify-between items-start">
-            <Badge className={getStatusColor(course.status)}>
-              {course.status}
-            </Badge>
+        {/* Course Header */}
+        <div className="relative p-6">
+          <div className="flex items-start justify-between mb-4">
+            <div className="flex gap-2">
+              <Badge variant="outline" className="border-gray-200 text-gray-600 bg-gray-50/50">
+                {course.status}
+              </Badge>
+              <Badge variant="outline" className={getDifficultyColor(course.difficulty)}>
+                {course.difficulty}
+              </Badge>
+            </div>
             {isOwner && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm" className="text-white hover:bg-white/20">
+                  <Button variant="ghost" size="sm" className="text-gray-400 hover:text-gray-600 hover:bg-gray-100/50">
                     <MoreVertical className="h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
@@ -118,83 +122,85 @@ export default function CourseCard({ course }: CourseCardProps) {
               </DropdownMenu>
             )}
           </div>
-          <div className="absolute bottom-4 left-4">
-            <Badge className={getDifficultyColor(course.difficulty)}>
-              {course.difficulty}
-            </Badge>
-          </div>
-          <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-            <Button size="lg" className="rounded-full bg-white/20 backdrop-blur-sm hover:bg-white/30">
-              <Play className="h-6 w-6 text-white" />
-            </Button>
-          </div>
-        </div>
 
-        {/* Course Content */}
-        <div className="p-6 flex flex-col flex-1">
-          <div className="flex items-start justify-between mb-3">
-            <h3 className="font-semibold text-lg text-slate-800 line-clamp-2 group-hover:text-blue-600 transition-colors">
-              {course.title}
-            </h3>
-          </div>
+          <h3 className="font-semibold text-xl text-gray-900 mb-2 line-clamp-2 group-hover:text-gray-700 transition-colors">
+            {course.title}
+          </h3>
 
-          <p className="text-sm text-slate-600 mb-4 line-clamp-2">
+          <p className="text-sm text-gray-600 mb-4 line-clamp-3 leading-relaxed">
             {course.description}
           </p>
 
           {/* Course Metadata */}
-          <div className="flex items-center space-x-4 text-sm text-slate-500 mb-4">
-            <div className="flex items-center space-x-1">
-              <Clock className="h-4 w-4" />
-              <span>{mockDuration}h duration</span>
+          <div className="flex items-center gap-4 text-xs text-gray-500">
+            <div className="flex items-center gap-1">
+              <Clock className="h-3 w-3" />
+              <span>{mockDuration}h</span>
             </div>
-            <div className="flex items-center space-x-1">
-              <BookOpen className="h-4 w-4" />
+            <div className="flex items-center gap-1">
+              <BookOpen className="h-3 w-3" />
               <span>{course.category}</span>
             </div>
-            <div className="flex items-center space-x-1">
-              <span className="capitalize">{course.difficulty}</span>
+            <div className="flex items-center gap-1">
+              <Users className="h-3 w-3" />
+              <span>{mockStudentCount}</span>
             </div>
           </div>
+        </div>
 
+        {/* Divider */}
+        <div className="border-t border-gray-100"></div>
+
+        {/* Course Footer */}
+        <div className="p-6 pt-4 flex flex-col gap-4 mt-auto">
           {/* Progress Bar for Students */}
           {!isInstructor && (
-            <div className="mb-4">
+            <div>
               <div className="flex justify-between items-center mb-2">
-                <span className="text-sm font-medium text-slate-700">Progress</span>
-                <span className="text-sm text-slate-500">{mockProgress}%</span>
+                <span className="text-xs font-medium text-gray-700">Progress</span>
+                <span className="text-xs text-gray-500">{mockProgress}%</span>
               </div>
-              <Progress value={mockProgress} className="h-2" />
+              <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-gradient-to-r from-gray-600 to-gray-700 transition-all duration-300"
+                  style={{ width: `${mockProgress}%` }}
+                />
+              </div>
             </div>
           )}
 
           {/* Instructor Info */}
           {course.instructor && (
-            <div className="flex items-center space-x-3 mb-4 p-3 bg-slate-50 rounded-lg">
-              <Avatar className="h-8 w-8">
+            <div className="flex items-center gap-3">
+              <Avatar className="h-7 w-7">
                 <AvatarImage src={course.instructor.profileImageUrl} />
-                <AvatarFallback>
+                <AvatarFallback className="text-xs bg-gray-100 text-gray-600">
                   {course.instructor.firstName?.[0]}{course.instructor.lastName?.[0]}
                 </AvatarFallback>
               </Avatar>
               <div>
-                <p className="text-sm font-medium text-slate-800">
+                <p className="text-xs font-medium text-gray-800">
                   {course.instructor.firstName} {course.instructor.lastName}
                 </p>
-                <p className="text-xs text-slate-500">Instructor</p>
+                <p className="text-xs text-gray-500">Instructor</p>
               </div>
             </div>
           )}
 
           {/* Action Buttons */}
-          <div className="flex items-center justify-between mt-auto pt-4">
-            <div className="text-sm text-slate-500">
-              Updated {new Date(course.updatedAt).toLocaleDateString()}
+          <div className="flex items-center justify-between">
+            <div className="text-xs text-gray-400">
+              {new Date(course.updatedAt).toLocaleDateString()}
             </div>
-            <div className="flex space-x-2">
+            <div className="flex gap-2">
               {isOwner ? (
-                <Button size="sm" onClick={handleEdit} className="saas-button-primary">
-                  <Edit className="h-4 w-4 mr-2" />
+                <Button 
+                  size="sm" 
+                  onClick={handleEdit} 
+                  variant="outline"
+                  className="border-gray-200 text-gray-700 hover:bg-gray-50 hover:text-gray-900 text-xs h-8"
+                >
+                  <Edit className="h-3 w-3 mr-1" />
                   Edit
                 </Button>
               ) : !isInstructor ? (
@@ -202,16 +208,21 @@ export default function CourseCard({ course }: CourseCardProps) {
                   size="sm" 
                   onClick={handleEnroll}
                   disabled={enrollMutation.isPending}
-                  className="saas-button-primary"
+                  className="bg-gray-900 hover:bg-gray-800 text-white text-xs h-8"
                 >
                   {enrollMutation.isPending ? "Enrolling..." : "Enroll"}
                 </Button>
               ) : (
-                <Button size="sm" variant="outline" onClick={(e) => {
-                  e.stopPropagation();
-                  setLocation(`/courses/${course.id}`);
-                }} className="saas-button-secondary">
-                  View Details
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setLocation(`/courses/${course.id}`);
+                  }} 
+                  className="border-gray-200 text-gray-700 hover:bg-gray-50 hover:text-gray-900 text-xs h-8"
+                >
+                  View
                 </Button>
               )}
             </div>

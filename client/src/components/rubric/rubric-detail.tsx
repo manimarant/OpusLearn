@@ -235,7 +235,7 @@ export default function RubricDetail({ rubricId, onClose }: RubricDetailProps) {
               <Edit className="h-4 w-4 mr-2" />
               Edit Rubric
             </Button>
-            <Button variant="destructive">
+            <Button variant="outline" className="border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-800">
               <Trash2 className="h-4 w-4 mr-2" />
               Delete
             </Button>

@@ -21,17 +21,20 @@ import {
   Video,
   FileText,
   Save,
-  Eye
+  Eye,
+  Sparkles
 } from "lucide-react";
+// Video generation removed
 
 interface ContentEditorProps {
   chapter: any;
   onSave: (chapterData: any) => void;
   isLoading?: boolean;
   forceUpdate?: number;
+  onVideoGenerated?: () => void;
 }
 
-export default function ContentEditor({ chapter, onSave, isLoading, forceUpdate }: ContentEditorProps) {
+export default function ContentEditor({ chapter, onSave, isLoading, forceUpdate, onVideoGenerated }: ContentEditorProps) {
   const [chapterData, setChapterData] = useState({
     title: chapter?.title || "",
     content: chapter?.content || "",
@@ -41,6 +44,7 @@ export default function ContentEditor({ chapter, onSave, isLoading, forceUpdate 
 
   const [isPreview, setIsPreview] = useState(false);
   const [isAutoSaving, setIsAutoSaving] = useState(false);
+  // const [isVideoDialogOpen, setIsVideoDialogOpen] = useState(false);
 
   useEffect(() => {
     if (chapter) {
@@ -289,12 +293,7 @@ export default function ContentEditor({ chapter, onSave, isLoading, forceUpdate 
                 >
                   <Image className="h-4 w-4" />
                 </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                >
-                  <Video className="h-4 w-4" />
-                </Button>
+                {/* Video/AI buttons removed */}
               </div>
             </CardContent>
           </Card>
@@ -375,6 +374,8 @@ export default function ContentEditor({ chapter, onSave, isLoading, forceUpdate 
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* AI video generation removed */}
     </div>
   );
 }

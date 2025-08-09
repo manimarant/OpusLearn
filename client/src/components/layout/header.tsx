@@ -159,7 +159,7 @@ export default function Header() {
                   <span>Settings</span>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleLogout} className="text-red-600 hover:text-red-700 hover:bg-red-50">
+                <DropdownMenuItem onClick={handleLogout} className="text-gray-600 hover:text-gray-800 hover:bg-gray-50">
                   <LogOut className="mr-3 h-4 w-4" />
                   <span>Log out</span>
                 </DropdownMenuItem>

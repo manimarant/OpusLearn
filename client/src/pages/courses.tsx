@@ -193,13 +193,15 @@ export default function Courses() {
 
             // Create quiz questions
             if (quizData.questions && quizData.questions.length > 0) {
-              for (const questionData of quizData.questions) {
+              for (let questionIndex = 0; questionIndex < quizData.questions.length; questionIndex++) {
+                const questionData = quizData.questions[questionIndex];
                 await apiRequest("POST", `/api/quizzes/${createdQuiz.id}/questions`, {
                   question: questionData.question,
                   type: questionData.type,
                   options: questionData.options,
                   correctAnswer: questionData.correctAnswer,
-                  points: questionData.points
+                  points: questionData.points,
+                  orderIndex: questionIndex + 1
                 });
               }
             }
@@ -278,14 +280,15 @@ export default function Courses() {
                 <div className="flex gap-3">
                   <Button
                     onClick={() => setIsAICourseGeneratorOpen(true)}
-                    className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white"
+                    className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white"
                   >
                     <Sparkles className="h-4 w-4 mr-2" />
                     AI Course Generator
                   </Button>
                   <Button
                     onClick={() => setIsCreateDialogOpen(true)}
-                    className="bg-blue-600 hover:bg-blue-700"
+                    variant="outline"
+                    className="border-gray-200 text-gray-700 hover:bg-gray-50 hover:text-gray-900"
                   >
                     <Plus className="h-4 w-4 mr-2" />
                     Create Course
@@ -411,9 +414,9 @@ export default function Courses() {
                         <div key={course.id} className="relative group">
                           <CourseCard course={course} />
                           <Button
-                            variant="destructive"
+                            variant="outline"
                             size="sm"
-                            className="absolute top-2 right-2 opacity-100 z-10"
+                            className="absolute top-2 right-2 opacity-100 z-10 border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-800"
                             onClick={() => handleDeleteCourse(course.id)}
                             disabled={deleteCourseMutation.isPending}
                           >
@@ -471,7 +474,7 @@ export default function Courses() {
                           <p className="text-sm font-medium text-muted-foreground">Total Students</p>
                           <p className="text-2xl font-bold">284</p>
                         </div>
-                        <BarChart3 className="h-8 w-8 text-blue-600" />
+                        <BarChart3 className="h-8 w-8 text-gray-600" />
                       </div>
                     </CardContent>
                   </Card>

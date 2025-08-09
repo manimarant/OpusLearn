@@ -55,11 +55,23 @@ export interface IStorage {
   getCourseModules(courseId: number): Promise<CourseModule[]>;
   createModule(module: any): Promise<CourseModule>;
   updateModule(id: number, updates: any): Promise<CourseModule>;
+  deleteModule(id: number): Promise<void>;
   
   // Chapter operations
   getModuleChapters(moduleId: number): Promise<Chapter[]>;
+  getChapter(id: number): Promise<Chapter | undefined>;
   createChapter(chapter: any): Promise<Chapter>;
   updateChapter(id: number, updates: any): Promise<Chapter>;
+  updateChapterVideoStatus(
+    id: number, 
+    videoStatus: string, 
+    videoJobId?: string, 
+    videoUrl?: string, 
+    videoThumbnailUrl?: string,
+    videoProvider?: string
+  ): Promise<Chapter>;
+  getChapterByVideoJobId(videoJobId: string): Promise<Chapter | undefined>;
+  deleteChapter(id: number): Promise<void>;
   
   // Enrollment operations
   enrollInCourse(userId: string, courseId: number): Promise<Enrollment>;
@@ -231,7 +243,7 @@ export class DatabaseStorage implements IStorage {
       // Get module IDs first, then delete chapters
       const moduleIds = await db.select({ id: courseModules.id }).from(courseModules).where(eq(courseModules.courseId, id));
       if (moduleIds.length > 0) {
-        const ids = moduleIds.map(m => m.id);
+        const ids = moduleIds.map((m: { id: number }) => m.id);
         await db.delete(chapters).where(inArray(chapters.moduleId, ids));
       }
       
@@ -290,6 +302,10 @@ export class DatabaseStorage implements IStorage {
     return module;
   }
 
+  async deleteModule(id: number): Promise<void> {
+    await db.delete(courseModules).where(eq(courseModules.id, id));
+  }
+
   // Chapter operations
   async getModuleChapters(moduleId: number): Promise<Chapter[]> {
     return db
@@ -297,6 +313,14 @@ export class DatabaseStorage implements IStorage {
       .from(chapters)
       .where(eq(chapters.moduleId, moduleId))
       .orderBy(chapters.orderIndex);
+  }
+
+  async getChapter(id: number): Promise<Chapter | undefined> {
+    const [chapter] = await db
+      .select()
+      .from(chapters)
+      .where(eq(chapters.id, id));
+    return chapter;
   }
 
   async createChapter(chapterData: any): Promise<Chapter> {
@@ -311,6 +335,41 @@ export class DatabaseStorage implements IStorage {
       .where(eq(chapters.id, id))
       .returning();
     return chapter;
+  }
+
+  async updateChapterVideoStatus(
+    id: number, 
+    videoStatus: string, 
+    videoJobId?: string, 
+    videoUrl?: string, 
+    videoThumbnailUrl?: string,
+    videoProvider?: string
+  ): Promise<Chapter> {
+    const updates: any = { videoStatus };
+    
+    if (videoJobId !== undefined) updates.videoJobId = videoJobId;
+    if (videoUrl !== undefined) updates.videoUrl = videoUrl;
+    if (videoThumbnailUrl !== undefined) updates.videoThumbnailUrl = videoThumbnailUrl;
+    if (videoProvider !== undefined) updates.videoProvider = videoProvider;
+
+    const [chapter] = await db
+      .update(chapters)
+      .set(updates)
+      .where(eq(chapters.id, id))
+      .returning();
+    return chapter;
+  }
+
+  async getChapterByVideoJobId(videoJobId: string): Promise<Chapter | undefined> {
+    const [chapter] = await db
+      .select()
+      .from(chapters)
+      .where(eq(chapters.videoJobId, videoJobId));
+    return chapter;
+  }
+
+  async deleteChapter(id: number): Promise<void> {
+    await db.delete(chapters).where(eq(chapters.id, id));
   }
 
   // Enrollment operations
@@ -660,6 +719,11 @@ export class DatabaseStorage implements IStorage {
         duration: chapters.duration,
         moduleId: chapters.moduleId,
         orderIndex: chapters.orderIndex,
+        videoUrl: chapters.videoUrl,
+        videoThumbnailUrl: chapters.videoThumbnailUrl,
+        videoJobId: chapters.videoJobId,
+        videoStatus: chapters.videoStatus,
+        videoProvider: chapters.videoProvider,
         createdAt: chapters.createdAt,
       })
       .from(chapters)
