@@ -35,12 +35,9 @@ interface ContentEditorProps {
 }
 
 export default function ContentEditor({ chapter, onSave, isLoading, forceUpdate, onVideoGenerated }: ContentEditorProps) {
-  type Block = { id: string; type: 'heading' | 'paragraph'; props: { text: string } };
-
   const [chapterData, setChapterData] = useState({
     title: chapter?.title || "",
     content: chapter?.content || "",
-    contentJson: (chapter?.contentJson as Block[] | undefined) || undefined,
     contentType: chapter?.contentType || "text",
     duration: chapter?.duration || 0,
   });
@@ -54,7 +51,6 @@ export default function ContentEditor({ chapter, onSave, isLoading, forceUpdate,
       setChapterData({
         title: chapter.title || "",
         content: chapter.content || "",
-        contentJson: (chapter.contentJson as Block[] | undefined) || undefined,
         contentType: chapter.contentType || "text",
         duration: chapter.duration || 0,
       });
@@ -91,52 +87,6 @@ export default function ContentEditor({ chapter, onSave, isLoading, forceUpdate,
       moduleId: chapter.moduleId,
       orderIndex: chapter.orderIndex
     });
-  };
-
-  // Block editor helpers
-  const ensureBlocks = (): Block[] => {
-    if (chapterData.contentJson && Array.isArray(chapterData.contentJson)) return chapterData.contentJson as Block[];
-    // Fallback: convert legacy content into a single paragraph block
-    const text = (chapterData.content || '').trim();
-    return text
-      ? [{ id: crypto.randomUUID(), type: 'paragraph', props: { text } }]
-      : [];
-  };
-
-  const [blocks, setBlocks] = useState<Block[]>(ensureBlocks());
-
-  useEffect(() => {
-    setBlocks(ensureBlocks());
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chapterData.contentJson]);
-
-  const syncBlocks = (next: Block[]) => {
-    setBlocks(next);
-    setChapterData((d) => ({ ...d, contentJson: next }));
-  };
-
-  const addBlock = (type: Block['type']) => {
-    const newBlock: Block = { id: crypto.randomUUID(), type, props: { text: type === 'heading' ? 'New heading' : 'New paragraph' } };
-    syncBlocks([...(blocks || []), newBlock]);
-  };
-
-  const updateBlockText = (id: string, text: string) => {
-    syncBlocks(blocks.map((b) => (b.id === id ? { ...b, props: { text } } : b)));
-  };
-
-  const removeBlock = (id: string) => {
-    syncBlocks(blocks.filter((b) => b.id !== id));
-  };
-
-  const moveBlock = (id: string, dir: -1 | 1) => {
-    const idx = blocks.findIndex((b) => b.id === id);
-    if (idx < 0) return;
-    const tgt = idx + dir;
-    if (tgt < 0 || tgt >= blocks.length) return;
-    const next = blocks.slice();
-    const [item] = next.splice(idx, 1);
-    next.splice(tgt, 0, item);
-    syncBlocks(next);
   };
 
   const insertFormatting = (format: string) => {
@@ -274,36 +224,91 @@ export default function ContentEditor({ chapter, onSave, isLoading, forceUpdate,
         </div>
 
         <TabsContent value="editor" className="space-y-4">
-          {/* Minimal Block Toolbar */}
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => addBlock('heading')}>Add Heading</Button>
-            <Button variant="outline" size="sm" onClick={() => addBlock('paragraph')}>Add Paragraph</Button>
-          </div>
+          {/* Formatting Toolbar */}
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => insertFormatting('bold')}
+                >
+                  <Bold className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => insertFormatting('italic')}
+                >
+                  <Italic className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => insertFormatting('underline')}
+                >
+                  <Underline className="h-4 w-4" />
+                </Button>
+                <div className="border-l border-slate-200 mx-2"></div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => insertFormatting('list')}
+                >
+                  <List className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => insertFormatting('orderedList')}
+                >
+                  <ListOrdered className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => insertFormatting('quote')}
+                >
+                  <Quote className="h-4 w-4" />
+                </Button>
+                <div className="border-l border-slate-200 mx-2"></div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => insertFormatting('code')}
+                >
+                  <Code className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => insertFormatting('link')}
+                >
+                  <Link className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => insertFormatting('image')}
+                >
+                  <Image className="h-4 w-4" />
+                </Button>
+                {/* Video/AI buttons removed */}
+              </div>
+            </CardContent>
+          </Card>
 
-          {/* Block Canvas */}
-          <div className="space-y-3">
-            {blocks.length === 0 && (
-              <Card><CardContent className="p-6 text-sm text-slate-500">No blocks. Use the toolbar to add content.</CardContent></Card>
-            )}
-            {blocks.map((block, idx) => (
-              <Card key={block.id}>
-                <CardContent className="p-4 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Badge variant="outline" className="capitalize">{block.type}</Badge>
-                    <div className="flex items-center gap-2">
-                      <Button size="sm" variant="outline" onClick={() => moveBlock(block.id, -1)} disabled={idx === 0}>Up</Button>
-                      <Button size="sm" variant="outline" onClick={() => moveBlock(block.id, 1)} disabled={idx === blocks.length - 1}>Down</Button>
-                      <Button size="sm" variant="outline" onClick={() => removeBlock(block.id)}>Remove</Button>
-                    </div>
-                  </div>
-                  {block.type === 'heading' ? (
-                    <Input value={block.props.text} onChange={(e) => updateBlockText(block.id, e.target.value)} placeholder="Heading" />
-                  ) : (
-                    <Textarea value={block.props.text} onChange={(e) => updateBlockText(block.id, e.target.value)} rows={6} />
-                  )}
-                </CardContent>
-              </Card>
-            ))}
+          {/* Content Textarea */}
+          <div className="space-y-2">
+            <Label htmlFor="content-textarea">Chapter Content</Label>
+            <Textarea
+              id="content-textarea"
+              value={chapterData.content}
+              onChange={(e) => setChapterData({ ...chapterData, content: e.target.value })}
+              placeholder="Write your chapter content here..."
+              rows={20}
+              className="font-mono"
+            />
           </div>
 
           {/* Content Type Specific Options */}

@@ -325,8 +325,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put('/api/chapters/:id', isAuthenticated, async (req: any, res) => {
     try {
       const chapterId = parseInt(req.params.id);
-      // Allow contentJson to pass through along with existing fields
-      const updates = { ...req.body };
+      const updates = insertChapterSchema.partial().parse(req.body);
       
       const chapter = await storage.updateChapter(chapterId, updates);
       res.json(chapter);
@@ -951,7 +950,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           instructor: {
             id: instructor.id,
             name: `${instructor.firstName} ${instructor.lastName}`,
-            email: instructor.email || '',
+            email: instructor.email,
           },
         },
         modules: modulesWithChapters,
@@ -1109,7 +1108,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           instructor: {
             id: instructor.id,
             name: `${instructor.firstName} ${instructor.lastName}`,
-            email: instructor.email || '',
+            email: instructor.email,
           },
         },
         modules: modulesWithChapters,
