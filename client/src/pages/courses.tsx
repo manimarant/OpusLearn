@@ -147,10 +147,21 @@ export default function Courses() {
         // Create chapters for this module
         for (let chapterIndex = 0; chapterIndex < moduleData.chapters.length; chapterIndex++) {
           const chapterData = moduleData.chapters[chapterIndex];
-          
+          // Sanitize AI content: remove Assignments/Quizzes/Discussions sections from chapter body
+          const sanitizeAIContent = (text: string) => {
+            if (!text) return text;
+            const headingBlock = /(?:^|\n)#{1,6}\s*(Assignments?|Quizzes?|Discussions?)\b[\s\S]*?(?=(?:\n#{1,6}\s)|$)/gi;
+            const labelBlock = /(?:^|\n)(?:\*\*|__)?\s*(Assignments?|Quizzes?|Discussions?)\s*(?:\*\*|__)?\s*:?[\s\S]*?(?=(?:\n#{1,6}\s|\n\s*(?:\*\*|__)|$))/gi;
+            let cleaned = text.replace(headingBlock, '');
+            cleaned = cleaned.replace(labelBlock, '');
+            cleaned = cleaned.replace(/\n{3,}/g, '\n\n').trim();
+            return cleaned;
+          };
+          const cleanedContent = sanitizeAIContent(chapterData.content);
+
           await apiRequest("POST", `/api/modules/${createdModule.id}/chapters`, {
             title: chapterData.title,
-            content: chapterData.content,
+            content: cleanedContent,
             contentType: "text",
             duration: 30,
             orderIndex: chapterIndex + 1

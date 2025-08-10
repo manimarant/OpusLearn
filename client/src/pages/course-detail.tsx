@@ -204,17 +204,24 @@ export default function CourseDetail() {
         <main className="flex-1 p-8">
           {/* Course Header */}
           <div className="mb-8">
+            {/* Breadcrumb */}
+            <div className="mb-3 text-sm text-slate-500">
+              <button className="underline" onClick={() => setLocation('/courses')}>Courses</button>
+              <span className="mx-2">/</span>
+              <span className="text-slate-700">{course.title}</span>
+            </div>
+
             <div className="flex items-start justify-between">
-              <div>
-                <h1 className="text-3xl font-bold text-slate-800 mb-2">{course.title}</h1>
-                <p className="text-slate-600 mb-4">{course.description}</p>
-                <div className="flex items-center space-x-4">
+              <div className="max-w-3xl">
+                <h1 className="text-3xl font-bold text-slate-900 mb-2">{course.title}</h1>
+                <p className="text-slate-600 mb-4 text-pretty">{course.description}</p>
+                <div className="flex flex-wrap items-center gap-2">
                   <Badge variant="outline">{course.category}</Badge>
                   <Badge variant="outline">{course.difficulty}</Badge>
                   <Badge variant="outline">{course.status}</Badge>
                 </div>
               </div>
-              <div className="flex items-center space-x-3">
+              <div className="flex items-center gap-2">
                             <Button 
               variant="outline"
               onClick={() => window.location.href = `/courses/${course.id}/preview`}
@@ -228,16 +235,13 @@ export default function CourseDetail() {
                       <Edit className="h-4 w-4 mr-2" />
                       Edit Course
                     </Button>
-                    <Button 
-                      variant="secondary"
-                      onClick={() => setIsExportDialogOpen(true)}
-                    >
+                    <Button variant="outline" onClick={() => setIsExportDialogOpen(true)}>
                       <Package className="h-4 w-4 mr-2" />
                       Export Package
                     </Button>
                     <Dialog open={isPublishDialogOpen} onOpenChange={setIsPublishDialogOpen}>
                       <DialogTrigger asChild>
-                        <Button variant="secondary">
+                        <Button variant="outline">
                           <Share2 className="h-4 w-4 mr-2" />
                           Publish
                         </Button>

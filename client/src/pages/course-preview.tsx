@@ -73,6 +73,32 @@ export default function CoursePreview() {
     },
   });
 
+  // Render plain/markdown-like chapter content into readable HTML
+  const renderChapterContent = (content: string) => {
+    if (!content) return "";
+    let html = content
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.*?)\*/g, '<em>$1</em>')
+      .replace(/`([^`]+)`/g, '<code class="bg-slate-100 px-1 rounded">$1</code>')
+      .replace(/^> (.*)$/gim, '<blockquote class="border-l-4 border-slate-300 pl-4 italic">$1<\/blockquote>')
+      .replace(/^\s*[-*] (.*)$/gim, '<li>$1<\/li>')
+      .replace(/^\s*\d+\. (.*)$/gim, '<li>$1<\/li>');
+
+    const lines = html.split(/\n+/);
+    html = lines
+      .map((line) => {
+        const t = line.trim();
+        if (!t) return '';
+        if (t.startsWith('<li>') || t.startsWith('<blockquote')) return t;
+        return `<p class=\"mb-4\">${t}<\/p>`;
+      })
+      .join('');
+
+    // Wrap consecutive li items into a list for better semantics
+    html = html.replace(/(?:<li>.*?<\/li>\s*)+/gms, (m) => `<ul class=\"list-disc list-inside\">${m}<\/ul>`);
+    return html;
+  };
+
   useEffect(() => {
     // Add print styles
     const style = document.createElement('style');
@@ -341,7 +367,7 @@ export default function CoursePreview() {
                                   </div>
                                   {chapter.content && (
                                     <div className="prose prose-sm text-slate-700 max-w-none leading-relaxed pl-4 border-l border-slate-200" 
-                                         dangerouslySetInnerHTML={{ __html: chapter.content }} />
+                                         dangerouslySetInnerHTML={{ __html: renderChapterContent(chapter.content) }} />
                                   )}
                                 </div>
                                 {showChapterNote && (

@@ -12,10 +12,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Eye, Upload, BookOpen, Sparkles, Pencil, Trash2, Search, Filter, Loader2, FileText } from "lucide-react";
+import { Plus, Eye, Upload, BookOpen, Sparkles, Pencil, Trash2, Search, Filter, Loader2, FileText, Shield, Calendar, BadgeCheck } from "lucide-react";
 import Header from "@/components/layout/header";
 import Sidebar from "@/components/layout/sidebar";
 import ContentEditor from "@/components/course/content-editor";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
 import { AICourseGenerator } from "@/components/course/ai-course-generator";
 
@@ -539,10 +540,25 @@ export default function CourseBuilder() {
         for (let chapterIndex = 0; chapterIndex < moduleData.chapters.length; chapterIndex++) {
           const chapterData = moduleData.chapters[chapterIndex];
           console.log(`Creating chapter ${chapterIndex + 1}:`, chapterData.title);
-          
+          // Sanitize AI content: drop non-needed sections (Assignments/Quizzes/Discussions)
+          const sanitizeAIContent = (text: string) => {
+            if (!text) return text;
+            // Remove Markdown headings like ### Assignments/Quizzes/Discussions and their following lists/paragraphs
+            const headingBlock = /(?:^|\n)#{1,6}\s*(Assignments?|Quizzes?|Discussions?)\b[\s\S]*?(?=(?:\n#{1,6}\s)|$)/gi;
+            // Remove plain labels like "Assignments:" or bolded labels
+            const labelBlock = /(?:^|\n)(?:\*\*|__)?\s*(Assignments?|Quizzes?|Discussions?)\s*(?:\*\*|__)?\s*:?[\s\S]*?(?=(?:\n#{1,6}\s|\n\s*(?:\*\*|__)|$))/gi;
+            let cleaned = text.replace(headingBlock, '');
+            cleaned = cleaned.replace(labelBlock, '');
+            // Collapse excessive blank lines
+            cleaned = cleaned.replace(/\n{3,}/g, '\n\n').trim();
+            return cleaned;
+          };
+
+          const cleanedContent = sanitizeAIContent(chapterData.content);
+
           await apiRequest("POST", `/api/modules/${createdModule.id}/chapters`, {
             title: chapterData.title,
-            content: chapterData.content,
+            content: cleanedContent,
             contentType: "text",
             duration: 30,
             orderIndex: chapterIndex + 1
@@ -801,48 +817,42 @@ export default function CourseBuilder() {
           ) : (
             // Course Builder View
             <main className="flex-1 p-8">
-              {/* Course Header */}
+              {/* Builder Header */}
               <div className="mb-8">
-                <div className="flex items-center justify-between">
-                      <div>
-                    <div className="flex items-center gap-3 mb-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setLocation('/courses')}
-                        className="text-slate-600 hover:text-slate-800"
-                      >
-                        ← Back to Courses
-                      </Button>
-                    </div>
-                    <h1 className="text-3xl font-bold text-slate-800">
-                      {course?.title || "Loading..."}
-                    </h1>
-                    <p className="text-slate-600 mt-1">
-                      {course?.description || "Loading course details..."}
-                    </p>
-                    <div className="flex items-center gap-4 mt-3">
+                {/* Breadcrumb */}
+                <div className="mb-3 text-sm text-slate-500">
+                  <button className="underline" onClick={() => setLocation('/courses')}>Courses</button>
+                  <span className="mx-2">/</span>
+                  <span className="text-slate-700">Builder</span>
+                  {course?.title && (
+                    <>
+                      <span className="mx-2">/</span>
+                      <span className="text-slate-700 truncate inline-block max-w-[40ch] align-bottom">{course.title}</span>
+                    </>
+                  )}
+                </div>
+
+                <div className="flex items-start justify-between">
+                  <div className="max-w-3xl">
+                    <h1 className="text-3xl font-bold text-slate-900">{course?.title || 'Loading...'}</h1>
+                    <p className="text-slate-600 mt-1 text-pretty">{course?.description || 'Loading course details...'}</p>
+                    <div className="flex flex-wrap items-center gap-2 mt-3">
                       <Badge variant={course?.status === 'published' ? 'default' : 'secondary'}>
                         {course?.status || 'loading'}
                       </Badge>
-                      <span className="text-sm text-slate-500">
-                        Category: {course?.category || 'loading'}
-                      </span>
-                      <span className="text-sm text-slate-500">
-                        Difficulty: {course?.difficulty || 'loading'}
-                      </span>
+                      <Badge variant="outline">{course?.category || 'loading'}</Badge>
+                      <Badge variant="outline">{course?.difficulty || 'loading'}</Badge>
                     </div>
                   </div>
-                  <div className="flex gap-3">
-                    <Button
-                      variant="outline"
-                      onClick={handleEditCourse}
-                    >
+                  <div className="flex gap-2">
+                    <Button variant="outline" onClick={() => window.open(`/courses/${courseId}/preview`, '_blank')}>
+                      <Eye className="h-4 w-4 mr-2" />
+                      Preview
+                    </Button>
+                    <Button variant="outline" onClick={handleEditCourse}>
                       <Pencil className="h-4 w-4 mr-2" />
                       Edit Course
                     </Button>
-
-
                   </div>
                 </div>
               </div>
@@ -1084,6 +1094,7 @@ export default function CourseBuilder() {
                                 }, 1000); // Wait a bit for the backend to update
                               }}
                             />
+                            
                           </CardContent>
                         </Card>
                       )}
