@@ -20,8 +20,8 @@ async function main() {
     app.use(express.static("dist/public"));
   }
   
-  server.listen(port, "localhost", () => {
-    console.log(`[express] serving on port ${port}`);
+  server.listen(port, "0.0.0.0", () => {
+    console.log(`[express] serving on port ${port} (listening on 0.0.0.0)`);
   });
 }
 
