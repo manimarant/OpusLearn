@@ -24,7 +24,7 @@ async function main() {
     await setupVite(app, server);
   } else {
     // Serve static files
-    app.use(express.static("dist/public"));
+    app.use(express.static(path.resolve(__dirname, "public")));
     
     // Fallback to index.html for client-side routing (SPA support)
     app.get('*', (req, res) => {
@@ -33,7 +33,7 @@ async function main() {
         return res.status(404).json({ message: 'API endpoint not found' });
       }
       
-      res.sendFile(path.resolve(__dirname, '../dist/public/index.html'));
+      res.sendFile(path.resolve(__dirname, 'public/index.html'));
     });
   }
   
