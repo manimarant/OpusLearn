@@ -31,11 +31,6 @@ function getUserId(req: any): string {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Health check endpoint (no auth required)
-  app.get('/health', (req, res) => {
-    res.json({ status: 'ok', timestamp: new Date().toISOString() });
-  });
-
   // Auth middleware
   await setupAuth(app);
 

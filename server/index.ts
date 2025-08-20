@@ -10,6 +10,11 @@ const port = parseInt(process.env.PORT || "3000", 10);
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
+// Health check endpoint (available immediately, no async dependencies)
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
 // Register all routes and middleware
 async function main() {
   const server = await registerRoutes(app);
