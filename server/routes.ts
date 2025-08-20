@@ -1348,21 +1348,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      const ollamaService = new OllamaService();
-      
-      // Always use AI generation - no fallback templates
       console.log(`Generating course with AI for prompt: ${prompt}`);
       
-      // Skip availability check since we know Ollama is running
-      console.log('Skipping availability check, proceeding with generation...');
-      
-      // Generate course using AI only
-      const generatedCourse = await ollamaService.generateCourse({
-        prompt,
-        model: model || 'llama3.2:1b'
-      });
+      // Try cloud AI first (if configured), then fallback to Ollama
+      let generatedCourse;
+      let aiProvider = 'fallback';
 
-      console.log('Course generated successfully:', generatedCourse.title);
+      // Check for cloud AI configuration
+      if (process.env.OPENAI_API_KEY) {
+        try {
+          const { CloudAIService } = await import('./services/cloud-ai-service');
+          const cloudAI = new CloudAIService({
+            provider: 'openai',
+            apiKey: process.env.OPENAI_API_KEY,
+            model: model || 'gpt-3.5-turbo'
+          });
+          
+          console.log('Trying OpenAI generation...');
+          generatedCourse = await cloudAI.generateCourse({ prompt, model });
+          aiProvider = 'OpenAI';
+          console.log('✅ OpenAI generation successful!');
+        } catch (error) {
+          console.log('❌ OpenAI generation failed:', error);
+        }
+      } else if (process.env.ANTHROPIC_API_KEY) {
+        try {
+          const { CloudAIService } = await import('./services/cloud-ai-service');
+          const cloudAI = new CloudAIService({
+            provider: 'anthropic',
+            apiKey: process.env.ANTHROPIC_API_KEY,
+            model: model || 'claude-3-haiku-20240307'
+          });
+          
+          console.log('Trying Anthropic generation...');
+          generatedCourse = await cloudAI.generateCourse({ prompt, model });
+          aiProvider = 'Anthropic';
+          console.log('✅ Anthropic generation successful!');
+        } catch (error) {
+          console.log('❌ Anthropic generation failed:', error);
+        }
+      }
+
+      // Fallback to Ollama if cloud AI failed or not configured
+      if (!generatedCourse) {
+        console.log('Trying Ollama generation...');
+        const ollamaService = new OllamaService();
+        
+        generatedCourse = await ollamaService.generateCourse({
+          prompt,
+          model: model || 'llama3.2:1b'
+        });
+        aiProvider = await ollamaService.isAvailable() ? 'Ollama' : 'Template';
+      }
+
+      console.log(`Course generated successfully using ${aiProvider}:`, generatedCourse.title);
 
       res.json({
         message: "Course generated successfully",

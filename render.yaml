@@ -32,4 +32,10 @@ services:
       #   value: your-repl-id
       # - key: ISSUER_URL
       #   value: https://replit.com/oidc
+      
+      # Optional: Set ONE of these for cloud AI generation (recommended for production)
+      # - key: OPENAI_API_KEY
+      #   value: your-openai-api-key
+      # - key: ANTHROPIC_API_KEY
+      #   value: your-anthropic-api-key
     healthCheckPath: /health
