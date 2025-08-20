@@ -32,4 +32,4 @@ services:
       #   value: your-repl-id
       # - key: ISSUER_URL
       #   value: https://replit.com/oidc
-    healthCheckPath: /api/user
+    healthCheckPath: /health
