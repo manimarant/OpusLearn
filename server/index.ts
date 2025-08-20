@@ -1,5 +1,6 @@
 import "dotenv/config";
 import express from "express";
+import path from "path";
 import { registerRoutes } from "./routes";
 import { setupVite } from "./vite";
 
@@ -22,7 +23,18 @@ async function main() {
   if (process.env.NODE_ENV === "development") {
     await setupVite(app, server);
   } else {
+    // Serve static files
     app.use(express.static("dist/public"));
+    
+    // Fallback to index.html for client-side routing (SPA support)
+    app.get('*', (req, res) => {
+      // Don't serve index.html for API routes
+      if (req.path.startsWith('/api/')) {
+        return res.status(404).json({ message: 'API endpoint not found' });
+      }
+      
+      res.sendFile(path.resolve(__dirname, '../dist/public/index.html'));
+    });
   }
   
   server.listen(port, "0.0.0.0", () => {
