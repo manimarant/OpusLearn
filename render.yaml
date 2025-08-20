@@ -1,0 +1,35 @@
+databases:
+  - name: opuslearn-db
+    databaseName: opuslearn
+    user: opuslearn_user
+    plan: free
+
+services:
+  - type: web
+    name: opuslearn-app
+    env: node
+    plan: free
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        fromService:
+          type: web
+          name: opuslearn-app
+          property: port
+      - key: DATABASE_URL
+        fromDatabase:
+          name: opuslearn-db
+          property: connectionString
+      - key: SESSION_SECRET
+        generateValue: true
+      # Optional: Set these if you want to use Replit Auth in production
+      # - key: REPLIT_DOMAINS
+      #   value: your-app-name.onrender.com
+      # - key: REPL_ID
+      #   value: your-repl-id
+      # - key: ISSUER_URL
+      #   value: https://replit.com/oidc
+    healthCheckPath: /api/user
