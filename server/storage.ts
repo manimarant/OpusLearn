@@ -62,15 +62,7 @@ export interface IStorage {
   getChapter(id: number): Promise<Chapter | undefined>;
   createChapter(chapter: any): Promise<Chapter>;
   updateChapter(id: number, updates: any): Promise<Chapter>;
-  updateChapterVideoStatus(
-    id: number, 
-    videoStatus: string, 
-    videoJobId?: string, 
-    videoUrl?: string, 
-    videoThumbnailUrl?: string,
-    videoProvider?: string
-  ): Promise<Chapter>;
-  getChapterByVideoJobId(videoJobId: string): Promise<Chapter | undefined>;
+
   deleteChapter(id: number): Promise<void>;
   
   // Enrollment operations
@@ -337,36 +329,7 @@ export class DatabaseStorage implements IStorage {
     return chapter;
   }
 
-  async updateChapterVideoStatus(
-    id: number, 
-    videoStatus: string, 
-    videoJobId?: string, 
-    videoUrl?: string, 
-    videoThumbnailUrl?: string,
-    videoProvider?: string
-  ): Promise<Chapter> {
-    const updates: any = { videoStatus };
-    
-    if (videoJobId !== undefined) updates.videoJobId = videoJobId;
-    if (videoUrl !== undefined) updates.videoUrl = videoUrl;
-    if (videoThumbnailUrl !== undefined) updates.videoThumbnailUrl = videoThumbnailUrl;
-    if (videoProvider !== undefined) updates.videoProvider = videoProvider;
 
-    const [chapter] = await db
-      .update(chapters)
-      .set(updates)
-      .where(eq(chapters.id, id))
-      .returning();
-    return chapter;
-  }
-
-  async getChapterByVideoJobId(videoJobId: string): Promise<Chapter | undefined> {
-    const [chapter] = await db
-      .select()
-      .from(chapters)
-      .where(eq(chapters.videoJobId, videoJobId));
-    return chapter;
-  }
 
   async deleteChapter(id: number): Promise<void> {
     await db.delete(chapters).where(eq(chapters.id, id));
@@ -719,11 +682,7 @@ export class DatabaseStorage implements IStorage {
         duration: chapters.duration,
         moduleId: chapters.moduleId,
         orderIndex: chapters.orderIndex,
-        videoUrl: chapters.videoUrl,
-        videoThumbnailUrl: chapters.videoThumbnailUrl,
-        videoJobId: chapters.videoJobId,
-        videoStatus: chapters.videoStatus,
-        videoProvider: chapters.videoProvider,
+
         createdAt: chapters.createdAt,
       })
       .from(chapters)

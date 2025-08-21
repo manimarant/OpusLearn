@@ -71,14 +71,9 @@ export const chapters = pgTable("chapters", {
   moduleId: integer("module_id").notNull(),
   title: text("title").notNull(),
   content: text("content"), // Rich text content
-  contentType: varchar("content_type").notNull().default("text"), // text, video, interactive
+  contentType: varchar("content_type").notNull().default("text"), // text, interactive
   duration: integer("duration"), // in minutes
   orderIndex: integer("order_index").notNull(),
-  videoUrl: text("video_url"), // Generated video URL
-  videoThumbnailUrl: text("video_thumbnail_url"), // Video thumbnail URL
-  videoJobId: text("video_job_id"), // AI video generation job ID
-  videoStatus: varchar("video_status").default("none"), // none, generating, completed, failed
-  videoProvider: varchar("video_provider"), // runway, pika, mock
   createdAt: timestamp("created_at").defaultNow(),
 });
 

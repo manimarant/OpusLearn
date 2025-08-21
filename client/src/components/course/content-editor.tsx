@@ -18,23 +18,20 @@ import {
   Code, 
   Link,
   Image,
-  Video,
   FileText,
   Save,
   Eye,
   Sparkles
 } from "lucide-react";
-// Video generation removed
 
 interface ContentEditorProps {
   chapter: any;
   onSave: (chapterData: any) => void;
   isLoading?: boolean;
   forceUpdate?: number;
-  onVideoGenerated?: () => void;
 }
 
-export default function ContentEditor({ chapter, onSave, isLoading, forceUpdate, onVideoGenerated }: ContentEditorProps) {
+export default function ContentEditor({ chapter, onSave, isLoading, forceUpdate }: ContentEditorProps) {
   const [chapterData, setChapterData] = useState({
     title: chapter?.title || "",
     content: chapter?.content || "",
@@ -187,7 +184,6 @@ export default function ContentEditor({ chapter, onSave, isLoading, forceUpdate,
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="text">Text Content</SelectItem>
-              <SelectItem value="video">Video Chapter</SelectItem>
               <SelectItem value="interactive">Interactive Content</SelectItem>
               <SelectItem value="quiz">Quiz</SelectItem>
             </SelectContent>
@@ -312,30 +308,6 @@ export default function ContentEditor({ chapter, onSave, isLoading, forceUpdate,
           </div>
 
           {/* Content Type Specific Options */}
-          {chapterData.contentType === "video" && (
-            <Card>
-              <CardContent className="p-4 space-y-4">
-                <h3 className="font-medium text-slate-800">Video Settings</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="video-url">Video URL</Label>
-                    <Input
-                      id="video-url"
-                      placeholder="https://example.com/video.mp4"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="video-duration">Video Duration</Label>
-                    <Input
-                      id="video-duration"
-                      placeholder="10:30"
-                    />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
           {chapterData.contentType === "interactive" && (
             <Card>
               <CardContent className="p-4 space-y-4">
@@ -375,7 +347,7 @@ export default function ContentEditor({ chapter, onSave, isLoading, forceUpdate,
         </TabsContent>
       </Tabs>
 
-      {/* AI video generation removed */}
+
     </div>
   );
 }

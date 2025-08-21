@@ -46,11 +46,7 @@ interface Chapter {
   contentType: string;
   duration: number;
   orderIndex: number;
-  videoUrl?: string;
-  videoThumbnailUrl?: string;
-  videoJobId?: string;
-  videoStatus?: string;
-  videoProvider?: string;
+
 }
 
 
@@ -138,7 +134,7 @@ export default function CourseBuilder() {
     enabled: !!selectedModule?.id,
   });
 
-  // Keep selectedChapter in sync with refreshed chapters (e.g., after AI video generation)
+  // Keep selectedChapter in sync with refreshed chapters
   useEffect(() => {
     if (!selectedChapter || !chapters || chapters.length === 0) return;
     const refreshed = chapters.find((ch: any) => ch.id === selectedChapter.id);
@@ -1072,27 +1068,6 @@ export default function CourseBuilder() {
                             <ContentEditor
                               chapter={selectedChapter}
                               onSave={handleSaveChapter}
-                              onVideoGenerated={() => {
-                                // Refresh chapters data when video is generated
-                                if (selectedModule?.id) {
-                                  queryClient.invalidateQueries({
-                                    queryKey: ["/api/chapters", selectedModule.id]
-                                  });
-                                }
-                                
-                                // Also refresh the specific chapter data
-                                setTimeout(() => {
-                                  if (selectedChapter?.id) {
-                                    // Refetch the updated chapter data
-                                    fetch(`/api/chapters/${selectedChapter.id}`)
-                                      .then(res => res.json())
-                                      .then(updatedChapter => {
-                                        setSelectedChapter(updatedChapter);
-                                      })
-                                      .catch(console.error);
-                                  }
-                                }, 1000); // Wait a bit for the backend to update
-                              }}
                             />
                             
                           </CardContent>

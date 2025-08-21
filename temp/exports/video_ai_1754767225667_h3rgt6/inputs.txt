@@ -1,9 +1,0 @@
-file 'D:\OpusLearn\temp\exports\video_ai_1754767225667_h3rgt6\scene_001.png'
-duration 6
-file 'D:\OpusLearn\temp\exports\video_ai_1754767225667_h3rgt6\scene_002.png'
-duration 11
-file 'D:\OpusLearn\temp\exports\video_ai_1754767225667_h3rgt6\scene_003.png'
-duration 9
-file 'D:\OpusLearn\temp\exports\video_ai_1754767225667_h3rgt6\scene_004.png'
-duration 4
-file 'D:\OpusLearn\temp\exports\video_ai_1754767225667_h3rgt6\scene_004.png'

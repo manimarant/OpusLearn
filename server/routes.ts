@@ -20,7 +20,7 @@ import {
   type Quiz
 } from "@shared/schema";
 import { OllamaService } from "./services/ollama-service";
-// AI video generation service removed
+
 
 // Helper function to get user ID (works in both development and production)
 function getUserId(req: any): string {
