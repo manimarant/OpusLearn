@@ -3,7 +3,7 @@ export interface User {
   email: string;
   firstName: string;
   lastName: string;
-  role: 'student' | 'instructor' | 'admin';
+  role: 'instructional-designer';
   profileImageUrl: string | null;
   createdAt: string;
   updatedAt: string;

@@ -245,8 +245,9 @@ export class OllamaService {
 
       console.log(`Title generation response status: ${titleResponse.status}`);
       if (!titleResponse.ok) {
-        console.error(`Title generation failed: ${titleResponse.status}`);
-        return null; // Return null on failure
+        const errorBody = await titleResponse.text();
+        console.error(`Title generation failed: ${titleResponse.status}`, errorBody);
+        throw new Error(`Failed to generate course title: ${titleResponse.statusText} - ${errorBody}`);
       }
 
       const titleData = await titleResponse.json();
@@ -260,7 +261,7 @@ export class OllamaService {
         courseDescription = titleResult.description || `A comprehensive course covering all aspects of ${topic}.`;
       } catch (parseError) {
         console.error("Error parsing title AI response:", parseError);
-        return null; // Return null on parsing failure
+        throw new Error("Failed to parse AI response for title.");
       }
 
       // Step 2: Generate chapter content with AI
@@ -300,23 +301,9 @@ export class OllamaService {
                 content: chapterContent || `This chapter covers essential concepts of ${topic}. You will learn key principles and practical applications.`
               });
             } else {
-              console.error(`Chapter ${chapterIndex} generation failed: ${chapterResponse.statusText}, using fallback`);
-              // Fallback chapter content with unique themes
-              const chapterThemes = [
-                { title: "Introduction", content: "Get started with the essential concepts and setup" },
-                { title: "Core Concepts", content: "Understand the fundamental principles and building blocks" },
-                { title: "Best Practices", content: "Learn industry-standard approaches and methodologies" },
-                { title: "Advanced Techniques", content: "Master sophisticated features and complex scenarios" },
-                { title: "Real-world Examples", content: "See how concepts apply in practical situations" },
-                { title: "Troubleshooting", content: "Learn to debug and solve common problems" }
-              ];
-              const globalChapterIndex = ((moduleIndex - 1) * numChapters + chapterIndex - 1);
-              const chapterThemeIndex = globalChapterIndex % chapterThemes.length;
-              const chapterTheme = chapterThemes[chapterThemeIndex];
-              moduleChapters.push({
-                title: `Chapter ${chapterIndex}: ${chapterTheme.title} of ${topic}`,
-                content: `This chapter focuses on ${chapterTheme.content} of ${topic}. You will learn key principles and practical applications.`
-              });
+              const errorBody = await chapterResponse.text();
+              console.error(`Chapter ${chapterIndex} generation failed: ${chapterResponse.statusText}, using fallback`, errorBody);
+              throw new Error(`Failed to generate chapter ${chapterIndex}: ${chapterResponse.statusText} - ${errorBody}`);
             }
           } catch (error) {
             console.error(`Chapter ${chapterIndex} generation failed, using fallback:`, error);
@@ -620,7 +607,7 @@ export class OllamaService {
 
     } catch (error) {
       console.log('❌ AI generation failed:', error);
-      return null; // Return null on failure
+      throw error;
     }
   }
   

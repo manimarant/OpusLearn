@@ -59,6 +59,7 @@ export default function QuizDetail() {
   const quizId = params.id ? parseInt(params.id) : null;
   const { user } = useAuth();
   const { toast } = useToast();
+  const isInstructor = user?.role === 'instructional-designer';
   const [isCreateQuestionDialogOpen, setIsCreateQuestionDialogOpen] = useState(false);
   const [editingQuestion, setEditingQuestion] = useState<QuizQuestion | null>(null);
   const [isEditQuestionDialogOpen, setIsEditQuestionDialogOpen] = useState(false);
@@ -78,7 +79,7 @@ export default function QuizDetail() {
     orderIndex: 1,
   });
 
-  const isInstructor = user?.role === 'instructor';
+  
 
   const { data: quiz, isLoading: isQuizLoading } = useQuery<Quiz>({
     queryKey: ["/api/quizzes", quizId],
@@ -113,7 +114,7 @@ export default function QuizDetail() {
       }
       return response.json();
     },
-    enabled: !!quizId && isInstructor,
+    enabled: !!quizId,
   });
 
   const createQuestionMutation = useMutation({

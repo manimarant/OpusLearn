@@ -20,15 +20,15 @@ import {
   Layers
 } from "lucide-react";
 
-type Role = 'student' | 'instructor' | 'admin';
+type Role = 'instructional-designer';
 
 export default function Sidebar() {
   const [location] = useLocation();
   const { user } = useAuth();
-  const [userRole, setUserRole] = useState<Role>(user?.role || "student");
+  const [userRole, setUserRole] = useState<Role>(user?.role || "instructional-designer");
   const [isCreateContentExpanded, setIsCreateContentExpanded] = useState(false);
 
-  const isInstructor = userRole === "instructor";
+  
 
   // Check if any of the create content pages are active
   const isCreateContentActive = location.startsWith("/course-builder") || 
@@ -86,69 +86,33 @@ export default function Sidebar() {
   ];
 
   const quickActions = [
-    ...(isInstructor ? [
-      {
-        href: "/courses",
-        icon: Sparkles,
-        label: "AI Course Generator",
-        badge: "AI-Powered",
-      },
-    ] : [
-      {
-        href: "/courses",
-        icon: BookOpen,
-        label: "Browse Courses",
-      },
-      {
-        href: "/assignments",
-        icon: FileText,
-        label: "View Assignments",
-      },
-      {
-        href: "/discussions",
-        icon: MessageSquare,
-        label: "Join Discussion",
-      },
-    ]),
+    {
+      href: "/courses",
+      icon: Sparkles,
+      label: "AI Course Generator",
+      badge: "AI-Powered",
+    },
+    {
+      href: "/courses",
+      icon: BookOpen,
+      label: "Browse Courses",
+    },
+    {
+      href: "/assignments",
+      icon: FileText,
+      label: "View Assignments",
+    },
+    {
+      href: "/discussions",
+      icon: MessageSquare,
+      label: "Join Discussion",
+    },
   ];
 
   return (
     <aside className="w-64 saas-sidebar min-h-screen">
       <div className="p-6">
-        {/* Role Switcher */}
-        <div className="mb-8">
-          <div className="flex items-center space-x-2 mb-3">
-            <div className="w-2 h-2 bg-primary rounded-full"></div>
-            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-              Current Role
-            </span>
-          </div>
-          <Select value={userRole} onValueChange={(value: Role) => setUserRole(value)}>
-            <SelectTrigger className="w-full saas-input bg-muted/50 border-border/50">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent className="saas-card">
-              <SelectItem value="instructor" className="saas-button-ghost">
-                <div className="flex items-center space-x-2">
-                  <Sparkles className="h-4 w-4 text-primary" />
-                  <span>Instructor Dashboard</span>
-                </div>
-              </SelectItem>
-              <SelectItem value="student" className="saas-button-ghost">
-                <div className="flex items-center space-x-2">
-                  <BookOpen className="h-4 w-4 text-primary" />
-                  <span>Student View</span>
-                </div>
-              </SelectItem>
-              <SelectItem value="admin" className="saas-button-ghost">
-                <div className="flex items-center space-x-2">
-                  <Settings className="h-4 w-4 text-primary" />
-                  <span>Administrator</span>
-                </div>
-              </SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+        
         
         {/* Navigation Menu */}
         <nav className="space-y-1">
@@ -167,8 +131,8 @@ export default function Sidebar() {
             </Link>
           ))}
           
-          {/* Create Content Section for Instructors */}
-          {isInstructor && (
+          {/* Create Content Section for Instructional Designers */}
+          {userRole === "instructional-designer" && (
             <div className="space-y-1">
               <button
                 onClick={() => setIsCreateContentExpanded(!isCreateContentExpanded)}

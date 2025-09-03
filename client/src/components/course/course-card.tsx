@@ -63,7 +63,7 @@ export default function CourseCard({ course, onDelete }: CourseCardProps) {
     setLocation(`/courses/${course.id}`);
   };
 
-  const isInstructor = user?.role === "instructor";
+  
   const isOwner = course.instructorId === user?.id;
 
   const getStatusColor = (status: string) => {
@@ -167,21 +167,7 @@ export default function CourseCard({ course, onDelete }: CourseCardProps) {
 
         {/* Course Footer */}
         <div className="p-6 pt-4 flex flex-col gap-4 mt-auto">
-          {/* Progress Bar for Students */}
-          {!isInstructor && (
-            <div>
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-xs font-medium text-gray-700">Progress</span>
-                <span className="text-xs text-gray-500">{mockProgress}%</span>
-              </div>
-              <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                <div 
-                  className="h-full bg-gradient-to-r from-gray-600 to-gray-700 transition-all duration-300"
-                  style={{ width: `${mockProgress}%` }}
-                />
-              </div>
-            </div>
-          )}
+          
 
           {/* Instructor Info */}
           {course.instructor && (
@@ -207,38 +193,15 @@ export default function CourseCard({ course, onDelete }: CourseCardProps) {
               {new Date(course.updatedAt).toLocaleDateString()}
             </div>
             <div className="flex gap-2">
-              {isOwner ? (
-                <Button 
-                  size="sm" 
-                  onClick={handleEdit} 
-                  variant="outline"
-                  className="border-gray-200 text-gray-700 hover:bg-gray-50 hover:text-gray-900 text-xs h-8"
-                >
-                  <Edit className="h-3 w-3 mr-1" />
-                  Edit
-                </Button>
-              ) : !isInstructor ? (
-                <Button 
-                  size="sm" 
-                  onClick={handleEnroll}
-                  disabled={enrollMutation.isPending}
-                  className="bg-gray-900 hover:bg-gray-800 text-white text-xs h-8"
-                >
-                  {enrollMutation.isPending ? "Enrolling..." : "Enroll"}
-                </Button>
-              ) : (
-                <Button 
-                  size="sm" 
-                  variant="outline" 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setLocation(`/courses/${course.id}`);
-                  }} 
-                  className="border-gray-200 text-gray-700 hover:bg-gray-50 hover:text-gray-900 text-xs h-8"
-                >
-                  View
-                </Button>
-              )}
+              <Button 
+                size="sm" 
+                onClick={handleEdit} 
+                variant="outline"
+                className="border-gray-200 text-gray-700 hover:bg-gray-50 hover:text-gray-900 text-xs h-8"
+              >
+                <Edit className="h-3 w-3 mr-1" />
+                Edit
+              </Button>
             </div>
           </div>
         </div>

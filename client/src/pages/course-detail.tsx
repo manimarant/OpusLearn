@@ -194,7 +194,7 @@ export default function CourseDetail() {
   }
 
   const isInstructor = user?.role === "instructor";
-  const isOwner = course.instructorId === user?.id;
+  
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -229,7 +229,7 @@ export default function CourseDetail() {
               <Eye className="h-4 w-4 mr-2" />
               Preview
             </Button>
-                {isOwner && (
+                { (
                   <>
                     <Button onClick={() => window.location.href = `/course-builder/${course.id}`}>
                       <Edit className="h-4 w-4 mr-2" />
@@ -495,38 +495,7 @@ export default function CourseDetail() {
                 </CardContent>
               </Card>
 
-              {/* Progress Card (for students) */}
-              {!isInstructor && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Your Progress</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      <div>
-                        <div className="flex justify-between mb-2">
-                          <span className="text-sm font-medium">Course Completion</span>
-                          <span className="text-sm text-slate-500">45%</span>
-                        </div>
-                        <Progress value={45} className="h-2" />
-                      </div>
-                      <div className="pt-4 border-t">
-                        <p className="text-sm font-medium mb-2">Statistics</p>
-                        <div className="grid grid-cols-2 gap-4 text-sm">
-                          <div>
-                            <p className="text-slate-500">Chapters Completed</p>
-                            <p className="font-medium">12/24</p>
-                          </div>
-                          <div>
-                            <p className="text-slate-500">Time Spent</p>
-                            <p className="font-medium">5h 30m</p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
+              
             </div>
           </div>
         </main>

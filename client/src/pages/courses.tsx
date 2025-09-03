@@ -252,7 +252,7 @@ export default function Courses() {
     return matchesSearch && matchesCategory && matchesStatus;
   }) || [];
 
-  const isInstructor = user?.role === "instructor";
+  
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -268,13 +268,10 @@ export default function Courses() {
               <div>
                 <h2 className="text-3xl font-bold text-slate-800">My Courses</h2>
                 <p className="text-slate-600 mt-1">
-                  {isInstructor 
-                    ? "Manage your courses and create new content"
-                    : "Track your learning journey and discover new courses"
-                  }
+                  "Manage your courses and create new content"
                 </p>
               </div>
-              {isInstructor && (
+              { (
                 <div className="flex gap-3">
                   <Button
                     onClick={() => setIsAICourseGeneratorOpen(true)}
@@ -301,14 +298,12 @@ export default function Courses() {
             <TabsList className="grid w-full grid-cols-2 lg:grid-cols-3 mb-8">
               <TabsTrigger value="enrolled" className="flex items-center gap-2">
                 <BookOpen className="h-4 w-4" />
-                {isInstructor ? "My Courses" : "Enrolled"}
+                "My Courses"
               </TabsTrigger>
-              {isInstructor && (
-                <TabsTrigger value="analytics" className="flex items-center gap-2">
-                  <BarChart3 className="h-4 w-4" />
-                  Analytics
-                </TabsTrigger>
-              )}
+              <TabsTrigger value="analytics" className="flex items-center gap-2">
+                <BarChart3 className="h-4 w-4" />
+                Analytics
+              </TabsTrigger>
               <TabsTrigger value="discover" className="flex items-center gap-2">
                 <Users className="h-4 w-4" />
                 Discover
@@ -346,19 +341,17 @@ export default function Courses() {
                           <SelectItem value="Business">Business</SelectItem>
                         </SelectContent>
                       </Select>
-                      {isInstructor && (
-                        <Select value={filterStatus} onValueChange={setFilterStatus}>
-                          <SelectTrigger className="w-[140px]">
-                            <SelectValue placeholder="Status" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="all">All Status</SelectItem>
-                            <SelectItem value="published">Published</SelectItem>
-                            <SelectItem value="draft">Draft</SelectItem>
-                            <SelectItem value="archived">Archived</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      )}
+                      <Select value={filterStatus} onValueChange={setFilterStatus}>
+                        <SelectTrigger className="w-[140px]">
+                          <SelectValue placeholder="Status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Status</SelectItem>
+                          <SelectItem value="published">Published</SelectItem>
+                          <SelectItem value="draft">Draft</SelectItem>
+                          <SelectItem value="archived">Archived</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
                 </CardContent>
@@ -388,7 +381,7 @@ export default function Courses() {
                     <div key={course.id} className="relative group">
                       <CourseCard 
                         course={course} 
-                        onDelete={isInstructor && course.instructorId === user?.id ? handleDeleteCourse : undefined}
+                        onDelete={handleDeleteCourse}
                       />
                     </div>
                   ))
@@ -398,12 +391,10 @@ export default function Courses() {
                     <p className="text-slate-500 text-lg">
                       {searchTerm || filterCategory !== "all" 
                         ? "No courses found matching your criteria" 
-                        : isInstructor 
-                          ? "You haven't created any courses yet" 
-                          : "No courses available"
+                        : "You haven't created any courses yet"
                       }
                     </p>
-                    {isInstructor && (
+                    {(
                       <div className="mt-6">
                         <Button
                           onClick={() => setIsAICourseGeneratorOpen(true)}
@@ -429,7 +420,7 @@ export default function Courses() {
 
 
             {/* Analytics Tab (Instructors only) */}
-            {isInstructor && (
+            { (
               <TabsContent value="analytics" className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                   <Card>

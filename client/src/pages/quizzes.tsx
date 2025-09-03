@@ -71,6 +71,13 @@ export default function Quizzes() {
 
   const { data: quizzes } = useQuery<Quiz[]>({
     queryKey: ["/api/courses", selectedCourse, "quizzes"],
+    queryFn: async () => {
+      const response = await fetch(`/api/courses/${selectedCourse}/quizzes`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch quizzes');
+      }
+      return response.json();
+    },
     enabled: !!selectedCourse,
   });
 
@@ -161,7 +168,7 @@ export default function Quizzes() {
     return <Badge variant="default">Available</Badge>;
   };
 
-  const isInstructor = user?.role === "instructor";
+  const isInstructor = user?.role === "instructional-designer";
 
   return (
     <div className="min-h-screen bg-slate-50">

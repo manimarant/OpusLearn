@@ -48,7 +48,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           email: 'dev@example.com',
           firstName: 'Development',
           lastName: 'User',
-          role: 'instructor',
+          role: 'instructional-designer',
           profileImageUrl: null,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString()
@@ -73,15 +73,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const user = await storage.getUser(userId);
       console.log('User role:', user?.role);
       
-      let courses;
-      if (user?.role === 'instructor') {
-        console.log('Fetching instructor courses');
-        courses = await storage.getCourses(userId);
-      } else {
-        console.log('Fetching student courses');
-        const enrollments = await storage.getUserEnrollments(userId);
-        courses = enrollments.map(e => e.course);
-      }
+      let courses = await storage.getCourses(userId);
       
       console.log('Returning courses:', courses);
       res.json(courses);
@@ -129,9 +121,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = getUserId(req);
       const user = await storage.getUser(userId);
       
-      if (user?.role !== 'instructor') {
-        return res.status(403).json({ message: "Only instructors can create courses" });
-      }
+      
 
       const courseData = insertCourseSchema.parse(req.body);
       const course = await storage.createCourse({
@@ -151,11 +141,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const courseId = parseInt(req.params.id);
       const userId = getUserId(req);
       
-      // Verify course ownership
-      const course = await storage.getCourse(courseId);
-      if (!course || course.instructorId !== userId) {
-        return res.status(403).json({ message: "Unauthorized" });
-      }
+
 
       await storage.deleteCourse(courseId);
       res.json({ message: "Course deleted successfully" });
@@ -170,10 +156,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const courseId = parseInt(req.params.id);
       const userId = getUserId(req);
       
-      const course = await storage.getCourse(courseId);
-      if (!course || course.instructorId !== userId) {
-        return res.status(403).json({ message: "Unauthorized" });
-      }
+
 
       const updates = insertCourseSchema.partial().parse(req.body);
       const updatedCourse = await storage.updateCourse(courseId, updates);
@@ -213,10 +196,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const courseId = parseInt(req.params.id);
       const userId = getUserId(req);
       
-      const course = await storage.getCourse(courseId);
-      if (!course || course.instructorId !== userId) {
-        return res.status(403).json({ message: "Unauthorized" });
-      }
+
 
       const moduleData = insertModuleSchema.parse({
         ...req.body,
@@ -371,10 +351,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const courseId = parseInt(req.params.id);
       const userId = getUserId(req);
       
-      const course = await storage.getCourse(courseId);
-      if (!course || course.instructorId !== userId) {
-        return res.status(403).json({ message: "Unauthorized" });
-      }
+
       
       const enrollments = await storage.getCourseEnrollments(courseId);
       res.json(enrollments);
@@ -528,13 +505,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const course = await storage.getCourse(courseId);
       console.log('Found course:', course);
       
-      if (!course || course.instructorId !== userId) {
-        console.log('Authorization failed:', {
-          courseInstructorId: course?.instructorId,
-          requestUserId: userId,
-        });
-        return res.status(403).json({ message: "Unauthorized" });
-      }
+      
 
       // Remove courseId from body since it's in the URL params
       const { courseId: _, ...assignmentDataWithoutCourseId } = req.body;
@@ -714,10 +685,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const courseId = parseInt(req.params.id);
       const userId = getUserId(req);
       
-      const course = await storage.getCourse(courseId);
-      if (!course || course.instructorId !== userId) {
-        return res.status(403).json({ message: "Unauthorized" });
-      }
+
 
       const quizData = insertQuizSchema.parse({
         ...req.body,
@@ -776,12 +744,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const quizId = parseInt(req.params.id);
       const userId = getUserId(req);
       
-      // Verify quiz ownership through course
-      const quiz = await storage.getQuiz(quizId);
-      const course = await storage.getCourse(quiz.courseId);
-      if (!course || course.instructorId !== userId) {
-        return res.status(403).json({ message: "Unauthorized" });
-      }
+      
 
       const questionData = insertQuizQuestionSchema.parse({
         ...req.body,
@@ -806,18 +769,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const questionId = parseInt(req.params.questionId);
       const userId = getUserId(req);
       
-      // Verify quiz ownership through course
-      let quiz: Quiz;
-      try {
-        quiz = await storage.getQuiz(quizId);
-      } catch (error) {
-        return res.status(404).json({ message: "Quiz not found" });
-      }
-
-      const course = await storage.getCourse(quiz.courseId);
-      if (!course || course.instructorId !== userId) {
-        return res.status(403).json({ message: "Unauthorized" });
-      }
+      
 
       const questionData = insertQuizQuestionSchema.partial().parse({
         ...req.body,
@@ -863,11 +815,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const attemptId = parseInt(req.params.id);
       const userId = getUserId(req);
       
-      // Verify attempt ownership
-      const attempt = await storage.getQuizAttempt(attemptId);
-      if (!attempt || attempt.userId !== userId) {
-        return res.status(403).json({ message: "Unauthorized" });
-      }
+      
 
       const updates = insertQuizAttemptSchema.partial().parse({
         ...req.body,
@@ -901,11 +849,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const courseId = parseInt(req.params.id);
       const userId = getUserId(req);
       
-      // Verify course ownership
-      const course = await storage.getCourse(courseId);
-      if (!course || course.instructorId !== userId) {
-        return res.status(403).json({ message: "Unauthorized" });
-      }
+
 
       // Get instructor details
       const instructor = await storage.getUser(course.instructorId);
@@ -1059,11 +1003,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const courseId = parseInt(req.params.id);
       const userId = getUserId(req);
       
-      // Verify course ownership
-      const course = await storage.getCourse(courseId);
-      if (!course || course.instructorId !== userId) {
-        return res.status(403).json({ message: "Unauthorized" });
-      }
+
 
       const { format, options = {} } = req.body;
 

@@ -91,7 +91,7 @@ async function upsertUser(
     firstName: claims["first_name"],
     lastName: claims["last_name"],
     profileImageUrl: claims["profile_image_url"],
-    role: "student", // Default role for new users
+    role: "instructional-designer", // Default role for new users
   });
 }
 
@@ -124,7 +124,7 @@ export async function setupAuth(app: Express) {
       email: 'dev@example.com',
       firstName: 'Development',
       lastName: 'User',
-      role: 'instructor',
+      role: 'instructional-designer',
       profileImageUrl: null,
     };
 
@@ -204,7 +204,7 @@ export const isAuthenticated = async (req: Request, res: Response, next: NextFun
       email: 'dev@example.com',
       firstName: 'Development',
       lastName: 'User',
-      role: 'instructor',
+      role: 'instructional-designer',
       profileImageUrl: null,
     };
 

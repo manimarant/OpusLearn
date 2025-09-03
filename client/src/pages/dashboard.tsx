@@ -40,8 +40,8 @@ export default function Dashboard() {
   });
 
   const { data: analytics } = useQuery({
-    queryKey: ["api", "analytics", "instructor"],
-    enabled: !!user && user.role === "instructor",
+    queryKey: ["api", "analytics", "instructional-designer"],
+    enabled: !!user,
   });
 
   const { data: notifications } = useQuery({
@@ -60,7 +60,7 @@ export default function Dashboard() {
     );
   }
 
-  const isInstructor = user?.role === "instructor";
+  
 
   return (
     <div className="saas-main">
@@ -75,7 +75,7 @@ export default function Dashboard() {
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center space-x-3">
               <h2 className="text-3xl font-bold text-foreground">
-                {isInstructor ? "Dashboard" : "Student Dashboard"}
+                Dashboard
               </h2>
               </div>
               <div className="flex items-center space-x-2">
@@ -98,53 +98,76 @@ export default function Dashboard() {
               </div>
             </div>
             <p className="text-lg text-muted-foreground max-w-2xl">
-              {isInstructor 
-                ? "Create engaging courses, track student progress, and leverage AI-powered tools to enhance learning outcomes"
-                : "Continue your learning journey with personalized recommendations and progress tracking"
-              }
+              Create engaging courses, track learner progress, and leverage AI-powered tools to enhance learning outcomes
             </p>
           </div>
 
           {/* Creation Shortcuts */}
-          {isInstructor && (
-            <Card className="saas-card mb-8 animate-fade-in">
+          <div className="mb-8 animate-slide-up">
+            <Card className="saas-card">
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2">
-                  <Sparkles className="h-5 w-5 text-primary" />
-                  <span>Shortcuts</span>
+                  <Zap className="h-5 w-5 text-primary" />
+                  <span>Quick Actions</span>
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <Button className="w-full justify-start saas-button-primary h-16" onClick={() => window.location.href = '/course-builder/'}>
-                    <Plus className="h-5 w-5 mr-3" />
-                    <div className="text-left">
-                      <div className="font-medium">New Course</div>
-                      <div className="text-sm opacity-90">Start from scratch</div>
-                        </div>
-                  </Button>
-                  <Button variant="outline" className="w-full justify-start saas-button-secondary h-16" onClick={() => toast({ title: "Feature Coming Soon", description: "Duplicate functionality will be available soon." })}>
-                    <Copy className="h-5 w-5 mr-3" />
-                    <div className="text-left">
-                      <div className="font-medium">Duplicate</div>
-                      <div className="text-sm opacity-90">Copy existing course</div>
+                  <Button 
+                    className="h-auto p-4 flex flex-col items-center space-y-2 bg-primary hover:bg-primary/90"
+                    onClick={() => {
+                      // Navigate to course builder
+                      window.location.href = '/course-builder';
+                    }}
+                  >
+                    <Plus className="h-6 w-6" />
+                    <div className="text-center">
+                      <div className="font-semibold">New Course</div>
+                      <div className="text-xs opacity-90">Create from scratch</div>
                     </div>
                   </Button>
-                  <Button variant="outline" className="w-full justify-start saas-button-secondary h-16" onClick={() => toast({ title: "Feature Coming Soon", description: "Import functionality will be available soon." })}>
-                    <Download className="h-5 w-5 mr-3" />
-                    <div className="text-left">
-                      <div className="font-medium">Import</div>
-                      <div className="text-sm opacity-90">Upload course files</div>
+                  
+                  <Button 
+                    variant="outline" 
+                    className="h-auto p-4 flex flex-col items-center space-y-2"
+                    onClick={() => {
+                      toast({
+                        title: "Duplicate Course",
+                        description: "Select a course to duplicate from the list below.",
+                      });
+                    }}
+                  >
+                    <Copy className="h-6 w-6" />
+                    <div className="text-center">
+                      <div className="font-semibold">Duplicate</div>
+                      <div className="text-xs opacity-70">Copy existing course</div>
                     </div>
                   </Button>
+                  
+                  <Button 
+                    variant="outline" 
+                    className="h-auto p-4 flex flex-col items-center space-y-2"
+                    onClick={() => {
+                      toast({
+                        title: "Import Course",
+                        description: "Import functionality coming soon!",
+                      });
+                    }}
+                  >
+                    <Download className="h-6 w-6" />
+                    <div className="text-center">
+                      <div className="font-semibold">Import</div>
+                      <div className="text-xs opacity-70">Upload course files</div>
                     </div>
-                  </CardContent>
-                </Card>
-          )}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
 
           {/* Review Cycle Status */}
-          {isInstructor && (
-            <Card className="saas-card mb-8 animate-fade-in">
+          <div className="mb-8 animate-slide-up">
+            <Card className="saas-card">
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2">
                   <Eye className="h-5 w-5 text-primary" />
@@ -153,30 +176,41 @@ export default function Dashboard() {
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="flex items-center space-x-4 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
-                      <div className="w-12 h-12 bg-yellow-100 rounded-xl flex items-center justify-center">
-                      <MessageSquare className="h-6 w-6 text-yellow-600" />
-                    </div>
-                      <div>
-                      <p className="text-sm font-medium text-yellow-800">Unresolved Comments</p>
-                      <p className="text-2xl font-bold text-yellow-900">3</p>
-                      <p className="text-xs text-yellow-700">Requires your attention</p>
-                    </div>
-                        </div>
-                  <div className="flex items-center space-x-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                    <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
-                      <Award className="h-6 w-6 text-blue-600" />
-                    </div>
-                      <div>
-                      <p className="text-sm font-medium text-blue-800">Awaiting Sign-off</p>
-                      <p className="text-2xl font-bold text-blue-900">2</p>
-                      <p className="text-xs text-blue-700">Ready for approval</p>
-                    </div>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        <MessageSquare className="h-4 w-4 text-orange-500" />
+                        <span className="text-sm font-medium">Unresolved Comments</span>
                       </div>
+                      <Badge variant="destructive" className="bg-orange-100 text-orange-800 border-orange-200">
+                        3 pending
+                      </Badge>
                     </div>
-                  </CardContent>
-                </Card>
-          )}
+                    <div className="text-xs text-muted-foreground">
+                      Comments requiring your attention across all courses
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        <Target className="h-4 w-4 text-blue-500" />
+                        <span className="text-sm font-medium">Awaiting Sign-off</span>
+                      </div>
+                      <Badge variant="secondary" className="bg-blue-100 text-blue-800 border-blue-200">
+                        2 versions
+                      </Badge>
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      Course versions ready for final approval
+                    </div>
+                  </div>
+                </div>
+                
+
+              </CardContent>
+            </Card>
+          </div>
 
           {/* Main Content Area */}
           <div className="grid grid-cols-1 xl:grid-cols-4 gap-8">
@@ -198,7 +232,7 @@ export default function Dashboard() {
                   {courses && courses.length > 0 ? (
                     <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6' : 'space-y-4'}>
                       {courses.slice(0, 6).map((course: any) => (
-                        <div key={course.id} className={`${viewMode === 'grid' ? 'group rounded-lg p-4 hover:shadow-md transition-all duration-200 cursor-pointer bg-white' : 'flex items-center space-x-4 p-4 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer bg-white'}`} onClick={() => window.location.href = isInstructor ? `/course-builder/${course.id}` : `/courses/${course.id}`}>
+                        <div key={course.id} className={`${viewMode === 'grid' ? 'group rounded-lg p-4 hover:shadow-md transition-all duration-200 cursor-pointer bg-white' : 'flex items-center space-x-4 p-4 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer bg-white'}`} onClick={() => window.location.href = `/course-builder/${course.id}`}>
                           {viewMode === 'grid' ? (
                             <>
                               {/* Grid View */}
@@ -390,7 +424,7 @@ export default function Dashboard() {
                                 )}
                         </div>
                               <Button variant="ghost" size="sm">
-                          {isInstructor ? 'Edit' : 'Continue'}
+                          Edit
                         </Button>
                             </>
                           )}
@@ -401,14 +435,14 @@ export default function Dashboard() {
                     <div className="text-center py-12">
                       <BookOpen className="h-16 w-16 text-muted-foreground/50 mx-auto mb-4" />
                       <h3 className="text-lg font-medium text-foreground mb-2">
-                        {isInstructor ? "No courses created yet" : "No courses enrolled yet"}
+                        "No courses created yet"
                       </h3>
                       <p className="text-muted-foreground mb-4">
-                        {isInstructor ? "Get started by creating your first course" : "Browse available courses to get started"}
+                        "Get started by creating your first course"
                       </p>
-                      <Button className="saas-button-primary" onClick={() => window.location.href = isInstructor ? '/course-builder/' : '/courses'}>
+                      <Button className="saas-button-primary" onClick={() => window.location.href = '/course-builder/'}>
                         <Plus className="h-4 w-4 mr-2" />
-                        {isInstructor ? 'Create Course' : 'Browse Courses'}
+                        "Create Course"
                           </Button>
                     </div>
                   )}

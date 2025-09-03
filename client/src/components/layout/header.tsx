@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -44,7 +45,9 @@ export default function Header() {
                 <BookOpen className="h-6 w-6 text-white" />
               </div>
               <div className="flex items-center space-x-2">
-                <h1 className="text-xl font-bold text-foreground">OpusLearn</h1>
+                <Link href="/">
+                  <h1 className="text-xl font-bold text-foreground cursor-pointer hover:text-primary transition-colors">OpusLearn</h1>
+                </Link>
                 <div className="flex items-center space-x-1 px-2 py-1 bg-primary/10 rounded-full">
                   <Sparkles className="h-3 w-3 text-primary" />
                   <span className="text-xs font-medium text-primary">AI-Powered</span>

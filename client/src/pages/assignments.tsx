@@ -72,6 +72,7 @@ interface Rubric {
 export default function Assignments() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const isInstructor = user?.role === 'instructional-designer';
   const [selectedCourse, setSelectedCourse] = useState<string>("");
   const [selectedAssignment, setSelectedAssignment] = useState<Assignment | null>(null);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -107,7 +108,7 @@ export default function Assignments() {
 
   const { data: submissions } = useQuery<Submission[]>({
     queryKey: ["/api/assignments", selectedAssignment?.id, "submissions"],
-    enabled: !!selectedAssignment && user?.role === "instructor",
+    enabled: !!selectedAssignment,
   });
 
   const { data: rubrics } = useQuery<Rubric[]>({
@@ -119,7 +120,7 @@ export default function Assignments() {
       }
       return response.json();
     },
-    enabled: !!selectedAssignment && user?.role === "instructor",
+    enabled: !!selectedAssignment,
   });
 
   const createAssignmentMutation = useMutation({
@@ -305,7 +306,7 @@ export default function Assignments() {
     }
   };
 
-  const isInstructor = user?.role === "instructor";
+  
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -321,10 +322,7 @@ export default function Assignments() {
               <div>
                 <h2 className="text-2xl font-bold text-slate-800">Assignments</h2>
                 <p className="text-slate-600 mt-1">
-                  {isInstructor 
-                    ? "Create and manage course assignments" 
-                    : "Complete and submit your assignments"
-                  }
+                  "Create and manage course assignments"
                 </p>
               </div>
               {isInstructor && (
@@ -557,12 +555,7 @@ export default function Assignments() {
                             <div className="flex items-center space-x-2">
                               {isInstructor && (
                                 <>
-                                  <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleEditAssignment(assignment); }}>
-                                    <Pencil className="h-4 w-4" />
-                                  </Button>
-                                  <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleDeleteAssignment(assignment.id); }}>
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
+                                  
                                 </>
                               )}
                               <div className="text-right">
@@ -571,7 +564,7 @@ export default function Assignments() {
                                   {isInstructor ? "12" : "85%"}
                                 </div>
                                 <div className="text-xs text-slate-500">
-                                  {isInstructor ? "submissions" : "avg score"}
+                                  "submissions"
                                 </div>
                               </div>
                             </div>
@@ -644,9 +637,7 @@ export default function Assignments() {
                         </div>
                       </div>
 
-                      {isInstructor ? (
-                        /* Instructor View - Submissions */
-                        <Tabs defaultValue="submissions" className="w-full">
+                      <Tabs defaultValue="submissions" className="w-full">
                           <TabsList className="grid w-full grid-cols-2">
                             <TabsTrigger value="submissions">Submissions</TabsTrigger>
                             <TabsTrigger value="grading">Grading</TabsTrigger>
@@ -764,68 +755,6 @@ export default function Assignments() {
                             </div>
                           </TabsContent>
                         </Tabs>
-                      ) : (
-                        /* Student View - Submit Assignment */
-                        <div className="space-y-4">
-                          <div className="p-4 bg-blue-50 rounded-lg">
-                            <div className="flex items-center space-x-2 mb-2">
-                              <Clock className="h-4 w-4 text-blue-600" />
-                              <span className="text-sm font-medium text-blue-800">Time Remaining</span>
-                            </div>
-                            <p className="text-sm text-blue-700">
-                              {/* Calculate time remaining */}
-                              {Math.ceil((new Date(selectedAssignment.dueDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))} days
-                            </p>
-                          </div>
-                          
-                          <Dialog open={isSubmissionDialogOpen} onOpenChange={setIsSubmissionDialogOpen}>
-                            <DialogTrigger asChild>
-                              <Button className="w-full bg-blue-600 hover:bg-blue-700">
-                                <Upload className="h-4 w-4 mr-2" />
-                                Submit Assignment
-                              </Button>
-                            </DialogTrigger>
-                            <DialogContent>
-                              <DialogHeader>
-                                <DialogTitle>Submit Assignment</DialogTitle>
-                                <DialogDescription>
-                                  Submit your work for {selectedAssignment.title}
-                                </DialogDescription>
-                              </DialogHeader>
-                              <div className="grid gap-4 py-4">
-                                <div className="grid gap-2">
-                                  <Label htmlFor="content">Written Response</Label>
-                                  <Textarea
-                                    id="content"
-                                    value={newSubmission.content}
-                                    onChange={(e) => setNewSubmission({ ...newSubmission, content: e.target.value })}
-                                    placeholder="Enter your response here..."
-                                    rows={6}
-                                  />
-                                </div>
-                                <div className="grid gap-2">
-                                  <Label htmlFor="file">File Upload (Optional)</Label>
-                                  <Input
-                                    id="file"
-                                    type="url"
-                                    value={newSubmission.fileUrl}
-                                    onChange={(e) => setNewSubmission({ ...newSubmission, fileUrl: e.target.value })}
-                                    placeholder="Paste file URL or upload link"
-                                  />
-                                </div>
-                              </div>
-                              <DialogFooter>
-                                <Button 
-                                  onClick={handleCreateSubmission}
-                                  disabled={createSubmissionMutation.isPending}
-                                >
-                                  {createSubmissionMutation.isPending ? "Submitting..." : "Submit Assignment"}
-                                </Button>
-                              </DialogFooter>
-                            </DialogContent>
-                          </Dialog>
-                        </div>
-                      )}
                     </CardContent>
                   </Card>
                 ) : (
@@ -848,12 +777,9 @@ export default function Assignments() {
                   Welcome to Assignments
                 </h3>
                 <p className="text-slate-600 mb-6 max-w-md mx-auto">
-                  {isInstructor 
-                    ? "Create and manage assignments for your courses. Select a course above to get started or create your first assignment." 
-                    : "View and submit your assignments here. Select a course above to see available assignments."
-                  }
+                  "Create and manage assignments for your courses. Select a course above to get started or create your first assignment."
                 </p>
-                {isInstructor && courses && courses.length > 0 && (
+                { courses && courses.length > 0 && isInstructor && (
                   <Button 
                     className="bg-blue-600 hover:bg-blue-700"
                     onClick={() => {
