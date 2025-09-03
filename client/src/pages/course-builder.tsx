@@ -662,7 +662,7 @@ export default function CourseBuilder() {
                 questions: [
                   {
                     question: "What did you learn in this module?",
-                    type: "multiple-choice",
+                    type: "multiple_choice",
                     options: ["A lot", "Some", "A little", "Nothing"],
                     correctAnswer: "A lot",
                     points: 10
@@ -703,7 +703,7 @@ export default function CourseBuilder() {
                 
                 const sanitizedQuestion = {
                   question: String(questionData.question || "Question"),
-                  type: String(questionData.type || "multiple-choice"),
+                  type: String(questionData.type || "multiple_choice"),
                   options: Array.isArray(questionData.options) && questionData.options.length > 0 
                     ? questionData.options.map((opt: any) => String(opt)).filter((opt: any) => opt.trim() !== '')
                     : ["Option 1", "Option 2", "Option 3", "Option 4"],

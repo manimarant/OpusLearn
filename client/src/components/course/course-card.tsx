@@ -1,26 +1,24 @@
-import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { queryClient } from "@/lib/queryClient";
+import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/useAuth";
-import { apiRequest } from "@/lib/queryClient";
+import { Course } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { BookOpen, Users, Clock, Play, Edit, MoreVertical } from "lucide-react";
+import { BookOpen, Users, Clock, Edit, MoreVertical, Trash2 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 interface CourseCardProps {
-  course: any;
+  course: Course;
+  onDelete?: (courseId: number) => void;
 }
 
-export default function CourseCard({ course }: CourseCardProps) {
+export default function CourseCard({ course, onDelete }: CourseCardProps) {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [isLoading, setIsLoading] = useState(false);
   const [, setLocation] = useLocation();
 
   const enrollMutation = useMutation({
@@ -52,6 +50,13 @@ export default function CourseCard({ course }: CourseCardProps) {
   const handleEdit = (e: React.MouseEvent) => {
     e.stopPropagation();
     setLocation(`/course-builder/${course.id}`);
+  };
+
+  const handleDelete = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onDelete) {
+      onDelete(course.id);
+    }
   };
 
   const handleCardClick = () => {
@@ -87,7 +92,7 @@ export default function CourseCard({ course }: CourseCardProps) {
     }
   };
 
-  // Mock data for demonstration
+  // Mock data for demonstration - TODO: Replace with real data
   const mockProgress = Math.floor(Math.random() * 100);
   const mockStudentCount = Math.floor(Math.random() * 200) + 50;
   const mockDuration = Math.floor(Math.random() * 20) + 5;
@@ -118,6 +123,15 @@ export default function CourseCard({ course }: CourseCardProps) {
                     <Edit className="mr-2 h-4 w-4" />
                     Edit Course
                   </DropdownMenuItem>
+                  {onDelete && (
+                    <DropdownMenuItem 
+                      onClick={handleDelete}
+                      className="text-red-600 focus:text-red-600 focus:bg-red-50"
+                    >
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Delete Course
+                    </DropdownMenuItem>
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
             )}

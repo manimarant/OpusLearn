@@ -240,19 +240,7 @@ export default function Sidebar() {
           </div>
         </div>
         
-        {/* Pro Features Banner */}
-        <div className="mt-8 p-4 bg-gradient-to-br from-primary/5 to-primary/10 rounded-xl border border-primary/20">
-          <div className="flex items-center space-x-2 mb-2">
-            <Sparkles className="h-4 w-4 text-primary" />
-            <span className="text-xs font-semibold text-primary">Pro Features</span>
-          </div>
-          <p className="text-xs text-muted-foreground mb-3">
-            Unlock advanced AI-powered course creation tools and analytics.
-          </p>
-          <Button size="sm" className="w-full saas-button-primary text-xs">
-            Upgrade to Pro
-          </Button>
-        </div>
+
       </div>
     </aside>
   );

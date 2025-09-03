@@ -125,7 +125,7 @@ Return ONLY a valid JSON object with this exact structure:
           "questions": [
             {
               "question": "Question text",
-              "type": "multiple-choice",
+              "type": "multiple_choice",
               "options": ["Option 1", "Option 2", "Option 3", "Option 4"],
               "correctAnswer": "Option 1",
               "points": 10

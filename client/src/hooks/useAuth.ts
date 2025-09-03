@@ -1,15 +1,5 @@
-interface User {
-  id: string;
-  email: string;
-  firstName: string;
-  lastName: string;
-  role: 'student' | 'instructor' | 'admin';
-  profileImageUrl: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
-
 import { useQuery } from "@tanstack/react-query";
+import { User } from "@/types";
 
 export function useAuth() {
   const { data: user, isLoading, error } = useQuery<User>({

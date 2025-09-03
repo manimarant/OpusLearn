@@ -67,7 +67,6 @@ export default function Discussions() {
   const [newDiscussion, setNewDiscussion] = useState({
     title: "",
     content: "",
-    courseId: 0,
     pinned: false,
     locked: false,
   });
@@ -98,7 +97,7 @@ export default function Discussions() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/courses", selectedCourse, "discussions"] });
       setIsCreateDialogOpen(false);
-      setNewDiscussion({ title: "", content: "", courseId: 0, pinned: false, locked: false });
+      setNewDiscussion({ title: "", content: "", pinned: false, locked: false });
       toast({
         title: "Discussion Created",
         description: "Your discussion has been created successfully.",
@@ -183,7 +182,8 @@ export default function Discussions() {
       return;
     }
     createDiscussionMutation.mutate({
-      ...newDiscussion,
+      title: newDiscussion.title,
+      content: newDiscussion.content,
       courseId: parseInt(selectedCourse),
       pinned: false,
       locked: false,
@@ -258,24 +258,7 @@ export default function Discussions() {
                   <div className="grid gap-4 py-4">
                     <div className="grid gap-2">
                       <Label htmlFor="course">Course</Label>
-                      <Select
-                        value={selectedCourse || ""}
-                        onValueChange={(value) => {
-                          setSelectedCourse(value);
-                          setNewDiscussion({ ...newDiscussion, courseId: parseInt(value) });
-                        }}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select a course" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {courses?.map((course: any) => (
-                            <SelectItem key={course.id} value={course.id.toString()}>
-                              {course.title}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <p className="text-sm font-medium text-slate-800">{courses?.find(c => c.id.toString() === selectedCourse)?.title}</p>
                     </div>
                     <div className="grid gap-2">
                       <Label htmlFor="title">Discussion Title</Label>

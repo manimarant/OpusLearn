@@ -8,18 +8,26 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { BookOpen, Search, Bell, ChevronDown, LogOut, User, Settings, Sparkles } from "lucide-react";
+import { Notification } from "@/types";
 
 export default function Header() {
   const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const [notificationsOpen, setNotificationsOpen] = useState(false);
 
-  const { data: notifications } = useQuery({
+  const { data: notifications } = useQuery<Notification[]>({
     queryKey: ["/api/notifications"],
     enabled: !!user,
+    queryFn: async () => {
+      const response = await fetch("/api/notifications");
+      if (!response.ok) {
+        throw new Error("Failed to fetch notifications");
+      }
+      return response.json();
+    },
   });
 
-  const unreadCount = notifications?.filter((n: any) => !n.read).length || 0;
+  const unreadCount = notifications?.filter((n) => !n.read).length || 0;
 
   const handleLogout = () => {
     window.location.href = "/api/logout";
@@ -79,7 +87,7 @@ export default function Header() {
                 </div>
                 <div className="max-h-96 overflow-y-auto modern-scrollbar">
                   {notifications?.length > 0 ? (
-                    notifications.slice(0, 5).map((notification: any) => (
+                    notifications.slice(0, 5).map((notification) => (
                       <div
                         key={notification.id}
                         className="p-4 border-b border-border/30 hover:bg-muted/50 transition-colors"

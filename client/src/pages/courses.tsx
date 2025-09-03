@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { queryClient } from "@/lib/queryClient";
+import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/useAuth";
-import { apiRequest } from "@/lib/queryClient";
+import { User, Course, NewCourse, AICourseData } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import Sidebar from "@/components/layout/sidebar";
 import Header from "@/components/layout/header";
@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Search, Filter, Trash2, Sparkles, BookOpen, Users, BarChart3, Settings2 } from "lucide-react";
+import { Plus, Search, Filter, Sparkles, BookOpen, Users, BarChart3, Settings2, Activity } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AICourseGenerator } from "@/components/course/ai-course-generator";
 
@@ -23,10 +23,11 @@ export default function Courses() {
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
   const [filterCategory, setFilterCategory] = useState("all");
+  const [filterStatus, setFilterStatus] = useState("all");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isAICourseGeneratorOpen, setIsAICourseGeneratorOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState(user?.role === "instructor" ? "manage" : "enrolled");
-  const [newCourse, setNewCourse] = useState({
+  const [activeTab, setActiveTab] = useState("enrolled");
+  const [newCourse, setNewCourse] = useState<NewCourse>({
     title: "",
     description: "",
     category: "",
@@ -35,23 +36,17 @@ export default function Courses() {
 
   const { data: courses, isLoading, error } = useQuery({
     queryKey: ["/api/courses"],
-    queryFn: async () => {
-      console.log("Fetching courses...");
+    queryFn: async (): Promise<Course[]> => {
       const response = await fetch("/api/courses");
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error("Failed to fetch courses:", errorText);
         throw new Error(`Failed to fetch courses: ${response.statusText}`);
       }
-      const data = await response.json();
-      console.log("Courses data:", data);
-      return data;
+      return response.json();
     },
   });
 
   // Show error state
   if (error) {
-    console.error("Error loading courses:", error);
     return (
       <div className="min-h-screen bg-slate-50">
         <Header />
@@ -61,22 +56,22 @@ export default function Courses() {
             <div className="text-center py-12">
               <p className="text-red-500">Error loading courses: {error.message}</p>
             </div>
-                  </main>
-      </div>
+          </main>
+        </div>
 
-      {/* AI Course Generator */}
-      {isAICourseGeneratorOpen && (
-        <AICourseGenerator
-          onGenerate={handleAIGenerateCompleteCourse}
-          onClose={() => setIsAICourseGeneratorOpen(false)}
-        />
-      )}
-    </div>
-  );
-}
+        {/* AI Course Generator */}
+        {isAICourseGeneratorOpen && (
+          <AICourseGenerator
+            onGenerate={handleAIGenerateCompleteCourse}
+            onClose={() => setIsAICourseGeneratorOpen(false)}
+          />
+        )}
+      </div>
+    );
+  }
 
   const createCourseMutation = useMutation({
-    mutationFn: async (courseData: any) => {
+    mutationFn: async (courseData: NewCourse) => {
       const response = await apiRequest("POST", "/api/courses", courseData);
       return response.json();
     },
@@ -119,9 +114,7 @@ export default function Courses() {
     },
   });
 
-  const handleAIGenerateCompleteCourse = async (courseData: any) => {
-    console.log("Starting AI course generation with data:", courseData);
-    
+  const handleAIGenerateCompleteCourse = async (courseData: AICourseData) => {
     try {
       // Create the course
       const courseResponse = await apiRequest("POST", "/api/courses", {
@@ -131,7 +124,6 @@ export default function Courses() {
         difficulty: courseData.difficulty
       });
       const createdCourse = await courseResponse.json();
-      console.log("Course created:", createdCourse);
 
       // Create modules and chapters
       for (let moduleIndex = 0; moduleIndex < courseData.modules.length; moduleIndex++) {
@@ -226,7 +218,6 @@ export default function Courses() {
         description: "Your AI-generated course has been created successfully!",
       });
     } catch (error) {
-      console.error("Error creating AI course:", error);
       toast({
         title: "Error",
         description: "Failed to create AI course. Please try again.",
@@ -248,22 +239,18 @@ export default function Courses() {
   };
 
   const handleDeleteCourse = (courseId: number) => {
-    console.log("Delete button clicked for course:", courseId);
     if (confirm("Are you sure you want to delete this course? This action cannot be undone.")) {
-      console.log("Confirmed deletion for course:", courseId);
       deleteCourseMutation.mutate(courseId);
     }
   };
 
-  const filteredCourses = courses?.filter((course: any) => {
-    console.log("Filtering course:", course);
-    const matchesSearch = course?.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         course?.description?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = filterCategory === "all" || course?.category === filterCategory;
-    return matchesSearch && matchesCategory;
+  const filteredCourses = courses?.filter((course: Course) => {
+    const matchesSearch = course.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         course.description.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesCategory = filterCategory === "all" || course.category === filterCategory;
+    const matchesStatus = filterStatus === "all" || course.status === filterStatus;
+    return matchesSearch && matchesCategory && matchesStatus;
   }) || [];
-
-  console.log("Filtered courses:", filteredCourses);
 
   const isInstructor = user?.role === "instructor";
 
@@ -311,22 +298,16 @@ export default function Courses() {
 
           {/* Tabs Navigation */}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-2 lg:grid-cols-4 mb-8">
+            <TabsList className="grid w-full grid-cols-2 lg:grid-cols-3 mb-8">
               <TabsTrigger value="enrolled" className="flex items-center gap-2">
                 <BookOpen className="h-4 w-4" />
-                {isInstructor ? "All Courses" : "Enrolled"}
+                {isInstructor ? "My Courses" : "Enrolled"}
               </TabsTrigger>
               {isInstructor && (
-                <>
-                  <TabsTrigger value="manage" className="flex items-center gap-2">
-                    <Settings2 className="h-4 w-4" />
-                    Manage
-                  </TabsTrigger>
-                  <TabsTrigger value="analytics" className="flex items-center gap-2">
-                    <BarChart3 className="h-4 w-4" />
-                    Analytics
-                  </TabsTrigger>
-                </>
+                <TabsTrigger value="analytics" className="flex items-center gap-2">
+                  <BarChart3 className="h-4 w-4" />
+                  Analytics
+                </TabsTrigger>
               )}
               <TabsTrigger value="discover" className="flex items-center gap-2">
                 <Users className="h-4 w-4" />
@@ -334,7 +315,7 @@ export default function Courses() {
               </TabsTrigger>
             </TabsList>
 
-            {/* Enrolled/All Courses Tab */}
+            {/* My Courses/Enrolled Tab */}
             <TabsContent value="enrolled" className="space-y-6">
               {/* Search and Filters */}
               <Card>
@@ -365,10 +346,25 @@ export default function Courses() {
                           <SelectItem value="Business">Business</SelectItem>
                         </SelectContent>
                       </Select>
+                      {isInstructor && (
+                        <Select value={filterStatus} onValueChange={setFilterStatus}>
+                          <SelectTrigger className="w-[140px]">
+                            <SelectValue placeholder="Status" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All Status</SelectItem>
+                            <SelectItem value="published">Published</SelectItem>
+                            <SelectItem value="draft">Draft</SelectItem>
+                            <SelectItem value="archived">Archived</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      )}
                     </div>
                   </div>
                 </CardContent>
               </Card>
+
+
 
               {/* Courses Grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -388,9 +384,12 @@ export default function Courses() {
                     </Card>
                   ))
                 ) : filteredCourses.length > 0 ? (
-                  filteredCourses.map((course: any) => (
+                  filteredCourses.map((course: Course) => (
                     <div key={course.id} className="relative group">
-                      <CourseCard course={course} />
+                      <CourseCard 
+                        course={course} 
+                        onDelete={isInstructor && course.instructorId === user?.id ? handleDeleteCourse : undefined}
+                      />
                     </div>
                   ))
                 ) : (
@@ -404,42 +403,30 @@ export default function Courses() {
                           : "No courses available"
                       }
                     </p>
+                    {isInstructor && (
+                      <div className="mt-6">
+                        <Button
+                          onClick={() => setIsAICourseGeneratorOpen(true)}
+                          className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white mr-3"
+                        >
+                          <Sparkles className="h-4 w-4 mr-2" />
+                          Generate with AI
+                        </Button>
+                        <Button
+                          onClick={() => setIsCreateDialogOpen(true)}
+                          variant="outline"
+                        >
+                          <Plus className="h-4 w-4 mr-2" />
+                          Create Course
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
             </TabsContent>
 
-            {/* Course Management Tab (Instructors only) */}
-            {isInstructor && (
-              <TabsContent value="manage" className="space-y-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Settings2 className="h-5 w-5" />
-                      Course Management
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                      {filteredCourses.map((course: any) => (
-                        <div key={course.id} className="relative group">
-                          <CourseCard course={course} />
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="absolute top-2 right-2 opacity-100 z-10 border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-800"
-                            onClick={() => handleDeleteCourse(course.id)}
-                            disabled={deleteCourseMutation.isPending}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-            )}
+
 
             {/* Analytics Tab (Instructors only) */}
             {isInstructor && (
@@ -461,7 +448,7 @@ export default function Courses() {
                       <div className="flex items-center justify-between">
                         <div>
                           <p className="text-sm font-medium text-muted-foreground">Published</p>
-                          <p className="text-2xl font-bold">{courses?.filter((c: any) => c.status === 'published').length || 0}</p>
+                          <p className="text-2xl font-bold">{courses?.filter((c: Course) => c.status === 'published').length || 0}</p>
                         </div>
                         <Users className="h-8 w-8 text-green-600" />
                       </div>
@@ -472,7 +459,7 @@ export default function Courses() {
                       <div className="flex items-center justify-between">
                         <div>
                           <p className="text-sm font-medium text-muted-foreground">Drafts</p>
-                          <p className="text-2xl font-bold">{courses?.filter((c: any) => c.status === 'draft').length || 0}</p>
+                          <p className="text-2xl font-bold">{courses?.filter((c: Course) => c.status === 'draft').length || 0}</p>
                         </div>
                         <Settings2 className="h-8 w-8 text-yellow-600" />
                       </div>
@@ -482,13 +469,14 @@ export default function Courses() {
                     <CardContent className="p-6">
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="text-sm font-medium text-muted-foreground">Total Students</p>
-                          <p className="text-2xl font-bold">284</p>
+                          <p className="text-sm font-medium text-muted-foreground">Beginner Courses</p>
+                          <p className="text-2xl font-bold">{courses?.filter((c: Course) => c.difficulty === 'beginner').length || 0}</p>
                         </div>
-                        <BarChart3 className="h-8 w-8 text-gray-600" />
+                        <Activity className="h-8 w-8 text-blue-600" />
                       </div>
                     </CardContent>
                   </Card>
+                  
                 </div>
               </TabsContent>
             )}

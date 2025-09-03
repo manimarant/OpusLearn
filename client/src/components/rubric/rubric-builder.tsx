@@ -133,27 +133,38 @@ export default function RubricBuilder({ type, assignmentId, quizId, onRubricCrea
       };
 
       const createdRubric = await createRubricMutation.mutateAsync(rubricData);
+      console.log('Created rubric:', createdRubric);
 
       // Create criteria
-      for (const criteria of rubric.criteria) {
-        await apiRequest("POST", `/api/rubrics/${createdRubric.id}/criteria`, {
+      const criteriaPromises = rubric.criteria.map(async (criteria) => {
+        console.log('Creating criteria:', criteria);
+        const response = await apiRequest("POST", `/api/rubrics/${createdRubric.id}/criteria`, {
           title: criteria.title,
           description: criteria.description,
           maxPoints: criteria.maxPoints,
           orderIndex: criteria.orderIndex,
         });
-      }
+        return response.json();
+      });
 
       // Create levels
-      for (const level of rubric.levels) {
-        await apiRequest("POST", `/api/rubrics/${createdRubric.id}/levels`, {
+      const levelPromises = rubric.levels.map(async (level) => {
+        console.log('Creating level:', level);
+        const response = await apiRequest("POST", `/api/rubrics/${createdRubric.id}/levels`, {
           title: level.title,
           description: level.description,
           points: level.points,
           color: level.color,
           orderIndex: level.orderIndex,
         });
-      }
+        return response.json();
+      });
+
+      // Wait for all criteria and levels to be created
+      await Promise.all([...criteriaPromises, ...levelPromises]);
+
+      // Invalidate queries to refresh the data
+      queryClient.invalidateQueries({ queryKey: ["/api/rubrics"] });
 
       toast({
         title: "Rubric Created",
@@ -163,7 +174,7 @@ export default function RubricBuilder({ type, assignmentId, quizId, onRubricCrea
       console.error("Error creating rubric:", error);
       toast({
         title: "Error",
-        description: "Failed to create rubric",
+        description: "Failed to create rubric: " + (error instanceof Error ? error.message : String(error)),
         variant: "destructive",
       });
     }

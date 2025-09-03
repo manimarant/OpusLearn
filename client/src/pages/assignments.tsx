@@ -84,7 +84,6 @@ export default function Assignments() {
     instructions: "",
     dueDate: "",
     maxPoints: 100,
-    courseId: "",
   });
   const [newSubmission, setNewSubmission] = useState({
     content: "",
@@ -154,7 +153,6 @@ export default function Assignments() {
         instructions: "",
         dueDate: "",
         maxPoints: 100,
-        courseId: "",
       });
       toast({
         title: "Assignment Created",
@@ -226,7 +224,7 @@ export default function Assignments() {
   });
 
   const handleCreateAssignment = () => {
-    if (!newAssignment.title || !newAssignment.description || !newAssignment.courseId) {
+    if (!newAssignment.title || !newAssignment.description || !selectedCourse) {
       toast({
         title: "Validation Error",
         description: "Please fill in all required fields and select a course.",
@@ -245,7 +243,7 @@ export default function Assignments() {
       instructions: newAssignment.instructions || null,
       dueDate,
       maxPoints: parseInt(String(newAssignment.maxPoints)) || 100,
-      courseId: parseInt(newAssignment.courseId),
+      courseId: parseInt(selectedCourse),
     };
     
     createAssignmentMutation.mutate(assignmentData);
@@ -347,21 +345,7 @@ export default function Assignments() {
                     <div className="grid gap-4 py-4">
                       <div className="grid gap-2">
                         <Label htmlFor="course">Course</Label>
-                        <Select 
-                          value={newAssignment.courseId} 
-                          onValueChange={(value) => setNewAssignment({ ...newAssignment, courseId: value })}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select a course" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {courses?.map((course: Course) => (
-                              <SelectItem key={course.id} value={course.id.toString()}>
-                                {course.title}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <p className="text-sm font-medium text-slate-800">{courses?.find(c => c.id.toString() === selectedCourse)?.title}</p>
                       </div>
                       <div className="grid gap-2">
                         <Label htmlFor="title">Assignment Title</Label>

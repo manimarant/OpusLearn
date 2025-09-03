@@ -586,14 +586,14 @@ export class OllamaService {
               questions: [
                 {
                   question: quizQuestions[(i - 1) * 6].question,
-                  type: "multiple-choice",
+                  type: "multiple_choice",
                   options: quizQuestions[(i - 1) * 6].options,
                   correctAnswer: quizQuestions[(i - 1) * 6].correctAnswer,
                   points: 10
                 },
                 {
                   question: quizQuestions[(i - 1) * 6 + 1].question,
-                  type: "multiple-choice",
+                  type: "multiple_choice",
                   options: quizQuestions[(i - 1) * 6 + 1].options,
                   correctAnswer: quizQuestions[(i - 1) * 6 + 1].correctAnswer,
                   points: 10
@@ -901,14 +901,14 @@ export class OllamaService {
            questions: [
              {
                question: quizQuestions[(i - 1) * 6].question,
-               type: "multiple-choice",
+               type: "multiple_choice",
                options: quizQuestions[(i - 1) * 6].options,
                correctAnswer: quizQuestions[(i - 1) * 6].correctAnswer,
                points: 10
              },
              {
                question: quizQuestions[(i - 1) * 6 + 1].question,
-               type: "multiple-choice",
+               type: "multiple_choice",
                options: quizQuestions[(i - 1) * 6 + 1].options,
                correctAnswer: quizQuestions[(i - 1) * 6 + 1].correctAnswer,
                points: 10
