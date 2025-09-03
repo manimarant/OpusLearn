@@ -35,7 +35,7 @@ interface QuizQuestion {
   id: number;
   quizId: number;
   question: string;
-  type: 'multiple-choice' | 'multiple_choice' | 'true_false' | 'short_answer';
+  type: 'multiple_choice' | 'true_false' | 'short_answer';
   options: string[];
   correctAnswer: string;
   points: number;
@@ -64,14 +64,14 @@ export default function QuizDetail() {
   const [isEditQuestionDialogOpen, setIsEditQuestionDialogOpen] = useState(false);
   const [newQuestion, setNewQuestion] = useState<{
     question: string;
-    type: 'multiple-choice' | 'multiple_choice' | 'true_false' | 'short_answer';
+    type: 'multiple_choice' | 'true_false' | 'short_answer';
     options: string[];
     correctAnswer: string;
     points: number;
     orderIndex: number;
   }>({
     question: "",
-    type: "multiple-choice",
+    type: "multiple_choice",
     options: ["", "", "", ""],
     correctAnswer: "",
     points: 10,
@@ -126,7 +126,7 @@ export default function QuizDetail() {
       setIsCreateQuestionDialogOpen(false);
       setNewQuestion({
         question: "",
-        type: "multiple-choice",
+        type: "multiple_choice",
         options: ["", "", "", ""],
         correctAnswer: "",
         points: 10,
@@ -203,6 +203,7 @@ export default function QuizDetail() {
     const questionData = {
       ...newQuestion,
       orderIndex: (questions?.length || 0) + 1,
+      quizId: quizId,
     };
 
     createQuestionMutation.mutate(questionData);
@@ -316,11 +317,11 @@ export default function QuizDetail() {
                           <Label htmlFor="type">Question Type</Label>
                           <Select
                             value={newQuestion.type}
-                            onValueChange={(value: 'multiple-choice' | 'multiple_choice' | 'true_false' | 'short_answer') => {
+                            onValueChange={(value: 'multiple_choice' | 'true_false' | 'short_answer') => {
                               setNewQuestion({
                                 ...newQuestion,
                                 type: value,
-                                options: value === 'true_false' ? ['True', 'False'] : (value === 'multiple_choice' || value === 'multiple-choice') ? ["", "", "", ""] : [],
+                                options: value === 'true_false' ? ['True', 'False'] : value === 'multiple_choice' ? ["", "", "", ""] : [],
                                 correctAnswer: "",
                               });
                             }}
@@ -329,13 +330,13 @@ export default function QuizDetail() {
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="multiple-choice">Multiple Choice</SelectItem>
+                              <SelectItem value="multiple_choice">Multiple Choice</SelectItem>
                               <SelectItem value="true_false">True/False</SelectItem>
                               <SelectItem value="short_answer">Short Answer</SelectItem>
                             </SelectContent>
                           </Select>
                         </div>
-                        {(newQuestion.type === "multiple_choice" || newQuestion.type === "multiple-choice") && (
+                        {newQuestion.type === "multiple_choice" && (
                           <div className="grid gap-2">
                             <Label>Options</Label>
                             {newQuestion.options.map((option, index) => (
@@ -507,7 +508,7 @@ export default function QuizDetail() {
                         )}
                       </div>
                       <p className="text-slate-800 mb-4">{question.question}</p>
-                      {(question.type === 'multiple_choice' || question.type === 'multiple-choice') && (
+                      {question.type === 'multiple_choice' && (
                         <div className="space-y-2">
                           {question.options.map((option, optIndex) => (
                             <div
@@ -588,11 +589,11 @@ export default function QuizDetail() {
                     <Label htmlFor="edit-type">Question Type</Label>
                     <Select
                       value={editingQuestion.type}
-                      onValueChange={(value: 'multiple-choice' | 'multiple_choice' | 'true_false' | 'short_answer') => {
+                      onValueChange={(value: 'multiple_choice' | 'true_false' | 'short_answer') => {
                         setEditingQuestion({
                           ...editingQuestion,
                           type: value,
-                          options: value === 'true_false' ? ['True', 'False'] : (value === 'multiple_choice' || value === 'multiple-choice') ? ["", "", "", ""] : [],
+                          options: value === 'true_false' ? ['True', 'False'] : value === 'multiple_choice' ? ["", "", "", ""] : [],
                           correctAnswer: "",
                         });
                       }}
@@ -601,13 +602,13 @@ export default function QuizDetail() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="multiple-choice">Multiple Choice</SelectItem>
+                        <SelectItem value="multiple_choice">Multiple Choice</SelectItem>
                         <SelectItem value="true_false">True/False</SelectItem>
                         <SelectItem value="short_answer">Short Answer</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
-                  {(editingQuestion.type === "multiple_choice" || editingQuestion.type === "multiple-choice") && (
+                  {editingQuestion.type === "multiple_choice" && (
                     <div className="grid gap-2">
                       <Label>Options</Label>
                       {editingQuestion.options.map((option, index) => (

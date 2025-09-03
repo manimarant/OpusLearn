@@ -43,7 +43,7 @@ interface QuizQuestion {
   id: number;
   quizId: number;
   question: string;
-  type: 'multiple-choice' | 'multiple_choice' | 'true_false' | 'short_answer';
+  type: 'multiple_choice' | 'true_false' | 'short_answer';
   options: string[];
   correctAnswer: string;
   points: number;
@@ -62,7 +62,6 @@ export default function Quizzes() {
     timeLimit: 30,
     attempts: 1,
     passingScore: 70,
-    courseId: "",
   });
   const [, setLocation] = useLocation();
 
@@ -77,10 +76,9 @@ export default function Quizzes() {
 
   const createQuizMutation = useMutation({
     mutationFn: async (quizData: any) => {
-      const { courseId, ...data } = quizData;
-      const response = await apiRequest("POST", `/api/courses/${courseId}/quizzes`, data);
+      const response = await apiRequest("POST", `/api/courses/${quizData.courseId}/quizzes`, quizData);
       const result = await response.json();
-      return { ...result, courseId };
+      return { ...result, courseId: quizData.courseId };
     },
     onError: (error: any) => {
       console.error('Quiz creation error:', error);
@@ -91,7 +89,7 @@ export default function Quizzes() {
       });
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/courses", data.courseId, "quizzes"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/courses", String(data.courseId), "quizzes"] });
       setIsCreateDialogOpen(false);
       setNewQuiz({
         title: "",
@@ -99,7 +97,6 @@ export default function Quizzes() {
         timeLimit: 30,
         attempts: 1,
         passingScore: 70,
-        courseId: "",
       });
       toast({
         title: "Quiz Created",
@@ -138,7 +135,7 @@ export default function Quizzes() {
   };
 
   const handleCreateQuiz = () => {
-    if (!newQuiz.title || !newQuiz.description || !newQuiz.courseId) {
+    if (!newQuiz.title || !newQuiz.description || !selectedCourse) {
       toast({
         title: "Validation Error",
         description: "Please fill in all required fields and select a course.",
@@ -149,10 +146,10 @@ export default function Quizzes() {
 
     createQuizMutation.mutate({
       ...newQuiz,
-      courseId: parseInt(newQuiz.courseId),
+      courseId: parseInt(selectedCourse),
       timeLimit: parseInt(String(newQuiz.timeLimit)),
       attempts: parseInt(String(newQuiz.attempts)),
-      passingScore: parseInt(String(newQuiz.passingScore)),
+      passingScore: String(newQuiz.passingScore),
     });
   };
 
@@ -204,21 +201,7 @@ export default function Quizzes() {
                     <div className="grid gap-4 py-4">
                       <div className="grid gap-2">
                         <Label htmlFor="course">Course</Label>
-                        <Select 
-                          value={newQuiz.courseId} 
-                          onValueChange={(value) => setNewQuiz({ ...newQuiz, courseId: value })}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select a course" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {courses?.map((course) => (
-                              <SelectItem key={course.id} value={course.id.toString()}>
-                                {course.title}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <p className="text-sm font-medium text-slate-800">{courses?.find(c => c.id.toString() === selectedCourse)?.title}</p>
                       </div>
                       <div className="grid gap-2">
                         <Label htmlFor="title">Quiz Title</Label>
